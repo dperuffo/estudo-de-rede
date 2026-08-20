@@ -32,10 +32,13 @@ class _SecaoPrePedidoState extends ConsumerState<SecaoPrePedido> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(habilitadoAtual ? 'Desativar Pré-Pedido?' : 'Ativar Pré-Pedido?'),
+        title: Text(
+            habilitadoAtual ? 'Desativar Pré-Pedido?' : 'Ativar Pré-Pedido?'),
         content: Text(pergunta),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(habilitadoAtual ? 'Desativar' : 'Ativar'),
@@ -50,7 +53,8 @@ class _SecaoPrePedidoState extends ConsumerState<SecaoPrePedido> {
     if (empresaId == null || !mounted) return;
 
     setState(() => _salvando = true);
-    await ParametrosUsoService().salvarParametroPrePedido(empresaId: empresaId, habilitado: !habilitadoAtual);
+    await ParametrosUsoService().salvarParametroPrePedido(
+        empresaId: empresaId, habilitado: !habilitadoAtual);
     ref.invalidate(parametroPrePedidoProvider);
     if (mounted) setState(() => _salvando = false);
   }
@@ -85,7 +89,8 @@ class _SecaoPrePedidoState extends ConsumerState<SecaoPrePedido> {
                   Expanded(
                     child: Text(
                       'Pré-Pedido ${habilitado ? 'habilitado' : 'desabilitado'} para este cliente',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../providers/planos_viagem_provider.dart';
 import 'plano_viagem_form.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Novo Plano de Viagem (cliente), porta de
 // planos-viagem/novo/page.tsx. Sem seletor de cliente (a visão cliente
 // sempre usa a empresa da sessão — ver planos_viagem_provider.dart).
@@ -14,7 +16,14 @@ class PlanoViagemNovoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Plano de Viagem')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Novo Plano de Viagem')),
       body: PlanoViagemForm(prefill: prefill),
     );
   }

@@ -61,7 +61,8 @@ class ClientePosto {
       );
 }
 
-final clientesPostoProvider = FutureProvider.autoDispose<List<ClientePosto>>((ref) async {
+final clientesPostoProvider =
+    FutureProvider.autoDispose<List<ClientePosto>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];

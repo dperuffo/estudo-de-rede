@@ -34,7 +34,9 @@ class CentroCusto {
 
   factory CentroCusto.fromMap(Map<String, dynamic> m) {
     final veiculosRaw = m['cadastro_veiculos'] as List?;
-    final count = veiculosRaw != null && veiculosRaw.isNotEmpty ? (veiculosRaw.first['count'] as num?)?.toInt() : null;
+    final count = veiculosRaw != null && veiculosRaw.isNotEmpty
+        ? (veiculosRaw.first['count'] as num?)?.toInt()
+        : null;
     return CentroCusto(
       id: m['id'] as String,
       nome: m['nome'] as String? ?? '—',
@@ -47,19 +49,24 @@ class CentroCusto {
   }
 }
 
-final centrosCustoClienteProvider = FutureProvider.autoDispose<List<CentroCusto>>((ref) async {
+final centrosCustoClienteProvider =
+    FutureProvider.autoDispose<List<CentroCusto>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
       .from('centros_custo')
-      .select('id, nome, codigo, responsavel, descricao, ativo, cadastro_veiculos(count)')
+      .select(
+          'id, nome, codigo, responsavel, descricao, ativo, cadastro_veiculos(count)')
       .eq('empresa_id', empresaId)
       .order('nome') as List;
-  return rows.map((m) => CentroCusto.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => CentroCusto.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
-final centroCustoDetalheProvider = FutureProvider.autoDispose.family<CentroCusto?, String>((ref, id) async {
+final centroCustoDetalheProvider =
+    FutureProvider.autoDispose.family<CentroCusto?, String>((ref, id) async {
   final lista = await ref.watch(centrosCustoClienteProvider.future);
   for (final c in lista) {
     if (c.id == id) return c;

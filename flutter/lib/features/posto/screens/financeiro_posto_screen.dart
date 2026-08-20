@@ -7,6 +7,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/financeiro_posto_provider.dart';
 import '../services/financeiro_posto_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 enum _FiltroCiclo { todos, andamento, fechada, aVencer, vencida, paga }
 
 const _filtroCicloLabel = <_FiltroCiclo, String>{
@@ -54,7 +56,8 @@ class FinanceiroPostoScreen extends ConsumerStatefulWidget {
   const FinanceiroPostoScreen({super.key});
 
   @override
-  ConsumerState<FinanceiroPostoScreen> createState() => _FinanceiroPostoScreenState();
+  ConsumerState<FinanceiroPostoScreen> createState() =>
+      _FinanceiroPostoScreenState();
 }
 
 class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
@@ -75,12 +78,20 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
     final sessaoAsync = ref.watch(sessaoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Financeiro')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Financeiro')),
       floatingActionButton: sessaoAsync.maybeWhen(
         data: (sessao) => sessao.empresaId == null
             ? null
             : FloatingActionButton.extended(
-                onPressed: () => setState(() => _formularioAberto = !_formularioAberto),
+                onPressed: () =>
+                    setState(() => _formularioAberto = !_formularioAberto),
                 icon: Icon(_formularioAberto ? Icons.close : Icons.add),
                 label: Text(_formularioAberto ? 'Fechar' : 'Lançar despesa'),
               ),
@@ -90,7 +101,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (dados) {
-          if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+          if (dados == null)
+            return const Center(child: Text('Nenhuma empresa selecionada.'));
           final empresaPostoId = sessaoAsync.value?.empresaId;
           return _buildConteudo(context, dados, empresaPostoId);
         },
@@ -98,17 +110,20 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
     );
   }
 
-  Widget _buildConteudo(BuildContext context, FinanceiroPostoDetalhe dados, String? empresaPostoId) {
+  Widget _buildConteudo(BuildContext context, FinanceiroPostoDetalhe dados,
+      String? empresaPostoId) {
     final hojeIso = DateTime.now().toIso8601String().substring(0, 10);
     final janela = resolverPeriodo(_periodo);
-    final janelaPrevista = resolverJanelaPrevista(_periodo, janela.inicio, janela.fim, hojeIso);
+    final janelaPrevista =
+        resolverJanelaPrevista(_periodo, janela.inicio, janela.fim, hojeIso);
 
     final aReceberAberto = dados.faturas
             .where((f) => f.status == 'fechada' || f.status == 'a_vencer')
             .fold<double>(0, (s, f) => s + f.valorTotal) +
         dados.cicloAbertoValorTotal;
     final vencido = dados.faturas
-        .where((f) => f.status == 'a_vencer' && f.vencimento.compareTo(hojeIso) < 0)
+        .where((f) =>
+            f.status == 'a_vencer' && f.vencimento.compareTo(hojeIso) < 0)
         .fold<double>(0, (s, f) => s + f.valorTotal);
     final recebidoNoPeriodo = dados.faturas
         .where((f) =>
@@ -117,7 +132,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
             f.pagoEm!.substring(0, 10).compareTo(janela.inicio) >= 0 &&
             f.pagoEm!.substring(0, 10).compareTo(janela.fim) <= 0)
         .fold<double>(0, (s, f) => s + f.valorTotal);
-    final aPagarAberto = dados.despesas.where((d) => d.status == 'aberta').fold<double>(0, (s, d) => s + d.valor);
+    final aPagarAberto = dados.despesas
+        .where((d) => d.status == 'aberta')
+        .fold<double>(0, (s, d) => s + d.valor);
     final pagoNoPeriodo = dados.despesas
         .where((d) =>
             d.status == 'paga' &&
@@ -142,7 +159,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       children: [
-        const Text('Contas a receber (faturas dos clientes) e contas a pagar (despesas do posto).',
+        const Text(
+            'Contas a receber (faturas dos clientes) e contas a pagar (despesas do posto).',
             style: TextStyle(color: Colors.grey, fontSize: 13)),
         const SizedBox(height: 12),
         Wrap(
@@ -157,7 +175,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text('Período: ${_dataBr(janela.inicio)} – ${_dataBr(janela.fim)}',
+          child: Text(
+              'Período: ${_dataBr(janela.inicio)} – ${_dataBr(janela.fim)}',
               style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ),
         GridView.count(
@@ -169,33 +188,43 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           mainAxisSpacing: 10,
           children: [
             _indicador('A receber (aberto)', _moeda.format(aReceberAberto)),
-            _indicador('Vencido', _moeda.format(vencido), cor: const Color(0xFFDC2626)),
-            _indicador('Recebido no período', _moeda.format(recebidoNoPeriodo), cor: const Color(0xFF16A34A)),
+            _indicador('Vencido', _moeda.format(vencido),
+                cor: const Color(0xFFDC2626)),
+            _indicador('Recebido no período', _moeda.format(recebidoNoPeriodo),
+                cor: const Color(0xFF16A34A)),
             _indicador('A pagar (aberto)', _moeda.format(aPagarAberto)),
-            _indicador('Pago no período', _moeda.format(pagoNoPeriodo), cor: const Color(0xFF16A34A)),
+            _indicador('Pago no período', _moeda.format(pagoNoPeriodo),
+                cor: const Color(0xFF16A34A)),
             _indicador('Saldo previsto', _moeda.format(saldoPrevisto),
-                cor: saldoPrevisto < 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A)),
+                cor: saldoPrevisto < 0
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF16A34A)),
           ],
         ),
         if (_dadosFluxoCaixa(dados, janelaPrevista).isNotEmpty) ...[
           const SizedBox(height: 20),
-          const Text('Fluxo de caixa previsto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Fluxo de caixa previsto',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
-          Text('A receber x a pagar por dia de vencimento (${_dataBr(janelaPrevista.inicio)} – ${_dataBr(janelaPrevista.fim)}).',
+          Text(
+              'A receber x a pagar por dia de vencimento (${_dataBr(janelaPrevista.inicio)} – ${_dataBr(janelaPrevista.fim)}).',
               style: const TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 10),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
-              child: _graficoFluxoCaixa(_dadosFluxoCaixa(dados, janelaPrevista)),
+              child:
+                  _graficoFluxoCaixa(_dadosFluxoCaixa(dados, janelaPrevista)),
             ),
           ),
         ],
         if (dados.indicadoresPorProvedor.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const Text('Consolidado por meio de pagamento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Consolidado por meio de pagamento',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
-          const Text('Abastecimentos que você forneceu no período, por meio de pagamento usado pelo cliente.',
+          const Text(
+              'Abastecimentos que você forneceu no período, por meio de pagamento usado pelo cliente.',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 10),
           if (dados.indicadoresPorProvedor.length > 1)
@@ -210,13 +239,17 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: _corMeioPagamento[p.provedor] ?? const Color(0xFFF1F5F9),
+                    backgroundColor: _corMeioPagamento[p.provedor] ??
+                        const Color(0xFFF1F5F9),
                     child: Text(_nomeProvedor(p.provedor).substring(0, 1),
-                        style: const TextStyle(color: Colors.black87, fontSize: 13)),
+                        style: const TextStyle(
+                            color: Colors.black87, fontSize: 13)),
                   ),
                   title: Text(_nomeProvedor(p.provedor)),
-                  subtitle: Text('${p.qtdAbastecimentos} abastecimento(s) · ${p.litros.toStringAsFixed(0)} L'),
-                  trailing: Text(_moeda.format(p.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                      '${p.qtdAbastecimentos} abastecimento(s) · ${p.litros.toStringAsFixed(0)} L'),
+                  trailing: Text(_moeda.format(p.valorTotal),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
               )),
         ],
@@ -233,12 +266,14 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           ),
           const SizedBox(height: 20),
         ],
-        const Text('Contas a pagar (despesas do posto)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text('Contas a pagar (despesas do posto)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 10),
         if (dados.despesas.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Nenhuma despesa lançada ainda.', style: TextStyle(color: Colors.grey)),
+            child: Text('Nenhuma despesa lançada ainda.',
+                style: TextStyle(color: Colors.grey)),
           )
         else
           ...dados.despesas.map((d) => _linhaDespesa(d)),
@@ -249,7 +284,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
   Widget _linhaDespesa(DespesaFinanceiro d) {
     final hojeIso = DateTime.now().toIso8601String().substring(0, 10);
     final vencida = d.status == 'aberta' && d.vencimento.compareTo(hojeIso) < 0;
-    final statusLabel = d.status == 'paga' ? 'Paga' : (vencida ? 'Vencida' : 'Em aberto');
+    final statusLabel =
+        d.status == 'paga' ? 'Paga' : (vencida ? 'Vencida' : 'Em aberto');
     final statusCor = d.status == 'paga'
         ? const Color(0xFF16A34A)
         : (vencida ? const Color(0xFFDC2626) : const Color(0xFF64748B));
@@ -266,28 +302,37 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               children: [
                 Expanded(
                   child: Text(tipoDespesaPostoLabel[d.tipo] ?? d.tipo,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
-                Text(_moeda.format(d.valor), style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(_moeda.format(d.valor),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
             if (d.descricao != null && d.descricao!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text(d.descricao!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                child: Text(d.descricao!,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ),
             const SizedBox(height: 6),
             Row(
               children: [
-                Text('Vence ${_dataBr(d.vencimento)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Vence ${_dataBr(d.vencimento)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: statusCor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(statusLabel, style: TextStyle(fontSize: 11, color: statusCor, fontWeight: FontWeight.w600)),
+                  child: Text(statusLabel,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: statusCor,
+                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -298,10 +343,12 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 children: [
                   TextButton(
                     onPressed: () async {
-                      final erro = await FinanceiroPostoService().marcarDespesaPaga(d.id);
+                      final erro = await FinanceiroPostoService()
+                          .marcarDespesaPaga(d.id);
                       if (!mounted) return;
                       if (erro != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(erro)));
                       } else {
                         ref.invalidate(financeiroPostoProvider(_periodo));
                       }
@@ -310,15 +357,18 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                   ),
                   TextButton(
                     onPressed: () async {
-                      final erro = await FinanceiroPostoService().excluirDespesa(d.id);
+                      final erro =
+                          await FinanceiroPostoService().excluirDespesa(d.id);
                       if (!mounted) return;
                       if (erro != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(erro)));
                       } else {
                         ref.invalidate(financeiroPostoProvider(_periodo));
                       }
                     },
-                    child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+                    child: const Text('Excluir',
+                        style: TextStyle(color: Colors.red)),
                   ),
                 ],
               ),
@@ -333,7 +383,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
   // Daniel: tinha ficado de fora do escopo reduzido; restaurado com filtros
   // por status + busca por nome (client-side, igual à web) e drill-down
   // pras telas já existentes de ciclo aberto/fatura/cliente.
-  Widget _buildCiclosPorCliente(BuildContext context, List<LinhaContraparte> linhas) {
+  Widget _buildCiclosPorCliente(
+      BuildContext context, List<LinhaContraparte> linhas) {
     final busca = _buscaCiclosCtrl.text.trim().toLowerCase();
     var filtradas = linhas.where((l) {
       switch (_filtroCiclo) {
@@ -352,15 +403,19 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
       }
     }).toList();
     if (busca.isNotEmpty) {
-      filtradas = filtradas.where((l) => l.contraparteNome.toLowerCase().contains(busca)).toList();
+      filtradas = filtradas
+          .where((l) => l.contraparteNome.toLowerCase().contains(busca))
+          .toList();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Ciclos por Cliente', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text('Ciclos por Cliente',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
-        const Text('Ciclo atual (em andamento) e resumo de faturas de cada cliente.',
+        const Text(
+            'Ciclo atual (em andamento) e resumo de faturas de cada cliente.',
             style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 10),
         TextField(
@@ -388,12 +443,14 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         if (linhas.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Nenhum cliente com ciclo ainda.', style: TextStyle(color: Colors.grey)),
+            child: Text('Nenhum cliente com ciclo ainda.',
+                style: TextStyle(color: Colors.grey)),
           )
         else if (filtradas.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Nenhum resultado para esse filtro/busca.', style: TextStyle(color: Colors.grey)),
+            child: Text('Nenhum resultado para esse filtro/busca.',
+                style: TextStyle(color: Colors.grey)),
           )
         else
           ...filtradas.map((l) => _linhaContraparte(context, l)),
@@ -410,7 +467,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l.contraparteNome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(l.contraparteNome,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             if (l.cicloFaturamentoDias > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -422,13 +481,17 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2563EB).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text('Em andamento',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF2563EB),
+                            fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -444,30 +507,48 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     '${_moeda.format(ciclo.valorPendenteNfe)} (${ciclo.quantidadePendenteNfe}) esperando NF-e',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
                   ),
                 ),
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: GestureDetector(
-                  onTap: () => context.push('/posto/ciclos-abertos/${ciclo.negociacaoId}'),
+                  onTap: () => context
+                      .push('/posto/ciclos-abertos/${ciclo.negociacaoId}'),
                   child: const Text('Ver detalhamento',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF2563EB),
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
             ] else
-              const Text('Sem ciclo em andamento', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text('Sem ciclo em andamento',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 4,
               children: [
-                if (l.contagem.vencida > 0) _chipContagem('${l.contagem.vencida} vencida(s)', const Color(0xFFDC2626)),
-                if (l.contagem.fechada > 0) _chipContagem('${l.contagem.fechada} fechada(s)', const Color(0xFF64748B)),
-                if (l.contagem.aVencer > 0) _chipContagem('${l.contagem.aVencer} a vencer', const Color(0xFF64748B)),
-                if (l.contagem.paga > 0) _chipContagem('${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
-                if (l.contagem.vencida == 0 && l.contagem.fechada == 0 && l.contagem.aVencer == 0 && l.contagem.paga == 0)
-                  const Text('Nenhuma ainda', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                if (l.contagem.vencida > 0)
+                  _chipContagem('${l.contagem.vencida} vencida(s)',
+                      const Color(0xFFDC2626)),
+                if (l.contagem.fechada > 0)
+                  _chipContagem('${l.contagem.fechada} fechada(s)',
+                      const Color(0xFF64748B)),
+                if (l.contagem.aVencer > 0)
+                  _chipContagem('${l.contagem.aVencer} a vencer',
+                      const Color(0xFF64748B)),
+                if (l.contagem.paga > 0)
+                  _chipContagem(
+                      '${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
+                if (l.contagem.vencida == 0 &&
+                    l.contagem.fechada == 0 &&
+                    l.contagem.aVencer == 0 &&
+                    l.contagem.paga == 0)
+                  const Text('Nenhuma ainda',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
             if (l.valorEmAberto > 0)
@@ -479,7 +560,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                     children: [
                       const TextSpan(text: 'Em aberto: '),
                       TextSpan(
-                          text: _moeda.format(l.valorEmAberto), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          text: _moeda.format(l.valorEmAberto),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       if (l.valorVencido > 0)
                         TextSpan(
                           text: ' (${_moeda.format(l.valorVencido)} vencido)',
@@ -493,7 +575,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => context.push('/posto/clientes/${l.contraparteId}'),
+                onPressed: () =>
+                    context.push('/posto/clientes/${l.contraparteId}'),
                 child: const Text('Ver histórico'),
               ),
             ),
@@ -506,23 +589,28 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
   // Porta de GraficoFluxoCaixaPosto.tsx — mesma janela PROSPECTIVA
   // (janelaPrevista) já usada pros KPIs "vencendo no período"/"saldo
   // previsto" acima, só que quebrada por dia em vez de só o total.
-  List<_PontoFluxoCaixa> _dadosFluxoCaixa(
-      FinanceiroPostoDetalhe dados, ({String inicio, String fim}) janelaPrevista) {
+  List<_PontoFluxoCaixa> _dadosFluxoCaixa(FinanceiroPostoDetalhe dados,
+      ({String inicio, String fim}) janelaPrevista) {
     final porDia = <String, ({double aReceber, double aPagar})>{};
     for (final f in dados.faturas) {
       if (f.status != 'a_vencer') continue;
-      if (f.vencimento.compareTo(janelaPrevista.inicio) < 0 || f.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
+      if (f.vencimento.compareTo(janelaPrevista.inicio) < 0 ||
+          f.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
       final atual = porDia[f.vencimento] ?? (aReceber: 0.0, aPagar: 0.0);
-      porDia[f.vencimento] = (aReceber: atual.aReceber + f.valorTotal, aPagar: atual.aPagar);
+      porDia[f.vencimento] =
+          (aReceber: atual.aReceber + f.valorTotal, aPagar: atual.aPagar);
     }
     for (final d in dados.despesas) {
       if (d.status != 'aberta') continue;
-      if (d.vencimento.compareTo(janelaPrevista.inicio) < 0 || d.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
+      if (d.vencimento.compareTo(janelaPrevista.inicio) < 0 ||
+          d.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
       final atual = porDia[d.vencimento] ?? (aReceber: 0.0, aPagar: 0.0);
-      porDia[d.vencimento] = (aReceber: atual.aReceber, aPagar: atual.aPagar + d.valor);
+      porDia[d.vencimento] =
+          (aReceber: atual.aReceber, aPagar: atual.aPagar + d.valor);
     }
     final lista = porDia.entries
-        .map((e) => _PontoFluxoCaixa(dia: e.key, aReceber: e.value.aReceber, aPagar: e.value.aPagar))
+        .map((e) => _PontoFluxoCaixa(
+            dia: e.key, aReceber: e.value.aReceber, aPagar: e.value.aPagar))
         .toList()
       ..sort((a, b) => a.dia.compareTo(b.dia));
     return lista;
@@ -550,30 +638,37 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 toY: p.aReceber,
                 color: corReceber,
                 width: 8,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(3)),
               ),
               BarChartRodData(
                 toY: p.aPagar,
                 color: corPagar,
                 width: 8,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(3)),
               ),
             ]);
           }).toList(),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(
+            leftTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 44,
-              getTitlesWidget: (v, _) => Text('R\$${v.round()}', style: const TextStyle(fontSize: 9)),
+              getTitlesWidget: (v, _) =>
+                  Text('R\$${v.round()}', style: const TextStyle(fontSize: 9)),
             )),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(
+            bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
-              interval: pontos.length > 6 ? (pontos.length / 6).ceilToDouble() : 1,
+              interval:
+                  pontos.length > 6 ? (pontos.length / 6).ceilToDouble() : 1,
               getTitlesWidget: (v, _) {
                 final idx = v.toInt();
                 if (idx < 0 || idx >= pontos.length) return const SizedBox();
-                return Text(_dataBr(pontos[idx].dia).substring(0, 5), style: const TextStyle(fontSize: 9));
+                return Text(_dataBr(pontos[idx].dia).substring(0, 5),
+                    style: const TextStyle(fontSize: 9));
               },
             )),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -582,7 +677,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           borderData: FlBorderData(show: false),
           gridData: FlGridData(
             drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
@@ -592,11 +688,15 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               getTooltipColor: (_) => const Color(0xFF1E293B),
               getTooltipItem: (group, groupIdx, rod, rodIdx) => BarTooltipItem(
                 '● ',
-                TextStyle(color: rodIdx == 0 ? corReceber : corPagar, fontSize: 11),
+                TextStyle(
+                    color: rodIdx == 0 ? corReceber : corPagar, fontSize: 11),
                 children: [
                   TextSpan(
                     text: _moeda.format(rod.toY),
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -629,14 +729,20 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         Expanded(
           child: PieChart(PieChartData(
             sections: lista.map((p) {
-              final totalGeral = lista.fold<double>(0, (s, x) => s + x.valorTotal);
-              final pct = totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0.0;
+              final totalGeral =
+                  lista.fold<double>(0, (s, x) => s + x.valorTotal);
+              final pct =
+                  totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0.0;
               return PieChartSectionData(
                 value: p.valorTotal,
                 title: '${pct.toStringAsFixed(0)}%',
-                color: _corSolidaMeioPagamento[p.provedor] ?? _corSolidaMeioPagamentoFallback,
+                color: _corSolidaMeioPagamento[p.provedor] ??
+                    _corSolidaMeioPagamentoFallback,
                 radius: 55,
-                titleStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                titleStyle: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
               );
             }).toList(),
             centerSpaceRadius: 30,
@@ -649,15 +755,21 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: lista.map((p) {
-              final cor = _corSolidaMeioPagamento[p.provedor] ?? _corSolidaMeioPagamentoFallback;
+              final cor = _corSolidaMeioPagamento[p.provedor] ??
+                  _corSolidaMeioPagamentoFallback;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(children: [
-                  Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
+                  Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                          color: cor, borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(_nomeProvedor(p.provedor),
-                        style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis),
                   ),
                 ]),
               );
@@ -671,8 +783,11 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
   Widget _chipContagem(String texto, Color cor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-      child: Text(texto, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+          color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Text(texto,
+          style:
+              TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
     );
   }
 
@@ -684,10 +799,12 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(fontSize: 9, color: Colors.grey)),
             const SizedBox(height: 4),
             Text(valor,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: cor),
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.bold, color: cor),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -700,15 +817,18 @@ class _PontoFluxoCaixa {
   final String dia; // yyyy-MM-dd
   final double aReceber;
   final double aPagar;
-  const _PontoFluxoCaixa({required this.dia, required this.aReceber, required this.aPagar});
+  const _PontoFluxoCaixa(
+      {required this.dia, required this.aReceber, required this.aPagar});
 }
 
 class _LegendaDot extends StatelessWidget {
   final Color cor;
   const _LegendaDot({required this.cor});
   @override
-  Widget build(BuildContext context) =>
-      Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, shape: BoxShape.circle));
+  Widget build(BuildContext context) => Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(color: cor, shape: BoxShape.circle));
 }
 
 // Formulário "Lançar despesa" — mesmos campos de LancarDespesaForm (web),
@@ -716,7 +836,8 @@ class _LegendaDot extends StatelessWidget {
 class _FormularioDespesa extends StatefulWidget {
   final String empresaPostoId;
   final VoidCallback onSalvo;
-  const _FormularioDespesa({required this.empresaPostoId, required this.onSalvo});
+  const _FormularioDespesa(
+      {required this.empresaPostoId, required this.onSalvo});
 
   @override
   State<_FormularioDespesa> createState() => _FormularioDespesaState();
@@ -750,7 +871,8 @@ class _FormularioDespesaState extends State<_FormularioDespesa> {
       lastDate: DateTime(2100),
     );
     if (escolhida != null) {
-      setState(() => controller.text = DateFormat('yyyy-MM-dd').format(escolhida));
+      setState(
+          () => controller.text = DateFormat('yyyy-MM-dd').format(escolhida));
     }
   }
 
@@ -807,21 +929,26 @@ class _FormularioDespesaState extends State<_FormularioDespesa> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Lançar despesa', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const Text('Lançar despesa',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _tipo,
-              decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Tipo', border: OutlineInputBorder()),
               items: tiposDespesaPosto
-                  .map((t) => DropdownMenuItem(value: t, child: Text(tipoDespesaPostoLabel[t] ?? t)))
+                  .map((t) => DropdownMenuItem(
+                      value: t, child: Text(tipoDespesaPostoLabel[t] ?? t)))
                   .toList(),
               onChanged: (v) => setState(() => _tipo = v),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _valorCtrl,
-              decoration: const InputDecoration(labelText: 'Valor (R\$)', border: OutlineInputBorder()),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Valor (R\$)', border: OutlineInputBorder()),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -848,7 +975,9 @@ class _FormularioDespesaState extends State<_FormularioDespesa> {
             const SizedBox(height: 10),
             TextField(
               controller: _descricaoCtrl,
-              decoration: const InputDecoration(labelText: 'Descrição (opcional)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Descrição (opcional)',
+                  border: OutlineInputBorder()),
               maxLines: 2,
             ),
             const SizedBox(height: 6),
@@ -862,7 +991,8 @@ class _FormularioDespesaState extends State<_FormularioDespesa> {
             if (_erro != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                child: Text(_erro!,
+                    style: const TextStyle(color: Colors.red, fontSize: 12)),
               ),
             SizedBox(
               width: double.infinity,

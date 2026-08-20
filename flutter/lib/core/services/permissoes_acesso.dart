@@ -94,8 +94,16 @@ const rotaFuncionalidade = <String, String>{
 // web (src/lib/permissoes.ts) + as rotas de gate do próprio app_router.dart
 // (login, MFA, seleção de empresa).
 const rotasNuncaBloqueadas = <String>{
-  '/', '/dashboard', '/posto', '/chamados', '/posto/chamados',
-  '/assinatura', '/posto/assinatura', '/mfa-pendente', '/login', '/selecionar-empresa',
+  '/',
+  '/dashboard',
+  '/posto',
+  '/chamados',
+  '/posto/chamados',
+  '/assinatura',
+  '/posto/assinatura',
+  '/mfa-pendente',
+  '/login',
+  '/selecionar-empresa',
 };
 
 String? resolverFuncionalidadeDaRota(String pathname) {
@@ -130,7 +138,8 @@ bool temAcesso(Map<String, bool> mapa, String? funcionalidade) {
 // filtro de menu dos dois shells, sem repetir a consulta ao Supabase em
 // toda troca de tela. `ref.invalidate` no logout (mesmo padrão de
 // sessaoProvider) evita vazar sessão de um usuário pro próximo login.
-final permissoesMapaProvider = FutureProvider.family<Map<String, bool>, String?>((ref, perfil) async {
+final permissoesMapaProvider =
+    FutureProvider.family<Map<String, bool>, String?>((ref, perfil) async {
   final mapa = <String, bool>{};
   if (perfil == null) return mapa;
   const empresaIdGlobal = '00000000-0000-0000-0000-000000000000';

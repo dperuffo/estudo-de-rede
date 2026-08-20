@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/manutencao_preditiva_provider.dart';
 import '../services/manutencao_preditiva_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Manutenção Preditiva (cliente): detalhe do veículo, porta
 // de manutencao-preditiva/[placa]/page.tsx (+ ComponenteCard,
 // RegistrarManutencaoForm, HistoricoManutencoes).
@@ -13,11 +15,14 @@ class ManutencaoPreditivaDetalheScreen extends ConsumerStatefulWidget {
   const ManutencaoPreditivaDetalheScreen({super.key, required this.placa});
 
   @override
-  ConsumerState<ManutencaoPreditivaDetalheScreen> createState() => _ManutencaoPreditivaDetalheScreenState();
+  ConsumerState<ManutencaoPreditivaDetalheScreen> createState() =>
+      _ManutencaoPreditivaDetalheScreenState();
 }
 
-class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPreditivaDetalheScreen> {
-  final _dataCtrl = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
+class _ManutencaoPreditivaDetalheScreenState
+    extends ConsumerState<ManutencaoPreditivaDetalheScreen> {
+  final _dataCtrl = TextEditingController(
+      text: DateTime.now().toIso8601String().substring(0, 10));
   final _hodometroCtrl = TextEditingController();
   final _custoCtrl = TextEditingController();
   final _diasParadoCtrl = TextEditingController();
@@ -125,7 +130,8 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         avisoFotos = await servico.enviarFotos(
           manutencaoId: id,
           arquivos: _fotosSelecionadas
-              .map((f) => (bytes: f.bytes!, nome: f.name, mimeType: null as String?))
+              .map((f) =>
+                  (bytes: f.bytes!, nome: f.name, mimeType: null as String?))
               .toList(),
         );
       }
@@ -163,8 +169,12 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         title: const Text('Excluir registro?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -178,7 +188,14 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
   Widget build(BuildContext context) {
     final detalheAsync = ref.watch(manutencaoDetalheProvider(widget.placa));
     return Scaffold(
-      appBar: AppBar(title: Text(widget.placa)),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: Text(widget.placa)),
       body: detalheAsync.when(
         data: (v) {
           if (v == null) {
@@ -206,9 +223,14 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    [v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' ').isEmpty
+                    [v.marca, v.modelo]
+                            .where((s) => s != null && s.isNotEmpty)
+                            .join(' ')
+                            .isEmpty
                         ? 'Sem marca/modelo cadastrado'
-                        : [v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' '),
+                        : [v.marca, v.modelo]
+                            .where((s) => s != null && s.isNotEmpty)
+                            .join(' '),
                     style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   Text(
@@ -222,22 +244,30 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: corStatusFundo(v.status), borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: corStatusFundo(v.status),
+                      borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     '${v.status == 'critico' ? '🔴' : v.status == 'alerta' ? '🟡' : '🟢'} ${labelStatus[v.status] ?? v.status}',
-                    style: TextStyle(fontSize: 11, color: corStatusTexto(v.status), fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: corStatusTexto(v.status),
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('${v.scoreGeral}/100', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                const Text('score geral', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                Text('${v.scoreGeral}/100',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800)),
+                const Text('score geral',
+                    style: TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
           ],
         ),
         const SizedBox(height: 16),
-
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
@@ -246,14 +276,22 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
           children: [
-            _indicador('Km atual', v.kmAtual > 0 ? '${_milhar(v.kmAtual.round())} km' : '—'),
-            _indicador('Consumo atual', v.consumoAtual != null ? '${v.consumoAtual!.toStringAsFixed(2)} km/L' : '—'),
-            _indicador('Degradação de consumo', v.degradacao != null && v.degradacao! > 0 ? '${(v.degradacao! * 100).round()}%' : '—'),
+            _indicador('Km atual',
+                v.kmAtual > 0 ? '${_milhar(v.kmAtual.round())} km' : '—'),
+            _indicador(
+                'Consumo atual',
+                v.consumoAtual != null
+                    ? '${v.consumoAtual!.toStringAsFixed(2)} km/L'
+                    : '—'),
+            _indicador(
+                'Degradação de consumo',
+                v.degradacao != null && v.degradacao! > 0
+                    ? '${(v.degradacao! * 100).round()}%'
+                    : '—'),
             _indicador('Centro de custo', v.centroCustoNome ?? '—'),
           ],
         ),
         const SizedBox(height: 16),
-
         if (v.recomendacoes.isNotEmpty) ...[
           Card(
             child: Padding(
@@ -261,7 +299,9 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('💡 Recomendações', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  const Text('💡 Recomendações',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   const SizedBox(height: 8),
                   ...v.recomendacoes.map((r) => Padding(
                         padding: const EdgeInsets.only(bottom: 4),
@@ -273,14 +313,15 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           ),
           const SizedBox(height: 16),
         ],
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Detalhamento por componente', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('Detalhamento por componente',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 GridView.count(
                   crossAxisCount: 2,
@@ -296,16 +337,18 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           ),
         ),
         const SizedBox(height: 16),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📝 Registrar Manutenção Realizada', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('📝 Registrar Manutenção Realizada',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 4),
-                const Text('Registre manutenções realizadas para melhorar a precisão da análise preditiva.',
+                const Text(
+                    'Registre manutenções realizadas para melhorar a precisão da análise preditiva.',
                     style: TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 12),
                 _formRegistrar(v),
@@ -314,19 +357,24 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           ),
         ),
         const SizedBox(height: 16),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📋 Histórico de Manutenções', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('📋 Histórico de Manutenções',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 historicoAsync.when(
                   data: (registros) => _historico(registros),
-                  loading: () => const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
-                  error: (e, _) => Text('Erro: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                  loading: () => const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator())),
+                  error: (e, _) => Text('Erro: $e',
+                      style: const TextStyle(color: Colors.red, fontSize: 12)),
                 ),
               ],
             ),
@@ -336,19 +384,28 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
     );
   }
 
-  String _milhar(int v) => v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+  String _milhar(int v) => v
+      .toString()
+      .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 
   Widget _indicador(String label, String valor) {
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
+          Text(label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
-          Text(valor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+          Text(valor,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -359,7 +416,11 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
     final fundo = corStatusFundo(c.urgencia);
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(8), border: Border.all(color: corStatusTexto(c.urgencia).withOpacity(0.3))),
+      decoration: BoxDecoration(
+          color: fundo,
+          borderRadius: BorderRadius.circular(8),
+          border:
+              Border.all(color: corStatusTexto(c.urgencia).withOpacity(0.3))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -368,9 +429,13 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
             children: [
               Expanded(
                 child: Text('${c.componenteIcone} ${c.componenteLabel}',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis),
               ),
-              Text('${c.score}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: cor)),
+              Text('${c.score}',
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w800, color: cor)),
             ],
           ),
           const SizedBox(height: 6),
@@ -387,8 +452,13 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(c.urgencia == 'critico' ? 'Vencido' : '~${_milhar(c.kmNext.round())} km', style: const TextStyle(fontSize: 10)),
-              Text(c.fonte == 'real' ? '✅ registro real' : '📐 estimado', style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+              Text(
+                  c.urgencia == 'critico'
+                      ? 'Vencido'
+                      : '~${_milhar(c.kmNext.round())} km',
+                  style: const TextStyle(fontSize: 10)),
+              Text(c.fonte == 'real' ? '✅ registro real' : '📐 estimado',
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
             ],
           ),
         ],
@@ -405,16 +475,22 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-            child: Text(_erroForm!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(_erroForm!,
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
           ),
         if (_sucessoForm)
           Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(8)),
-            child: const Text('Manutenção registrada com sucesso.', style: TextStyle(color: Color(0xFF047857), fontSize: 12)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(8)),
+            child: const Text('Manutenção registrada com sucesso.',
+                style: TextStyle(color: Color(0xFF047857), fontSize: 12)),
           ),
         Row(
           children: [
@@ -423,7 +499,11 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                 controller: _dataCtrl,
                 readOnly: true,
                 onTap: _selecionarData,
-                decoration: const InputDecoration(labelText: 'Data *', border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                decoration: const InputDecoration(
+                    labelText: 'Data *',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    suffixIcon: Icon(Icons.calendar_today, size: 16)),
               ),
             ),
             const SizedBox(width: 8),
@@ -431,7 +511,10 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               child: TextField(
                 controller: _hodometroCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Hodômetro (km)', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Hodômetro (km)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
           ],
@@ -442,15 +525,22 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
             Expanded(
               child: TextField(
                 controller: _custoCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Custo total (R\$)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Custo total (R\$)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _tecnicoCtrl,
-                decoration: const InputDecoration(labelText: 'Técnico', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Técnico',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
           ],
@@ -461,7 +551,10 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
             Expanded(
               child: TextField(
                 controller: _oficinaCtrl,
-                decoration: const InputDecoration(labelText: 'Oficina', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Oficina',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
             const SizedBox(width: 8),
@@ -471,7 +564,10 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               child: TextField(
                 controller: _diasParadoCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Dias parado', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Dias parado',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
           ],
@@ -482,7 +578,8 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         // nova, pra alimentar o KPI de proporção corretiva/preventiva.
         DropdownButtonFormField<String>(
           value: _tipoManutencao,
-          decoration: const InputDecoration(labelText: 'Tipo *', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Tipo *', border: OutlineInputBorder(), isDense: true),
           items: const [
             DropdownMenuItem(value: 'Preventiva', child: Text('Preventiva')),
             DropdownMenuItem(value: 'Corretiva', child: Text('Corretiva')),
@@ -490,7 +587,8 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           onChanged: (v) => setState(() => _tipoManutencao = v),
         ),
         const SizedBox(height: 14),
-        const Text('Itens realizados *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Itens realizados *',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         StatefulBuilder(
           builder: (ctx, setStateLocal) => Wrap(
@@ -501,26 +599,32 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               return FilterChip(
                 label: Text(item, style: const TextStyle(fontSize: 11)),
                 selected: sel,
-                onSelected: (v2) => setStateLocal(() => v2 ? _itensSelecionados.add(item) : _itensSelecionados.remove(item)),
+                onSelected: (v2) => setStateLocal(() => v2
+                    ? _itensSelecionados.add(item)
+                    : _itensSelecionados.remove(item)),
               );
             }).toList(),
           ),
         ),
         const SizedBox(height: 14),
-        const Text('Fotos como evidência', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Fotos como evidência',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: [
             ..._fotosSelecionadas.asMap().entries.map((e) => Chip(
-                  label: Text(e.value.name, style: const TextStyle(fontSize: 11)),
+                  label:
+                      Text(e.value.name, style: const TextStyle(fontSize: 11)),
                   avatar: const Icon(Icons.image, size: 16),
-                  onDeleted: () => setState(() => _fotosSelecionadas.removeAt(e.key)),
+                  onDeleted: () =>
+                      setState(() => _fotosSelecionadas.removeAt(e.key)),
                 )),
             ActionChip(
               avatar: const Icon(Icons.add_a_photo_outlined, size: 16),
-              label: const Text('Adicionar fotos', style: TextStyle(fontSize: 11)),
+              label:
+                  const Text('Adicionar fotos', style: TextStyle(fontSize: 11)),
               onPressed: _selecionarFotos,
             ),
           ],
@@ -551,7 +655,9 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
     if (registros.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: Text('Nenhuma manutenção registrada ainda.', style: TextStyle(color: Colors.grey, fontSize: 12))),
+        child: Center(
+            child: Text('Nenhuma manutenção registrada ainda.',
+                style: TextStyle(color: Colors.grey, fontSize: 12))),
       );
     }
     return Column(
@@ -559,7 +665,9 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(8)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -568,13 +676,18 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                 children: [
                   Row(
                     children: [
-                      Text(r.dataManutencao ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      Text(r.dataManutencao ?? '—',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12)),
                       if (r.tipo != null) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(
-                            color: r.tipo == 'Preventiva' ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                            color: r.tipo == 'Preventiva'
+                                ? const Color(0xFFECFDF5)
+                                : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -582,7 +695,9 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
-                              color: r.tipo == 'Preventiva' ? const Color(0xFF047857) : const Color(0xFFB91C1C),
+                              color: r.tipo == 'Preventiva'
+                                  ? const Color(0xFF047857)
+                                  : const Color(0xFFB91C1C),
                             ),
                           ),
                         ),
@@ -591,9 +706,13 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                   ),
                   Row(
                     children: [
-                      if (r.custoTotal != null) Text('R\$ ${r.custoTotal!.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      if (r.custoTotal != null)
+                        Text('R\$ ${r.custoTotal!.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => _excluir(r.id),
@@ -611,7 +730,8 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               if (r.itensRealizados.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(r.itensRealizados.join(', '), style: const TextStyle(fontSize: 11)),
+                  child: Text(r.itensRealizados.join(', '),
+                      style: const TextStyle(fontSize: 11)),
                 ),
               if (r.fotosUrls.isNotEmpty)
                 Padding(
@@ -623,11 +743,14 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                         .map((url) => GestureDetector(
                               onTap: () => showDialog(
                                 context: context,
-                                builder: (_) => Dialog(child: InteractiveViewer(child: Image.network(url))),
+                                builder: (_) => Dialog(
+                                    child: InteractiveViewer(
+                                        child: Image.network(url))),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(6),
-                                child: Image.network(url, width: 44, height: 44, fit: BoxFit.cover),
+                                child: Image.network(url,
+                                    width: 44, height: 44, fit: BoxFit.cover),
                               ),
                             ))
                         .toList(),

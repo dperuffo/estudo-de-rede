@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../posto/providers/usuarios_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Usuários (cliente): cópia quase 1:1 de usuarios_screen.dart
 // (FLT-2, posto), reaproveitando DIRETO `usuariosPostoProvider`/
 // `UsuarioDoPosto` (já genérico — só lê `sessao.empresaId`). Mesmo
@@ -15,7 +17,14 @@ class UsuariosClienteScreen extends ConsumerWidget {
     final async = ref.watch(usuariosPostoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Usuários')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Usuários')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/usuarios/novo'),
         icon: const Icon(Icons.person_add),
@@ -29,7 +38,8 @@ class UsuariosClienteScreen extends ConsumerWidget {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Nenhum usuário vinculado a esta empresa ainda.', style: TextStyle(color: Colors.grey)),
+                child: Text('Nenhum usuário vinculado a esta empresa ainda.',
+                    style: TextStyle(color: Colors.grey)),
               ),
             );
           }
@@ -41,7 +51,8 @@ class UsuariosClienteScreen extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: _indicador('Total', usuarios.length.toString())),
+                  Expanded(
+                      child: _indicador('Total', usuarios.length.toString())),
                   const SizedBox(width: 8),
                   Expanded(child: _indicador('Ativos', ativos.toString())),
                   const SizedBox(width: 8),
@@ -52,13 +63,18 @@ class UsuariosClienteScreen extends ConsumerWidget {
               ...usuarios.map((u) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      onTap: () => context.push('/usuarios/${Uri.encodeComponent(u.email)}'),
-                      title: Text(u.nome?.isNotEmpty == true ? u.nome! : u.email,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      onTap: () => context
+                          .push('/usuarios/${Uri.encodeComponent(u.email)}'),
+                      title: Text(
+                          u.nome?.isNotEmpty == true ? u.nome! : u.email,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 14)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(u.email, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text(u.email,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey)),
                           const SizedBox(height: 4),
                           Wrap(
                             spacing: 6,
@@ -67,8 +83,13 @@ class UsuariosClienteScreen extends ConsumerWidget {
                                 _chip('Inativo', const Color(0xFF64748B))
                               else
                                 _chip('Ativo', const Color(0xFF16A34A)),
-                              _chip(u.mfaHabilitado ? 'MFA ativado' : 'MFA pendente',
-                                  u.mfaHabilitado ? const Color(0xFF16A34A) : const Color(0xFFB45309)),
+                              _chip(
+                                  u.mfaHabilitado
+                                      ? 'MFA ativado'
+                                      : 'MFA pendente',
+                                  u.mfaHabilitado
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFFB45309)),
                             ],
                           ),
                         ],
@@ -90,9 +111,12 @@ class UsuariosClienteScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(10),
         child: Column(
           children: [
-            Text(valor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(valor,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),
@@ -101,7 +125,11 @@ class UsuariosClienteScreen extends ConsumerWidget {
 
   Widget _chip(String texto, Color cor) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-        child: Text(texto, style: TextStyle(fontSize: 10, color: cor, fontWeight: FontWeight.w600)),
+        decoration: BoxDecoration(
+            color: cor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20)),
+        child: Text(texto,
+            style: TextStyle(
+                fontSize: 10, color: cor, fontWeight: FontWeight.w600)),
       );
 }

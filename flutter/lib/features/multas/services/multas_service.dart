@@ -30,7 +30,8 @@ class MultasService {
         .replaceAll(RegExp('[ÚÙÛÜ]'), 'U')
         .replaceAll(RegExp('[Ç]'), 'C');
     final seguro = semAcentos.replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_');
-    final cortado = seguro.length > 150 ? seguro.substring(seguro.length - 150) : seguro;
+    final cortado =
+        seguro.length > 150 ? seguro.substring(seguro.length - 150) : seguro;
     return cortado.isEmpty ? 'arquivo' : cortado;
   }
 
@@ -83,7 +84,8 @@ class MultasService {
           'origem': 'multa',
           'referencia_id': multaId,
           'credor_nome': orgaoAutuador ?? 'Multa de trânsito',
-          'descricao': 'Multa ${numeroAit != null ? 'AIT $numeroAit — ' : ''}$placa${descricao != null ? ' — $descricao' : ''}',
+          'descricao':
+              'Multa ${numeroAit != null ? 'AIT $numeroAit — ' : ''}$placa${descricao != null ? ' — $descricao' : ''}',
           'valor_original': valorParaFinanceiro,
           'vencimento': dataLimiteIndicacao ?? dataInfracao,
           'criado_por': criadoPor,
@@ -95,13 +97,16 @@ class MultasService {
 
     if (anexo != null) {
       try {
-        final caminho = '$multaId/${DateTime.now().millisecondsSinceEpoch}_${_sanitizarNomeParaStorage(anexo.nome)}';
+        final caminho =
+            '$multaId/${DateTime.now().millisecondsSinceEpoch}_${_sanitizarNomeParaStorage(anexo.nome)}';
         await _supabase.storage.from(bucketAnexosMultas).uploadBinary(
               caminho,
               anexo.bytes,
               fileOptions: FileOptions(contentType: anexo.mimeType),
             );
-        await _supabase.from('multas').update({'anexo_path': caminho}).eq('id', multaId);
+        await _supabase
+            .from('multas')
+            .update({'anexo_path': caminho}).eq('id', multaId);
       } catch (_) {
         // best-effort — multa já salva, só o anexo não subiu
       }
@@ -113,13 +118,16 @@ class MultasService {
   Future<String?> urlAssinadaAnexo(String? caminho) async {
     if (caminho == null) return null;
     try {
-      return await _supabase.storage.from(bucketAnexosMultas).createSignedUrl(caminho, 3600);
+      return await _supabase.storage
+          .from(bucketAnexosMultas)
+          .createSignedUrl(caminho, 3600);
     } catch (_) {
       return null;
     }
   }
 
-  Future<void> indicarCondutor(String multaId, String motoristaId, String? indicadoPor) async {
+  Future<void> indicarCondutor(
+      String multaId, String motoristaId, String? indicadoPor) async {
     await _supabase.from('multas').update({
       'motorista_id': motoristaId,
       'status': 'indicada',
@@ -130,8 +138,12 @@ class MultasService {
   }
 
   Future<void> atualizarStatus(String multaId, String novoStatus) async {
-    final patch = <String, dynamic>{'status': novoStatus, 'atualizado_em': DateTime.now().toIso8601String()};
-    if (novoStatus == 'paga') patch['pago_em'] = DateTime.now().toIso8601String();
+    final patch = <String, dynamic>{
+      'status': novoStatus,
+      'atualizado_em': DateTime.now().toIso8601String()
+    };
+    if (novoStatus == 'paga')
+      patch['pago_em'] = DateTime.now().toIso8601String();
     await _supabase.from('multas').update(patch).eq('id', multaId);
 
     if (novoStatus == 'paga' || novoStatus == 'cancelada') {
@@ -144,9 +156,16 @@ class MultasService {
             .maybeSingle();
         if (contaVinculada != null) {
           final patchConta = novoStatus == 'paga'
-              ? {'status': 'pago', 'valor_pago': contaVinculada['valor_original'], 'pago_em': DateTime.now().toIso8601String()}
+              ? {
+                  'status': 'pago',
+                  'valor_pago': contaVinculada['valor_original'],
+                  'pago_em': DateTime.now().toIso8601String()
+                }
               : {'status': 'cancelado'};
-          await _supabase.from('contas_pagar').update(patchConta).eq('id', contaVinculada['id']);
+          await _supabase
+              .from('contas_pagar')
+              .update(patchConta)
+              .eq('id', contaVinculada['id']);
         }
       } catch (_) {
         // best-effort
@@ -156,7 +175,11 @@ class MultasService {
 
   Future<void> excluir(String id) async {
     try {
-      final registro = await _supabase.from('multas').select('anexo_path').eq('id', id).maybeSingle();
+      final registro = await _supabase
+          .from('multas')
+          .select('anexo_path')
+          .eq('id', id)
+          .maybeSingle();
       final anexoPath = registro?['anexo_path'] as String?;
       if (anexoPath != null) {
         await _supabase.storage.from(bucketAnexosMultas).remove([anexoPath]);
@@ -165,7 +188,11 @@ class MultasService {
       // best-effort
     }
     try {
-      await _supabase.from('contas_pagar').delete().eq('origem', 'multa').eq('referencia_id', id);
+      await _supabase
+          .from('contas_pagar')
+          .delete()
+          .eq('origem', 'multa')
+          .eq('referencia_id', id);
     } catch (_) {
       // best-effort
     }

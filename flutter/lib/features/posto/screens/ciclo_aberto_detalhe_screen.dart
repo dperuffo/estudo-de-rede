@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/ciclo_aberto_detalhe_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 
@@ -28,10 +30,12 @@ class CicloAbertoDetalheScreen extends ConsumerStatefulWidget {
   const CicloAbertoDetalheScreen({super.key, required this.negociacaoId});
 
   @override
-  ConsumerState<CicloAbertoDetalheScreen> createState() => _CicloAbertoDetalheScreenState();
+  ConsumerState<CicloAbertoDetalheScreen> createState() =>
+      _CicloAbertoDetalheScreenState();
 }
 
-class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScreen> {
+class _CicloAbertoDetalheScreenState
+    extends ConsumerState<CicloAbertoDetalheScreen> {
   _FiltroNfe _filtro = _FiltroNfe.todos;
 
   @override
@@ -40,18 +44,29 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Ciclo em andamento'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/financeiro'),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go('/posto/financeiro'),
         ),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Não deu pra carregar: $e')),
         data: (c) {
-          if (c == null) return const Center(child: Text('Ciclo não encontrado (pode já ter sido fechado).'));
+          if (c == null)
+            return const Center(
+                child:
+                    Text('Ciclo não encontrado (pode já ter sido fechado).'));
 
           final itensFiltrados = c.itens.where((i) {
             if (_filtro == _FiltroNfe.com) return i.temNfe;
@@ -62,13 +77,16 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
           final contagemPendente = c.itens.length - contagemCom;
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(cicloAbertoDetalheProvider(widget.negociacaoId)),
+            onRefresh: () async =>
+                ref.invalidate(cicloAbertoDetalheProvider(widget.negociacaoId)),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(8)),
                   child: const Text(
                     'Período, vencimento e valor são PREVISTOS e podem mudar até o fechamento — o robô '
                     'fecha automaticamente quando o ciclo termina, virando uma fatura de verdade.',
@@ -83,14 +101,20 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Cliente: ${c.clienteNome ?? '—'}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
-                        Text('${_fmtData(c.periodoInicio)} — ${_fmtData(c.periodoFimPrevisto)} (previsto)',
-                            style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-                        Text('Vencimento previsto: ${_fmtData(c.vencimentoPrevisto)}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        Text(
+                            '${_fmtData(c.periodoInicio)} — ${_fmtData(c.periodoFimPrevisto)} (previsto)',
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.grey.shade700)),
+                        Text(
+                            'Vencimento previsto: ${_fmtData(c.vencimentoPrevisto)}',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600)),
                         const SizedBox(height: 12),
-                        Text('${_numero.format(c.quantidadeAbastecimentos)} abastecimentos · '
+                        Text(
+                            '${_numero.format(c.quantidadeAbastecimentos)} abastecimentos · '
                             '${_numero.format(c.volumeAcumulado.round())} L · '
                             '${_moeda.format(c.valorAcumulado)}'),
                         if (c.quantidadePendenteNfe > 0) ...[
@@ -98,7 +122,8 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                           Text(
                             '${c.quantidadePendenteNfe} pendente(s) de NF-e '
                             '(${_moeda.format(c.valorPendenteNfe)}, fora do acumulado)',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFFB91C1C)),
                           ),
                         ],
                       ],
@@ -107,7 +132,8 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                 ),
                 const SizedBox(height: 20),
                 Text('Detalhamento do abastecimento (${c.itens.length})',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -115,17 +141,20 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                     ChoiceChip(
                       label: Text('Todos (${c.itens.length})'),
                       selected: _filtro == _FiltroNfe.todos,
-                      onSelected: (_) => setState(() => _filtro = _FiltroNfe.todos),
+                      onSelected: (_) =>
+                          setState(() => _filtro = _FiltroNfe.todos),
                     ),
                     ChoiceChip(
                       label: Text('Com NF-e ($contagemCom)'),
                       selected: _filtro == _FiltroNfe.com,
-                      onSelected: (_) => setState(() => _filtro = _FiltroNfe.com),
+                      onSelected: (_) =>
+                          setState(() => _filtro = _FiltroNfe.com),
                     ),
                     ChoiceChip(
                       label: Text('Pendente NF-e ($contagemPendente)'),
                       selected: _filtro == _FiltroNfe.pendente,
-                      onSelected: (_) => setState(() => _filtro = _FiltroNfe.pendente),
+                      onSelected: (_) =>
+                          setState(() => _filtro = _FiltroNfe.pendente),
                     ),
                   ],
                 ),
@@ -163,14 +192,17 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('${_fmtData(i.data)} · ${i.combustivel ?? '—'}',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
                     Text('${i.motorista ?? '—'} · ${i.placa ?? '—'}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
                     if (i.litros != null)
                       Text(
                           '${_numero.format(i.litros)} L'
                           '${i.precoUnitario != null ? ' · ${_moeda.format(i.precoUnitario)}/L' : ''}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ),
               ),
@@ -178,12 +210,16 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   if (i.valorTotal != null)
-                    Text(_moeda.format(i.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(_moeda.format(i.valorTotal),
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: i.temNfe ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                      color: i.temNfe
+                          ? const Color(0xFFDCFCE7)
+                          : const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -191,7 +227,9 @@ class _CicloAbertoDetalheScreenState extends ConsumerState<CicloAbertoDetalheScr
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: i.temNfe ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                        color: i.temNfe
+                            ? const Color(0xFF15803D)
+                            : const Color(0xFFB91C1C),
                       ),
                     ),
                   ),

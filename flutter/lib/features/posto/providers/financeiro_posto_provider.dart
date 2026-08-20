@@ -76,7 +76,8 @@ String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
 // Espelha resolverJanelaPrevista — janela PROSPECTIVA (pra frente, a partir
 // de hoje) usada só pros indicadores "vencendo no período"/"saldo previsto"
 // (retrospectivos como "recebido no período" usam a janela normal acima).
-({String inicio, String fim}) resolverJanelaPrevista(PeriodoFinanceiro periodo, String inicio, String fim, String hojeIso) {
+({String inicio, String fim}) resolverJanelaPrevista(
+    PeriodoFinanceiro periodo, String inicio, String fim, String hojeIso) {
   if (periodo == PeriodoFinanceiro.mes) {
     final hoje = DateTime.parse(hojeIso);
     final fimMes = DateTime(hoje.year, hoje.month + 1, 0);
@@ -136,7 +137,8 @@ class DespesaFinanceiro {
     required this.pagoEm,
     required this.recorrente,
   });
-  factory DespesaFinanceiro.fromMap(Map<String, dynamic> m) => DespesaFinanceiro(
+  factory DespesaFinanceiro.fromMap(Map<String, dynamic> m) =>
+      DespesaFinanceiro(
         id: m['id'] as String,
         tipo: m['tipo'] as String? ?? 'outro',
         descricao: m['descricao'] as String?,
@@ -184,14 +186,17 @@ class CicloAbertoResumo {
     required this.quantidadePendenteNfe,
   });
 
-  factory CicloAbertoResumo.fromMap(Map<String, dynamic> m) => CicloAbertoResumo(
+  factory CicloAbertoResumo.fromMap(Map<String, dynamic> m) =>
+      CicloAbertoResumo(
         negociacaoId: m['negociacao_id'].toString(),
         periodoInicio: m['periodo_inicio'] as String?,
         periodoFimPrevisto: m['periodo_fim_previsto'] as String?,
         valorAcumulado: (m['valor_acumulado'] as num?)?.toDouble() ?? 0,
-        quantidadeAbastecimentos: (m['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
+        quantidadeAbastecimentos:
+            (m['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
         valorPendenteNfe: (m['valor_pendente_nfe'] as num?)?.toDouble() ?? 0,
-        quantidadePendenteNfe: (m['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
+        quantidadePendenteNfe:
+            (m['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -204,7 +209,12 @@ class ContagemFaturas {
   int vencida;
   int paga;
   int cancelada;
-  ContagemFaturas({this.fechada = 0, this.aVencer = 0, this.vencida = 0, this.paga = 0, this.cancelada = 0});
+  ContagemFaturas(
+      {this.fechada = 0,
+      this.aVencer = 0,
+      this.vencida = 0,
+      this.paga = 0,
+      this.cancelada = 0});
 }
 
 // Espelha LinhaContraparte (ciclosAbertos.ts) — 1 linha por cliente.
@@ -233,7 +243,13 @@ class LinhaContraparte {
 // ordem de prioridade (vencida > fechada/a_vencer > ciclo em andamento >
 // histórico).
 List<LinhaContraparte> agruparPorContraparte({
-  required List<({String contraparteId, String? contraparteNome, int cicloFaturamentoDias})> negociacoes,
+  required List<
+          ({
+            String contraparteId,
+            String? contraparteNome,
+            int cicloFaturamentoDias
+          })>
+      negociacoes,
   required List<FaturaFinanceiro> faturas,
   required Map<String, CicloAbertoResumo> ciclosAbertosPorContraparte,
   required String hojeIso,
@@ -265,7 +281,8 @@ List<LinhaContraparte> agruparPorContraparte({
       linhas[contraparteId] = linha;
     }
 
-    final vencida = f.status == 'a_vencer' && f.vencimento.compareTo(hojeIso) < 0;
+    final vencida =
+        f.status == 'a_vencer' && f.vencimento.compareTo(hojeIso) < 0;
     if (vencida) {
       linha.contagem.vencida += 1;
     } else if (f.status == 'fechada') {
@@ -323,8 +340,8 @@ class FinanceiroPostoDetalhe {
   });
 }
 
-final financeiroPostoProvider =
-    FutureProvider.autoDispose.family<FinanceiroPostoDetalhe?, PeriodoFinanceiro>((ref, periodo) async {
+final financeiroPostoProvider = FutureProvider.autoDispose
+    .family<FinanceiroPostoDetalhe?, PeriodoFinanceiro>((ref, periodo) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -335,24 +352,34 @@ final financeiroPostoProvider =
 
   final faturasRaw = await supabase
       .from('faturas_postos')
-      .select('id, empresa_cliente_id, cliente_nome, valor_total, status, vencimento, pago_em')
+      .select(
+          'id, empresa_cliente_id, cliente_nome, valor_total, status, vencimento, pago_em')
       .eq('empresa_posto_id', empresaId)
       .order('vencimento', ascending: false)
       .limit(500) as List;
-  final faturas = faturasRaw.map((m) => FaturaFinanceiro.fromMap(m as Map<String, dynamic>)).toList();
+  final faturas = faturasRaw
+      .map((m) => FaturaFinanceiro.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   final despesasRaw = await supabase
       .from('despesas_postos')
-      .select('id, tipo, descricao, valor, competencia, vencimento, status, pago_em, recorrente')
+      .select(
+          'id, tipo, descricao, valor, competencia, vencimento, status, pago_em, recorrente')
       .eq('empresa_posto_id', empresaId)
       .order('vencimento', ascending: false)
       .limit(500) as List;
-  final despesas = despesasRaw.map((m) => DespesaFinanceiro.fromMap(m as Map<String, dynamic>)).toList();
+  final despesas = despesasRaw
+      .map((m) => DespesaFinanceiro.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // Consolidado por meio de pagamento — mesma fonte/filtro de
   // AbastecimentosPosto.tsx: abastecimentos_unificado por posto_cnpj.
   var indicadoresPorProvedor = <IndicadorProvedor>[];
-  final empresa = await supabase.from('empresas').select('cnpj').eq('id', empresaId).maybeSingle();
+  final empresa = await supabase
+      .from('empresas')
+      .select('cnpj')
+      .eq('id', empresaId)
+      .maybeSingle();
   final meuCnpj = empresa?['cnpj'] as String?;
   if (meuCnpj != null && meuCnpj.isNotEmpty) {
     final unificadoRaw = await supabase
@@ -362,13 +389,16 @@ final financeiroPostoProvider =
         .gte('data_abastecimento', '${janela.inicio}T00:00:00')
         .lte('data_abastecimento', '${janela.fim}T23:59:59')
         .limit(50000) as List;
-    final porProvedor = <String, ({double valorTotal, double litros, int qtd})>{};
+    final porProvedor =
+        <String, ({double valorTotal, double litros, int qtd})>{};
     for (final r in unificadoRaw) {
       final m = r as Map<String, dynamic>;
       final provedor = m['provedor'] as String? ?? 'outro';
-      final atual = porProvedor[provedor] ?? (valorTotal: 0.0, litros: 0.0, qtd: 0);
+      final atual =
+          porProvedor[provedor] ?? (valorTotal: 0.0, litros: 0.0, qtd: 0);
       porProvedor[provedor] = (
-        valorTotal: atual.valorTotal + ((m['valor_total'] as num?)?.toDouble() ?? 0),
+        valorTotal:
+            atual.valorTotal + ((m['valor_total'] as num?)?.toDouble() ?? 0),
         litros: atual.litros + ((m['litros'] as num?)?.toDouble() ?? 0),
         qtd: atual.qtd + 1,
       );
@@ -417,11 +447,14 @@ final financeiroPostoProvider =
       .toList();
   final ciclosPorClienteMap = <String, int>{};
   if (idsClientes.isNotEmpty) {
-    final clientesCicloRaw =
-        await supabase.from('empresas').select('id, ciclo_faturamento_dias').inFilter('id', idsClientes) as List;
+    final clientesCicloRaw = await supabase
+        .from('empresas')
+        .select('id, ciclo_faturamento_dias')
+        .inFilter('id', idsClientes) as List;
     for (final c in clientesCicloRaw) {
       final cc = c as Map<String, dynamic>;
-      ciclosPorClienteMap[cc['id'] as String] = (cc['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30;
+      ciclosPorClienteMap[cc['id'] as String] =
+          (cc['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30;
     }
   }
   final negociacoesParaAgrupar = negociacoesRaw.map((m) {

@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../../posto/services/rede_postos_service.dart';
 import '../providers/rede_postos_admin_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-4 — Rede de Postos (admin): criar Rede escolhendo QUALQUER
 // posto do sistema como fundador, porta de rede-postos/novo/page.tsx
 // (caminho ehAdmin) + NovaRedeForm.tsx. Reaproveita RedePostosService
@@ -14,7 +16,8 @@ class NovaRedeAdminScreen extends ConsumerStatefulWidget {
   const NovaRedeAdminScreen({super.key});
 
   @override
-  ConsumerState<NovaRedeAdminScreen> createState() => _NovaRedeAdminScreenState();
+  ConsumerState<NovaRedeAdminScreen> createState() =>
+      _NovaRedeAdminScreenState();
 }
 
 class _NovaRedeAdminScreenState extends ConsumerState<NovaRedeAdminScreen> {
@@ -68,7 +71,14 @@ class _NovaRedeAdminScreenState extends ConsumerState<NovaRedeAdminScreen> {
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova Rede de Postos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Nova Rede de Postos')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -79,7 +89,9 @@ class _NovaRedeAdminScreenState extends ConsumerState<NovaRedeAdminScreen> {
       child: Card(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('Esta tela é exclusiva do time interno (perfil administrador).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+          child: Text(
+              'Esta tela é exclusiva do time interno (perfil administrador).',
+              style: TextStyle(fontSize: 13, color: Colors.grey)),
         ),
       ),
     );
@@ -112,14 +124,21 @@ class _NovaRedeAdminScreenState extends ConsumerState<NovaRedeAdminScreen> {
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C))),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_erro!,
+                      style: const TextStyle(color: Color(0xFFB91C1C))),
                 ),
-              const Text('Posto fundador *', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Posto fundador *',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 value: _empresaFundadoraId,
-                items: postos.map((p) => DropdownMenuItem(value: p.id, child: Text(p.nome))).toList(),
+                items: postos
+                    .map((p) =>
+                        DropdownMenuItem(value: p.id, child: Text(p.nome)))
+                    .toList(),
                 onChanged: (v) => setState(() => _empresaFundadoraId = v),
                 decoration: const InputDecoration(border: OutlineInputBorder()),
               ),
@@ -130,15 +149,18 @@ class _NovaRedeAdminScreenState extends ConsumerState<NovaRedeAdminScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
-              const Text('Nome da Rede *', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Nome da Rede *',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _nomeCtrl,
                 decoration: const InputDecoration(border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 16),
-              const Text('CNPJ da Matriz (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('CNPJ da Matriz (opcional)',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _cnpjCtrl,

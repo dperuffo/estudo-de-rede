@@ -32,10 +32,15 @@ class PlanosViagemService {
     String? observacoes,
     required double pedagiosTotal,
   }) {
-    final custoCombustivelEstimado = consumoKmL > 0 ? (kmEstimado / consumoKmL) * precoCombustivel : 0.0;
-    final custoDiarias = nDiarias * (valorRefeicaoDia + valorPernoiteDia + valorBanhoDia + valorLavagemDia);
+    final custoCombustivelEstimado =
+        consumoKmL > 0 ? (kmEstimado / consumoKmL) * precoCombustivel : 0.0;
+    final custoDiarias = nDiarias *
+        (valorRefeicaoDia + valorPernoiteDia + valorBanhoDia + valorLavagemDia);
     final custoManutencaoEstimado = kmEstimado * custoManutencaoKm;
-    final custoTotalEstimado = custoCombustivelEstimado + pedagiosTotal + custoDiarias + custoManutencaoEstimado;
+    final custoTotalEstimado = custoCombustivelEstimado +
+        pedagiosTotal +
+        custoDiarias +
+        custoManutencaoEstimado;
 
     return {
       'nome': nome.trim(),
@@ -98,8 +103,10 @@ class PlanosViagemService {
     if (nome.trim().isEmpty) {
       throw Exception('O nome do plano é obrigatório.');
     }
-    final pedagiosValidos = pedagios.where((p) => p.pracaNome.trim().isNotEmpty).toList();
-    final pedagiosTotal = pedagiosValidos.fold<double>(0, (s, p) => s + p.valor);
+    final pedagiosValidos =
+        pedagios.where((p) => p.pracaNome.trim().isNotEmpty).toList();
+    final pedagiosTotal =
+        pedagiosValidos.fold<double>(0, (s, p) => s + p.valor);
 
     final payload = _payload(
       nome: nome,
@@ -135,7 +142,12 @@ class PlanosViagemService {
     if (pedagiosValidos.isNotEmpty) {
       await _supabase.from('planos_viagem_pedagios').insert([
         for (var i = 0; i < pedagiosValidos.length; i++)
-          {'plano_viagem_id': id, 'praca_nome': pedagiosValidos[i].pracaNome, 'valor': pedagiosValidos[i].valor, 'ordem': i},
+          {
+            'plano_viagem_id': id,
+            'praca_nome': pedagiosValidos[i].pracaNome,
+            'valor': pedagiosValidos[i].valor,
+            'ordem': i
+          },
       ]);
     }
 
@@ -230,8 +242,10 @@ class PlanosViagemService {
     if (nome.trim().isEmpty) {
       throw Exception('O nome do plano é obrigatório.');
     }
-    final pedagiosValidos = pedagios.where((p) => p.pracaNome.trim().isNotEmpty).toList();
-    final pedagiosTotal = pedagiosValidos.fold<double>(0, (s, p) => s + p.valor);
+    final pedagiosValidos =
+        pedagios.where((p) => p.pracaNome.trim().isNotEmpty).toList();
+    final pedagiosTotal =
+        pedagiosValidos.fold<double>(0, (s, p) => s + p.valor);
 
     final payload = _payload(
       nome: nome,
@@ -257,18 +271,26 @@ class PlanosViagemService {
       pedagiosTotal: pedagiosTotal,
     );
 
-    await _supabase
-        .from('planos_viagem')
-        .update({...payload, 'atualizado_em': DateTime.now().toIso8601String()})
-        .eq('id', id);
+    await _supabase.from('planos_viagem').update({
+      ...payload,
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
 
     // Substitui a lista inteira de pedágios — mais simples que diff/merge
     // linha a linha, mesma decisão da web (a lista costuma ter poucos itens).
-    await _supabase.from('planos_viagem_pedagios').delete().eq('plano_viagem_id', id);
+    await _supabase
+        .from('planos_viagem_pedagios')
+        .delete()
+        .eq('plano_viagem_id', id);
     if (pedagiosValidos.isNotEmpty) {
       await _supabase.from('planos_viagem_pedagios').insert([
         for (var i = 0; i < pedagiosValidos.length; i++)
-          {'plano_viagem_id': id, 'praca_nome': pedagiosValidos[i].pracaNome, 'valor': pedagiosValidos[i].valor, 'ordem': i},
+          {
+            'plano_viagem_id': id,
+            'praca_nome': pedagiosValidos[i].pracaNome,
+            'valor': pedagiosValidos[i].valor,
+            'ordem': i
+          },
       ]);
     }
   }
@@ -287,7 +309,8 @@ class PlanosViagemService {
     required String dataSaida,
     String? retornoPrevisto,
   }) async {
-    final dataFim = retornoPrevisto ?? DateTime.now().toIso8601String().substring(0, 10);
+    final dataFim =
+        retornoPrevisto ?? DateTime.now().toIso8601String().substring(0, 10);
     final resultado = await _supabase.rpc('combustivel_real_periodo', params: {
       'p_empresa_id': empresaId,
       'p_placa': placa,
@@ -307,5 +330,6 @@ class PlanosViagemService {
     return (litros: litros, valor: valor);
   }
 
-  String? _ouNull(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+  String? _ouNull(String? v) =>
+      (v == null || v.trim().isEmpty) ? null : v.trim();
 }

@@ -13,7 +13,8 @@ Future<bool> mostrarModalTermoAdesao(
   final resultado = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => _TermoAdesaoDialog(planoLabel: planoLabel, precoLabel: precoLabel),
+    builder: (context) =>
+        _TermoAdesaoDialog(planoLabel: planoLabel, precoLabel: precoLabel),
   );
   return resultado ?? false;
 }
@@ -21,7 +22,8 @@ Future<bool> mostrarModalTermoAdesao(
 class _TermoAdesaoDialog extends StatefulWidget {
   final String planoLabel;
   final String precoLabel;
-  const _TermoAdesaoDialog({required this.planoLabel, required this.precoLabel});
+  const _TermoAdesaoDialog(
+      {required this.planoLabel, required this.precoLabel});
 
   @override
   State<_TermoAdesaoDialog> createState() => _TermoAdesaoDialogState();
@@ -44,8 +46,10 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Termo de Adesão e Contrato de Prestação de Serviços',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const Text(
+                      'Termo de Adesão e Contrato de Prestação de Serviços',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 4),
                   Text(
                     'Plano selecionado: ${widget.planoLabel} — ${widget.precoLabel} · Versão $versaoTermoAdesao',
@@ -57,19 +61,27 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
             const Divider(height: 1),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 children: termoAdesaoParagrafos.map((p) {
                   if (p.isEmpty) return const SizedBox(height: 8);
                   if (p.startsWith('PARTE')) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 12, bottom: 6),
                       child: Text(p,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D2D6B))),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Color(0xFF0D2D6B))),
                     );
                   }
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(p, style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF334155))),
+                    child: Text(p,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: Color(0xFF334155))),
                   );
                 }).toList(),
               ),
@@ -101,7 +113,9 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
                       ),
                       const SizedBox(width: 8),
                       FilledButton(
-                        onPressed: _aceitou ? () => Navigator.of(context).pop(true) : null,
+                        onPressed: _aceitou
+                            ? () => Navigator.of(context).pop(true)
+                            : null,
                         child: const Text('Aceito os Termos de Adesão'),
                       ),
                     ],

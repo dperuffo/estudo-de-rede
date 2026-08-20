@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show centrosCustoOpcoesProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show centrosCustoOpcoesProvider;
 import '../providers/veiculos_provider.dart';
 import '../services/veiculos_service.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 class VeiculoNovoScreen extends ConsumerStatefulWidget {
   const VeiculoNovoScreen({super.key});
@@ -66,7 +69,8 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
   }
 
   int? _intOuNull(String t) => t.trim().isEmpty ? null : int.tryParse(t.trim());
-  double? _doubleOuNull(String t) => t.trim().isEmpty ? null : double.tryParse(t.trim().replaceAll(',', '.'));
+  double? _doubleOuNull(String t) =>
+      t.trim().isEmpty ? null : double.tryParse(t.trim().replaceAll(',', '.'));
 
   Future<void> _selecionarDataAquisicao() async {
     final atual = DateTime.tryParse(_dataAquisicaoCtrl.text) ?? DateTime.now();
@@ -86,7 +90,8 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
     final sessao = await ref.read(sessaoProvider.future);
     final empresaId = sessao.empresaId;
     if (empresaId == null) {
-      setState(() => _erro = 'Não foi possível identificar sua empresa na sessão atual.');
+      setState(() =>
+          _erro = 'Não foi possível identificar sua empresa na sessão atual.');
       return;
     }
     setState(() {
@@ -136,7 +141,14 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
     final centrosCustoAsync = ref.watch(centrosCustoOpcoesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Veículo')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Novo Veículo')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -145,77 +157,102 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
             if (_erro != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Text(_erro!,
+                    style: const TextStyle(
+                        color: Color(0xFFB91C1C), fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
-            Text('Identificação', style: Theme.of(context).textTheme.titleSmall),
+            Text('Identificação',
+                style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             TextFormField(
               controller: _placaCtrl,
-              decoration: const InputDecoration(labelText: 'Placa *', border: OutlineInputBorder()),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe a placa' : null,
+              decoration: const InputDecoration(
+                  labelText: 'Placa *', border: OutlineInputBorder()),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Informe a placa' : null,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _marcaCtrl,
-              decoration: const InputDecoration(labelText: 'Marca', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Marca', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _modeloCtrl,
-              decoration: const InputDecoration(labelText: 'Modelo', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Modelo', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _chassiCtrl,
-              decoration: const InputDecoration(labelText: 'Chassi', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Chassi', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _renavamCtrl,
-              decoration: const InputDecoration(labelText: 'Renavam', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Renavam', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _corCtrl,
-              decoration: const InputDecoration(labelText: 'Cor', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Cor', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _tipoVeiculo,
-              decoration: const InputDecoration(labelText: 'Tipo de veículo', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Tipo de veículo', border: OutlineInputBorder()),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Selecione...')),
-                for (final t in tiposVeiculo) DropdownMenuItem(value: t, child: Text(t)),
+                const DropdownMenuItem(
+                    value: null, child: Text('Selecione...')),
+                for (final t in tiposVeiculo)
+                  DropdownMenuItem(value: t, child: Text(t)),
               ],
               onChanged: (v) => setState(() => _tipoVeiculo = v),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _classificacao,
-              decoration: const InputDecoration(labelText: 'Classificação', border: OutlineInputBorder()),
-              items: [for (final c in classificacoesVeiculo) DropdownMenuItem(value: c, child: Text(c))],
+              decoration: const InputDecoration(
+                  labelText: 'Classificação', border: OutlineInputBorder()),
+              items: [
+                for (final c in classificacoesVeiculo)
+                  DropdownMenuItem(value: c, child: Text(c))
+              ],
               onChanged: (v) => setState(() => _classificacao = v ?? 'Próprio'),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _tipo,
-              decoration: const InputDecoration(labelText: 'Tipo (porte)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Tipo (porte)', border: OutlineInputBorder()),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Selecione...')),
-                for (final t in tiposPorteVeiculo) DropdownMenuItem(value: t, child: Text(t)),
+                const DropdownMenuItem(
+                    value: null, child: Text('Selecione...')),
+                for (final t in tiposPorteVeiculo)
+                  DropdownMenuItem(value: t, child: Text(t)),
               ],
               onChanged: (v) => setState(() => _tipo = v),
             ),
             const SizedBox(height: 20),
-            Text('Especificações técnicas', style: Theme.of(context).textTheme.titleSmall),
+            Text('Especificações técnicas',
+                style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             TextFormField(
               controller: _motorCtrl,
-              decoration: const InputDecoration(labelText: 'Motor', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Motor', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             Row(
@@ -224,7 +261,8 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                   child: TextFormField(
                     controller: _anoModeloCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Ano modelo', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'Ano modelo', border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -232,7 +270,9 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                   child: TextFormField(
                     controller: _anoFabricacaoCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Ano fabricação', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'Ano fabricação',
+                        border: OutlineInputBorder()),
                   ),
                 ),
               ],
@@ -240,10 +280,13 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _combustivel,
-              decoration: const InputDecoration(labelText: 'Combustível', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Combustível', border: OutlineInputBorder()),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Selecione...')),
-                for (final c in ciclosCombustivel) DropdownMenuItem(value: c, child: Text(c)),
+                const DropdownMenuItem(
+                    value: null, child: Text('Selecione...')),
+                for (final c in ciclosCombustivel)
+                  DropdownMenuItem(value: c, child: Text(c)),
               ],
               onChanged: (v) => setState(() => _combustivel = v),
             ),
@@ -253,16 +296,21 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _tanqueCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Tanque (L)', border: OutlineInputBorder()),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Tanque (L)', border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     controller: _autonomiaCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Autonomia (km/l)', border: OutlineInputBorder()),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Autonomia (km/l)',
+                        border: OutlineInputBorder()),
                   ),
                 ),
               ],
@@ -274,7 +322,9 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                   child: TextFormField(
                     controller: _hodometroCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Hodômetro atual (km)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'Hodômetro atual (km)',
+                        border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -282,13 +332,15 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                   child: TextFormField(
                     controller: _eixosCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Nº de eixos', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'Nº de eixos', border: OutlineInputBorder()),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            Text('TCO / Aquisição', style: Theme.of(context).textTheme.titleSmall),
+            Text('TCO / Aquisição',
+                style: Theme.of(context).textTheme.titleSmall),
             const Padding(
               padding: EdgeInsets.only(top: 4, bottom: 8),
               child: Text(
@@ -299,31 +351,42 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
             ),
             TextFormField(
               controller: _valorAquisicaoCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Valor de aquisição (R\$)', border: OutlineInputBorder()),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Valor de aquisição (R\$)',
+                  border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _dataAquisicaoCtrl,
               readOnly: true,
               onTap: _selecionarDataAquisicao,
-              decoration: const InputDecoration(labelText: 'Data de aquisição', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today, size: 18)),
+              decoration: const InputDecoration(
+                  labelText: 'Data de aquisição',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18)),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _valorResidualCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Valor residual estimado (R\$)', border: OutlineInputBorder()),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Valor residual estimado (R\$)',
+                  border: OutlineInputBorder()),
             ),
             const SizedBox(height: 20),
-            Text('Localização e centro de custo', style: Theme.of(context).textTheme.titleSmall),
+            Text('Localização e centro de custo',
+                style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _municipioCtrl,
-                    decoration: const InputDecoration(labelText: 'Município', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'Município', border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -332,7 +395,10 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                   child: TextFormField(
                     controller: _ufCtrl,
                     maxLength: 2,
-                    decoration: const InputDecoration(labelText: 'UF', border: OutlineInputBorder(), counterText: ''),
+                    decoration: const InputDecoration(
+                        labelText: 'UF',
+                        border: OutlineInputBorder(),
+                        counterText: ''),
                   ),
                 ),
               ],
@@ -343,10 +409,13 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
               error: (e, _) => Text('Erro ao carregar centros de custo: $e'),
               data: (opcoes) => DropdownButtonFormField<String?>(
                 value: _centroCustoId,
-                decoration: const InputDecoration(labelText: 'Centro de custo', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Centro de custo', border: OutlineInputBorder()),
                 items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Nenhum')),
-                  for (final c in opcoes) DropdownMenuItem<String?>(value: c.id, child: Text(c.nome)),
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('Nenhum')),
+                  for (final c in opcoes)
+                    DropdownMenuItem<String?>(value: c.id, child: Text(c.nome)),
                 ],
                 onChanged: (v) => setState(() => _centroCustoId = v),
               ),
@@ -355,7 +424,10 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
             FilledButton(
               onPressed: _salvando ? null : _salvar,
               child: _salvando
-                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Cadastrar Veículo'),
             ),
           ],

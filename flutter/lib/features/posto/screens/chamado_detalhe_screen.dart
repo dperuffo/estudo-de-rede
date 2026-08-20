@@ -8,6 +8,8 @@ import '../../../core/services/auth_service.dart';
 import '../providers/chamados_provider.dart';
 import '../services/chamados_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _data = DateFormat('dd/MM/yyyy HH:mm');
 
 String _fmtData(String? iso) {
@@ -36,7 +38,8 @@ class ChamadoDetalheScreen extends ConsumerStatefulWidget {
   const ChamadoDetalheScreen({super.key, required this.id});
 
   @override
-  ConsumerState<ChamadoDetalheScreen> createState() => _ChamadoDetalheScreenState();
+  ConsumerState<ChamadoDetalheScreen> createState() =>
+      _ChamadoDetalheScreenState();
 }
 
 class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
@@ -132,19 +135,28 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Chamado'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/chamados'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/posto/chamados'),
         ),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Não deu pra carregar: $e')),
         data: (d) {
-          if (d == null) return const Center(child: Text('Chamado não encontrado.'));
-          WidgetsBinding.instance.addPostFrameCallback((_) => _marcarVistoSeNecessario());
+          if (d == null)
+            return const Center(child: Text('Chamado não encontrado.'));
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _marcarVistoSeNecessario());
           final t = d.ticket;
 
           return ListView(
@@ -154,27 +166,35 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_erro!,
+                      style: const TextStyle(
+                          color: Color(0xFFB91C1C), fontSize: 13)),
                 ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text('#${t.numero} — ${t.titulo}',
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text('${tiposTicket[t.tipo] ?? t.tipo} · aberto em ${_fmtData(t.criadoEm)}',
+              Text(
+                  '${tiposTicket[t.tipo] ?? t.tipo} · aberto em ${_fmtData(t.criadoEm)}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
-                  _badge(statusTicket[t.status] ?? t.status, _corStatus[t.status] ?? Colors.grey),
-                  _badge(prioridadesTicket[t.prioridade] ?? t.prioridade, Colors.grey.shade700),
+                  _badge(statusTicket[t.status] ?? t.status,
+                      _corStatus[t.status] ?? Colors.grey),
+                  _badge(prioridadesTicket[t.prioridade] ?? t.prioridade,
+                      Colors.grey.shade700),
                 ],
               ),
               const SizedBox(height: 16),
@@ -182,7 +202,8 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                 OutlinedButton.icon(
                   onPressed: _resolvendo ? null : _marcarResolvido,
                   icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: Text(_resolvendo ? 'Salvando...' : 'Marcar como resolvido'),
+                  label: Text(
+                      _resolvendo ? 'Salvando...' : 'Marcar como resolvido'),
                 ),
               const SizedBox(height: 16),
               Card(
@@ -191,7 +212,9 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Descrição', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      Text('Descrição',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500)),
                       const SizedBox(height: 4),
                       Text(t.descricao, style: const TextStyle(fontSize: 13)),
                     ],
@@ -211,45 +234,69 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Resposta oficial (histórico)',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600)),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF6366F1),
+                              fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      Text(t.respostaAdmin!, style: const TextStyle(fontSize: 13, color: Color(0xFF3730A3))),
+                      Text(t.respostaAdmin!,
+                          style: const TextStyle(
+                              fontSize: 13, color: Color(0xFF3730A3))),
                     ],
                   ),
                 ),
               ],
               const SizedBox(height: 20),
-              const Text('Mensagens', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              const Text('Mensagens',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (d.comentarios.isEmpty)
-                Text('Nenhuma mensagem ainda.', style: TextStyle(fontSize: 13, color: Colors.grey.shade500))
+                Text('Nenhuma mensagem ainda.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500))
               else
                 ...d.comentarios.map((c) {
                   final proprio = c.autorEmail == meuEmail;
                   return Align(
-                    alignment: proprio ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment:
+                        proprio ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: proprio ? const Color(0xFF0D2D6B) : Colors.grey.shade100,
+                        color: proprio
+                            ? const Color(0xFF0D2D6B)
+                            : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(c.autorTipo == 'admin' ? 'Equipe FNI' : c.autorEmail,
+                          Text(
+                              c.autorTipo == 'admin'
+                                  ? 'Equipe FNI'
+                                  : c.autorEmail,
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: proprio ? Colors.white70 : Colors.grey.shade600)),
+                                  color: proprio
+                                      ? Colors.white70
+                                      : Colors.grey.shade600)),
                           const SizedBox(height: 2),
                           Text(c.texto,
-                              style: TextStyle(fontSize: 13, color: proprio ? Colors.white : Colors.black87)),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color:
+                                      proprio ? Colors.white : Colors.black87)),
                           const SizedBox(height: 4),
                           Text(_fmtData(c.criadoEm),
-                              style: TextStyle(fontSize: 10, color: proprio ? Colors.white60 : Colors.grey.shade500)),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: proprio
+                                      ? Colors.white60
+                                      : Colors.grey.shade500)),
                         ],
                       ),
                     ),
@@ -261,7 +308,9 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                   Expanded(
                     child: TextField(
                       controller: _mensagemCtrl,
-                      decoration: const InputDecoration(hintText: 'Escreva uma mensagem…', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                          hintText: 'Escreva uma mensagem…',
+                          border: OutlineInputBorder()),
                       enabled: !_enviandoMensagem,
                     ),
                   ),
@@ -273,24 +322,28 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const Text('Anexos', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              const Text('Anexos',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (d.anexos.isEmpty)
-                Text('Nenhum anexo.', style: TextStyle(fontSize: 13, color: Colors.grey.shade500))
+                Text('Nenhum anexo.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500))
               else
                 ...d.anexos.map((a) => Card(
                       margin: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
                         dense: true,
                         leading: const Icon(Icons.attach_file),
-                        title: Text(a.nome, style: const TextStyle(fontSize: 13)),
+                        title:
+                            Text(a.nome, style: const TextStyle(fontSize: 13)),
                         subtitle: Text(
                             '${formatarTamanhoAnexo(a.tamanho)}${a.autorEmail != null ? ' · enviado por ${a.autorEmail}' : ''}',
                             style: const TextStyle(fontSize: 11)),
                         trailing: a.urlAssinada != null
                             ? IconButton(
                                 icon: const Icon(Icons.open_in_new, size: 18),
-                                onPressed: () => launchUrl(Uri.parse(a.urlAssinada!)),
+                                onPressed: () =>
+                                    launchUrl(Uri.parse(a.urlAssinada!)),
                               )
                             : null,
                       ),
@@ -310,7 +363,11 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
 
   Widget _badge(String texto, Color cor) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-        child: Text(texto, style: TextStyle(fontSize: 12, color: cor, fontWeight: FontWeight.w600)),
+        decoration: BoxDecoration(
+            color: cor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12)),
+        child: Text(texto,
+            style: TextStyle(
+                fontSize: 12, color: cor, fontWeight: FontWeight.w600)),
       );
 }

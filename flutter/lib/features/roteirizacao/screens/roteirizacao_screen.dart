@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show Veiculo, veiculosClienteProvider;
 import '../../planos_viagem/providers/planos_viagem_provider.dart'
     show PrefillPlanoViagem, ParadaPrePedidoPrefill, Pedagio;
 import '../providers/roteirizacao_provider.dart';
 import '../services/geo_service.dart' as geo;
 import '../services/roteirizacao_algoritmo.dart';
 import 'mapa_postos.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-3 — Roteirização (cliente): 3 modos ("Por UF/Município",
 // "Consulta por Posto" e "Roteirizador Inteligente") num só toggle, em vez
@@ -66,17 +69,24 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
 
   List<PostoComScore> _aplicarFiltros(List<PostoComScore> lista) {
     return lista.where((p) {
-      if (_filtroBandeira != null && rotuloBandeira(p.bandeira) != _filtroBandeira) return false;
+      if (_filtroBandeira != null &&
+          rotuloBandeira(p.bandeira) != _filtroBandeira) return false;
       if (_filtroGrade != null && p.score.grade != _filtroGrade) return false;
       if (_filtroUf != null && p.uf != _filtroUf) return false;
       final municipioBusca = _filtroMunicipioCtrl.text.trim();
-      if (municipioBusca.isNotEmpty && !normalizarTexto(p.municipio).contains(normalizarTexto(municipioBusca))) {
+      if (municipioBusca.isNotEmpty &&
+          !normalizarTexto(p.municipio)
+              .contains(normalizarTexto(municipioBusca))) {
         return false;
       }
       final cnpjBusca = _filtroCnpjCtrl.text.replaceAll(RegExp(r'\D'), '');
-      if (cnpjBusca.isNotEmpty && !p.cnpj.replaceAll(RegExp(r'\D'), '').contains(cnpjBusca)) return false;
+      if (cnpjBusca.isNotEmpty &&
+          !p.cnpj.replaceAll(RegExp(r'\D'), '').contains(cnpjBusca))
+        return false;
       final razaoBusca = _filtroRazaoCtrl.text.trim();
-      if (razaoBusca.isNotEmpty && !normalizarTexto(p.razaoSocial).contains(normalizarTexto(razaoBusca))) {
+      if (razaoBusca.isNotEmpty &&
+          !normalizarTexto(p.razaoSocial)
+              .contains(normalizarTexto(razaoBusca))) {
         return false;
       }
       return true;
@@ -118,17 +128,21 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   Map<int, List<String>> get _rotulosAlternativas {
     final alternativas = _alternativas;
     if (alternativas == null || alternativas.length < 2) return {};
-    final maisRapida = alternativas.reduce((a, b) => a.duracaoMin < b.duracaoMin ? a : b);
-    final maisCurta = alternativas.reduce((a, b) => a.distanciaKm < b.distanciaKm ? a : b);
+    final maisRapida =
+        alternativas.reduce((a, b) => a.duracaoMin < b.duracaoMin ? a : b);
+    final maisCurta =
+        alternativas.reduce((a, b) => a.distanciaKm < b.distanciaKm ? a : b);
     final mapa = <int, List<String>>{for (final op in alternativas) op.id: []};
     mapa[maisRapida.id]!.add('🚀 Terminar mais rápido');
-    if (maisCurta.id != maisRapida.id) mapa[maisCurta.id]!.add('📏 Reduzir distâncias');
+    if (maisCurta.id != maisRapida.id)
+      mapa[maisCurta.id]!.add('📏 Reduzir distâncias');
     return mapa;
   }
 
   Future<void> _buscarRotas() async {
     if (_origemSel == null || _destinoSel == null) {
-      setState(() => _erro = 'Escolha origem e destino nas sugestões de busca antes de ver as rotas.');
+      setState(() => _erro =
+          'Escolha origem e destino nas sugestões de busca antes de ver as rotas.');
       return;
     }
     setState(() {
@@ -149,7 +163,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = 'Não consegui buscar as rotas agora. Tente de novo em instantes.';
+        _erro =
+            'Não consegui buscar as rotas agora. Tente de novo em instantes.';
         _buscandoRotas = false;
       });
     }
@@ -178,12 +193,14 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       } else if (compativeis != null && compativeis.length > 1) {
         _opcoesCombustivel = compativeis;
         _combustivelEscolhido = null;
-        _avisoCombustivel = 'Veículo ${v.combustivel} — escolha o combustível desta viagem.';
+        _avisoCombustivel =
+            'Veículo ${v.combustivel} — escolha o combustível desta viagem.';
       } else {
         _opcoesCombustivel = produtosPosto;
         _combustivelEscolhido = null;
-        _avisoCombustivel =
-            v.combustivel != null ? 'Não reconheço "${v.combustivel}" — escolha o combustível manualmente.' : null;
+        _avisoCombustivel = v.combustivel != null
+            ? 'Não reconheço "${v.combustivel}" — escolha o combustível manualmente.'
+            : null;
       }
     });
   }
@@ -220,11 +237,15 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       return;
     }
     if (_origemSel == null || _destinoSel == null) {
-      setState(() => _erro = 'Escolha origem e destino nas sugestões de busca.');
+      setState(
+          () => _erro = 'Escolha origem e destino nas sugestões de busca.');
       return;
     }
-    if (_veiculo == null || _veiculo!.tanque == null || _veiculo!.autonomia == null) {
-      setState(() => _erro = 'Escolha um veículo com tanque e autonomia cadastrados.');
+    if (_veiculo == null ||
+        _veiculo!.tanque == null ||
+        _veiculo!.autonomia == null) {
+      setState(() =>
+          _erro = 'Escolha um veículo com tanque e autonomia cadastrados.');
       return;
     }
     if (_combustivelEscolhido == null || _combustivelEscolhido!.isEmpty) {
@@ -307,9 +328,12 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           ? await RoteirizacaoService().buscarPostosPorUf(
               empresaId: empresaId,
               uf: _uf,
-              municipio: _municipioCtrl.text.trim().isEmpty ? null : _municipioCtrl.text.trim(),
+              municipio: _municipioCtrl.text.trim().isEmpty
+                  ? null
+                  : _municipioCtrl.text.trim(),
             )
-          : await RoteirizacaoService().buscarPostoPorTermo(empresaId: empresaId, termo: _termoCtrl.text.trim());
+          : await RoteirizacaoService().buscarPostoPorTermo(
+              empresaId: empresaId, termo: _termoCtrl.text.trim());
       if (!mounted) return;
       setState(() {
         _resultado = lista;
@@ -327,7 +351,14 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Roteirização')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Roteirização')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -342,7 +373,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             segments: const [
               ButtonSegment(value: 'uf', label: Text('Por UF/Município')),
               ButtonSegment(value: 'posto', label: Text('Consulta por Posto')),
-              ButtonSegment(value: 'planejar', label: Text('Roteirizador Inteligente')),
+              ButtonSegment(
+                  value: 'planejar', label: Text('Roteirizador Inteligente')),
             ],
             selected: {_modo},
             onSelectionChanged: (s) => setState(() {
@@ -361,12 +393,15 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             ..._formPlanejar(),
           if (_erro != null) ...[
             const SizedBox(height: 8),
-            Text(_erro!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+            Text(_erro!,
+                style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
           ],
           const SizedBox(height: 16),
           if (_buscando) const Center(child: CircularProgressIndicator()),
-          if (!_buscando && _modo != 'planejar' && _resultado != null) ..._resultados(),
-          if (!_buscando && _modo == 'planejar' && _resultadoPlanejar != null) ..._resultadosPlanejar(),
+          if (!_buscando && _modo != 'planejar' && _resultado != null)
+            ..._resultados(),
+          if (!_buscando && _modo == 'planejar' && _resultadoPlanejar != null)
+            ..._resultadosPlanejar(),
         ],
       ),
     );
@@ -380,10 +415,13 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             flex: 2,
             child: DropdownButtonFormField<String>(
               value: _uf,
-              decoration: const InputDecoration(labelText: 'UF', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'UF', border: OutlineInputBorder(), isDense: true),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Selecione...')),
-                for (final uf in ufsRoteirizacao) DropdownMenuItem(value: uf, child: Text(uf)),
+                const DropdownMenuItem(
+                    value: null, child: Text('Selecione...')),
+                for (final uf in ufsRoteirizacao)
+                  DropdownMenuItem(value: uf, child: Text(uf)),
               ],
               onChanged: (v) => setState(() => _uf = v),
             ),
@@ -393,8 +431,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             flex: 3,
             child: TextField(
               controller: _municipioCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Município (opcional)', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Município (opcional)',
+                  border: OutlineInputBorder(),
+                  isDense: true),
             ),
           ),
         ],
@@ -402,7 +442,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       const SizedBox(height: 10),
       SizedBox(
         width: double.infinity,
-        child: FilledButton(onPressed: _buscando ? null : _buscar, child: const Text('Buscar')),
+        child: FilledButton(
+            onPressed: _buscando ? null : _buscar, child: const Text('Buscar')),
       ),
     ];
   }
@@ -422,7 +463,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       const SizedBox(height: 10),
       SizedBox(
         width: double.infinity,
-        child: FilledButton(onPressed: _buscando ? null : _buscar, child: const Text('Buscar')),
+        child: FilledButton(
+            onPressed: _buscando ? null : _buscar, child: const Text('Buscar')),
       ),
     ];
   }
@@ -434,7 +476,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Nenhum posto encontrado.', style: TextStyle(color: Colors.grey.shade600)),
+            child: Text('Nenhum posto encontrado.',
+                style: TextStyle(color: Colors.grey.shade600)),
           ),
         ),
       ];
@@ -449,7 +492,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Nenhum posto encontrado com os filtros atuais.', style: TextStyle(color: Colors.grey.shade600)),
+            child: Text('Nenhum posto encontrado com os filtros atuais.',
+                style: TextStyle(color: Colors.grey.shade600)),
           ),
         )
       else ...[
@@ -470,7 +514,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   // município, UF, CNPJ e Razão Social". Bandeira vem dinâmica (só as
   // que aparecem no resultado atual); os demais campos são fixos.
   Widget _painelFiltros(List<PostoComScore> listaCompleta) {
-    final bandeiras = <String>{for (final p in listaCompleta) rotuloBandeira(p.bandeira)}.toList()..sort();
+    final bandeiras = <String>{
+      for (final p in listaCompleta) rotuloBandeira(p.bandeira)
+    }.toList()
+      ..sort();
 
     return Card(
       child: Padding(
@@ -482,12 +529,17 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
               children: [
                 const Icon(Icons.filter_list, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
-                const Text('Filtrar resultados', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const Text('Filtrar resultados',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 const Spacer(),
                 if (_filtrosAtivos)
                   TextButton(
                     onPressed: _limparFiltros,
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                     child: const Text('Limpar', style: TextStyle(fontSize: 12)),
                   ),
               ],
@@ -502,7 +554,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   child: DropdownButtonFormField<String>(
                     value: _filtroBandeira,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Bandeira', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Bandeira',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Todas')),
                       for (final b in bandeiras)
@@ -514,10 +569,16 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                               Container(
                                 width: 8,
                                 height: 8,
-                                decoration: BoxDecoration(shape: BoxShape.circle, color: b == 'Sem bandeira' ? Colors.grey.shade500 : corBandeira(b)),
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: b == 'Sem bandeira'
+                                        ? Colors.grey.shade500
+                                        : corBandeira(b)),
                               ),
                               const SizedBox(width: 6),
-                              Flexible(child: Text(b, overflow: TextOverflow.ellipsis)),
+                              Flexible(
+                                  child:
+                                      Text(b, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                         ),
@@ -529,7 +590,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   width: 100,
                   child: DropdownButtonFormField<String>(
                     value: _filtroGrade,
-                    decoration: const InputDecoration(labelText: 'Score', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Score',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('Todos')),
                       DropdownMenuItem(value: 'A', child: Text('A')),
@@ -544,10 +608,14 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   width: 100,
                   child: DropdownButtonFormField<String>(
                     value: _filtroUf,
-                    decoration: const InputDecoration(labelText: 'UF', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'UF',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Todas')),
-                      for (final uf in ufsRoteirizacao) DropdownMenuItem(value: uf, child: Text(uf)),
+                      for (final uf in ufsRoteirizacao)
+                        DropdownMenuItem(value: uf, child: Text(uf)),
                     ],
                     onChanged: (v) => setState(() => _filtroUf = v),
                   ),
@@ -556,7 +624,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   width: 150,
                   child: TextField(
                     controller: _filtroMunicipioCtrl,
-                    decoration: const InputDecoration(labelText: 'Município', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Município',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
@@ -564,7 +635,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   width: 150,
                   child: TextField(
                     controller: _filtroCnpjCtrl,
-                    decoration: const InputDecoration(labelText: 'CNPJ', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'CNPJ',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
@@ -572,7 +646,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   width: 180,
                   child: TextField(
                     controller: _filtroRazaoCtrl,
-                    decoration: const InputDecoration(labelText: 'Razão Social', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Razão Social',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
@@ -596,19 +673,25 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       children: [
         TextField(
           controller: controller,
-          decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+          decoration: InputDecoration(
+              labelText: label,
+              border: const OutlineInputBorder(),
+              isDense: true),
           onChanged: onChanged,
         ),
         if (sugestoes.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(6)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: sugestoes
                   .map((s) => ListTile(
                         dense: true,
-                        title: Text(s.label, style: const TextStyle(fontSize: 13)),
+                        title:
+                            Text(s.label, style: const TextStyle(fontSize: 13)),
                         onTap: () => onSelecionado(s),
                       ))
                   .toList(),
@@ -659,7 +742,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       veiculosAsync.when(
         data: (veiculos) => DropdownButtonFormField<Veiculo>(
           value: _veiculo,
-          decoration: const InputDecoration(labelText: 'Veículo', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Veículo',
+              border: OutlineInputBorder(),
+              isDense: true),
           items: veiculos
               .map((v) => DropdownMenuItem(
                     value: v,
@@ -670,29 +756,39 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           onChanged: _onVeiculoSelecionado,
         ),
         loading: () => const LinearProgressIndicator(),
-        error: (e, _) => Text('Erro ao carregar veículos: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+        error: (e, _) => Text('Erro ao carregar veículos: $e',
+            style: const TextStyle(color: Colors.red, fontSize: 12)),
       ),
       const SizedBox(height: 10),
       DropdownButtonFormField<String>(
         value: _combustivelEscolhido,
-        decoration: const InputDecoration(labelText: 'Combustível desta viagem', border: OutlineInputBorder(), isDense: true),
+        decoration: const InputDecoration(
+            labelText: 'Combustível desta viagem',
+            border: OutlineInputBorder(),
+            isDense: true),
         items: [
           const DropdownMenuItem(value: null, child: Text('Selecione...')),
-          for (final c in _opcoesCombustivel) DropdownMenuItem(value: c, child: Text(c)),
+          for (final c in _opcoesCombustivel)
+            DropdownMenuItem(value: c, child: Text(c)),
         ],
         onChanged: (v) => setState(() => _combustivelEscolhido = v),
       ),
       if (_avisoCombustivel != null)
         Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(_avisoCombustivel!, style: TextStyle(fontSize: 11, color: Colors.amber.shade800)),
+          child: Text(_avisoCombustivel!,
+              style: TextStyle(fontSize: 11, color: Colors.amber.shade800)),
         ),
       const SizedBox(height: 10),
       DropdownButtonFormField<String>(
         value: _perfilChave,
-        decoration: const InputDecoration(labelText: 'Perfil de otimização', border: OutlineInputBorder(), isDense: true),
+        decoration: const InputDecoration(
+            labelText: 'Perfil de otimização',
+            border: OutlineInputBorder(),
+            isDense: true),
         items: perfisPeso
-            .map((p) => DropdownMenuItem(value: p.chave, child: Text('${p.icone} ${p.nome}')))
+            .map((p) => DropdownMenuItem(
+                value: p.chave, child: Text('${p.icone} ${p.nome}')))
             .toList(),
         onChanged: (v) => setState(() => _perfilChave = v ?? _perfilChave),
       ),
@@ -706,7 +802,9 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       const SizedBox(height: 10),
       SizedBox(
         width: double.infinity,
-        child: FilledButton(onPressed: _buscando ? null : _planejar, child: const Text('Calcular roteiro')),
+        child: FilledButton(
+            onPressed: _buscando ? null : _planejar,
+            child: const Text('Calcular roteiro')),
       ),
     ];
   }
@@ -725,17 +823,23 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: (!origemDestinoOk || _buscandoRotas) ? null : _buscarRotas,
+            onPressed:
+                (!origemDestinoOk || _buscandoRotas) ? null : _buscarRotas,
             icon: _buscandoRotas
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.alt_route, size: 18),
-            label: Text(_buscandoRotas ? 'Buscando rotas...' : '🔍 Ver opções de rota'),
+            label: Text(
+                _buscandoRotas ? 'Buscando rotas...' : '🔍 Ver opções de rota'),
           ),
         ),
         if (!origemDestinoOk)
           const Padding(
             padding: EdgeInsets.only(top: 4),
-            child: Text('Escolha origem e destino nas sugestões de busca para ver as opções de rota.',
+            child: Text(
+                'Escolha origem e destino nas sugestões de busca para ver as opções de rota.',
                 style: TextStyle(fontSize: 11, color: Colors.grey)),
           ),
       ];
@@ -755,7 +859,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
     return [
       const Padding(
         padding: EdgeInsets.only(bottom: 6),
-        child: Text('Escolha a rota:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text('Escolha a rota:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       ),
       GridView.count(
         crossAxisCount: 2,
@@ -765,7 +870,8 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         crossAxisSpacing: 8,
         childAspectRatio: 1.9,
         children: [
-          for (final op in alternativas) _cardOpcaoRota(op, rotulos[op.id] ?? ['Alternativa ${op.id + 1}']),
+          for (final op in alternativas)
+            _cardOpcaoRota(op, rotulos[op.id] ?? ['Alternativa ${op.id + 1}']),
         ],
       ),
     ];
@@ -793,7 +899,11 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                 bandeira: p.candidato.bandeira,
                 lat: p.candidato.lat,
                 lon: p.candidato.lon,
-                precos: [PrecoPosto(combustivel: _combustivelEscolhido ?? '', preco: p.candidato.preco)],
+                precos: [
+                  PrecoPosto(
+                      combustivel: _combustivelEscolhido ?? '',
+                      preco: p.candidato.preco)
+                ],
                 score: ScorePosto(
                   score: 0,
                   grade: p.candidato.grade ?? 'D',
@@ -839,7 +949,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: selecionada ? const Color(0xFF10B981).withOpacity(0.10) : null,
-          border: Border.all(color: selecionada ? const Color(0xFF10B981) : Colors.grey.shade300, width: selecionada ? 2 : 1),
+          border: Border.all(
+              color:
+                  selecionada ? const Color(0xFF10B981) : Colors.grey.shade300,
+              width: selecionada ? 2 : 1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -847,12 +960,16 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (final r in rotulos)
-              Text(r, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+              Text(r,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis),
             if (rotulos.isEmpty || rotulos.first.startsWith('Alternativa'))
               const SizedBox.shrink()
             else
               const SizedBox(height: 2),
-            Text('${op.distanciaKm.toStringAsFixed(0)} km · ${(op.duracaoMin / 60).toStringAsFixed(1)} h',
+            Text(
+                '${op.distanciaKm.toStringAsFixed(0)} km · ${(op.duracaoMin / 60).toStringAsFixed(1)} h',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
           ],
         ),
@@ -896,11 +1013,15 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _resumoItem('Distância', '${r.distanciaKm.toStringAsFixed(0)} km'),
-              _resumoItem('Duração', '${(r.duracaoMin / 60).toStringAsFixed(1)} h'),
+              _resumoItem(
+                  'Distância', '${r.distanciaKm.toStringAsFixed(0)} km'),
+              _resumoItem(
+                  'Duração', '${(r.duracaoMin / 60).toStringAsFixed(1)} h'),
               _resumoItem('Paradas', '${r.paradas.length}'),
-              _resumoItem('Combustível', 'R\$ ${r.custoTotal.toStringAsFixed(2)}'),
-              _resumoItem('🎫 Pedágio', 'R\$ ${r.custoPedagioEstimado.toStringAsFixed(2)}'),
+              _resumoItem(
+                  'Combustível', 'R\$ ${r.custoTotal.toStringAsFixed(2)}'),
+              _resumoItem('🎫 Pedágio',
+                  'R\$ ${r.custoPedagioEstimado.toStringAsFixed(2)}'),
             ],
           ),
         ),
@@ -916,33 +1037,41 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       ),
       if (r.pracasPedagio.isNotEmpty) ...[
         const SizedBox(height: 12),
-        Text('Pedágios na rota (${r.pracasPedagio.length})', style: Theme.of(context).textTheme.titleSmall),
+        Text('Pedágios na rota (${r.pracasPedagio.length})',
+            style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         ...r.pracasPedagio.map((p) => Card(
               margin: const EdgeInsets.only(bottom: 6),
               child: ListTile(
                 dense: true,
                 leading: const Text('🎫', style: TextStyle(fontSize: 18)),
-                title: Text(p.nome, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                title: Text(p.nome,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
                   '${p.rodovia ?? p.concessionaria ?? '—'} · km ${p.kmNaRota.toStringAsFixed(0)}',
                   style: const TextStyle(fontSize: 11),
                 ),
                 trailing: Text(
-                  p.valorCarro != null ? 'R\$ ${p.valorCarro!.toStringAsFixed(2)}' : '—',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  p.valorCarro != null
+                      ? 'R\$ ${p.valorCarro!.toStringAsFixed(2)}'
+                      : '—',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
             )),
       ],
       const SizedBox(height: 12),
-      Text('Paradas sugeridas (${r.paradas.length})', style: Theme.of(context).textTheme.titleSmall),
+      Text('Paradas sugeridas (${r.paradas.length})',
+          style: Theme.of(context).textTheme.titleSmall),
       const SizedBox(height: 8),
       if (r.paradas.isEmpty)
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Nenhuma parada necessária para esse trajeto com o tanque atual.',
+            child: Text(
+                'Nenhuma parada necessária para esse trajeto com o tanque atual.',
                 style: TextStyle(color: Colors.grey.shade600)),
           ),
         )
@@ -958,14 +1087,17 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   // paradas viram Pré-Pedido automaticamente se a empresa tiver o
   // parâmetro habilitado (ver planos_viagem_service.dart).
   void _criarPlanoViagem(ResultadoRoteirizacaoInteligente r) {
-    final litrosTotal = r.paradas.fold<double>(0, (s, p) => s + p.litrosSugeridos);
+    final litrosTotal =
+        r.paradas.fold<double>(0, (s, p) => s + p.litrosSugeridos);
     final prefill = PrefillPlanoViagem(
       nome: '${_origemCtrl.text} → ${_destinoCtrl.text}',
       placa: _veiculo?.placa,
       kmEstimado: r.distanciaKm.roundToDouble(),
       consumoKmL: _veiculo?.autonomia,
       precoCombustivel: litrosTotal > 0 ? (r.custoTotal / litrosTotal) : null,
-      pedagios: r.pracasPedagio.map((p) => Pedagio(pracaNome: p.nome, valor: p.valorCarro ?? 0)).toList(),
+      pedagios: r.pracasPedagio
+          .map((p) => Pedagio(pracaNome: p.nome, valor: p.valorCarro ?? 0))
+          .toList(),
       paradas: r.paradas
           .asMap()
           .entries
@@ -986,8 +1118,10 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   Widget _resumoItem(String label, String valor) {
     return Column(
       children: [
-        Text(valor, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+        Text(valor,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
       ],
     );
   }
@@ -1009,16 +1143,26 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: cor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                  child: Text(p.motivo, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w700)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: cor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text(p.motivo,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: cor,
+                          fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(p.candidato.label,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis),
                 ),
-                Text('km ${p.candidato.km.toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text('km ${p.candidato.km.toStringAsFixed(0)}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 6),
@@ -1055,26 +1199,41 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: cor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                  child: Text('${p.score.grade} ${p.score.score.toStringAsFixed(0)}',
-                      style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w700)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: cor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text(
+                      '${p.score.grade} ${p.score.score.toStringAsFixed(0)}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: cor,
+                          fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(p.razaoSocial ?? p.cnpj,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: (p.origem == 'anp' ? const Color(0xFF0284C7) : Colors.grey).withOpacity(0.1),
+                    color: (p.origem == 'anp'
+                            ? const Color(0xFF0284C7)
+                            : Colors.grey)
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(p.origem == 'anp' ? 'Base ANP' : 'Próprio',
                       style: TextStyle(
                           fontSize: 10,
-                          color: p.origem == 'anp' ? const Color(0xFF0284C7) : Colors.grey.shade700,
+                          color: p.origem == 'anp'
+                              ? const Color(0xFF0284C7)
+                              : Colors.grey.shade700,
                           fontWeight: FontWeight.w600)),
                 ),
               ],
@@ -1086,16 +1245,21 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             ),
             const SizedBox(height: 8),
             if (p.precos.isEmpty)
-              Text('Sem preço registrado', style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+              Text('Sem preço registrado',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
             else
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: p.precos
                     .map((preco) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
-                          child: Text('${preco.combustivel} R\$ ${preco.preco.toStringAsFixed(3)}',
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6)),
+                          child: Text(
+                              '${preco.combustivel} R\$ ${preco.preco.toStringAsFixed(3)}',
                               style: const TextStyle(fontSize: 11)),
                         ))
                     .toList(),

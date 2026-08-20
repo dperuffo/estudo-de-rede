@@ -8,7 +8,8 @@ import '../services/fipe_service.dart';
 class VincularFipeCard extends StatefulWidget {
   final Veiculo veiculo;
   final VoidCallback onAtualizado;
-  const VincularFipeCard({super.key, required this.veiculo, required this.onAtualizado});
+  const VincularFipeCard(
+      {super.key, required this.veiculo, required this.onAtualizado});
 
   @override
   State<VincularFipeCard> createState() => _VincularFipeCardState();
@@ -31,7 +32,9 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
   String? _anoCode;
 
   bool get _jaVinculado =>
-      widget.veiculo.codigoFipe != null && widget.veiculo.fipeTipoVeiculo != null && widget.veiculo.fipeAnoCodigo != null;
+      widget.veiculo.codigoFipe != null &&
+      widget.veiculo.fipeTipoVeiculo != null &&
+      widget.veiculo.fipeAnoCodigo != null;
 
   @override
   void initState() {
@@ -142,7 +145,9 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -159,25 +164,34 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(6)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(6)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
             ),
             const SizedBox(height: 8),
           ],
           if (_jaVinculado && !_editando) ...[
-            Text('Código FIPE: ${widget.veiculo.codigoFipe}', style: const TextStyle(fontSize: 13)),
+            Text('Código FIPE: ${widget.veiculo.codigoFipe}',
+                style: const TextStyle(fontSize: 13)),
             Text(
               'Valor atual: ${widget.veiculo.valorFipe != null ? "R\$ ${widget.veiculo.valorFipe!.toStringAsFixed(2)}" : "—"}',
               style: const TextStyle(fontSize: 13),
             ),
-            Text('Referência: ${widget.veiculo.mesReferencia ?? "—"}', style: const TextStyle(fontSize: 13)),
+            Text('Referência: ${widget.veiculo.mesReferencia ?? "—"}',
+                style: const TextStyle(fontSize: 13)),
             const SizedBox(height: 10),
             Row(
               children: [
                 OutlinedButton(
                   onPressed: _salvando ? null : _atualizarAgora,
                   child: _salvando
-                      ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Atualizar agora'),
                 ),
                 const SizedBox(width: 12),
@@ -195,8 +209,14 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
           ] else ...[
             DropdownButtonFormField<TipoVeiculoFipe>(
               value: _tipo,
-              decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder(), isDense: true),
-              items: [for (final t in tiposVeiculoFipe) DropdownMenuItem(value: t.$1, child: Text(t.$2))],
+              decoration: const InputDecoration(
+                  labelText: 'Tipo',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              items: [
+                for (final t in tiposVeiculoFipe)
+                  DropdownMenuItem(value: t.$1, child: Text(t.$2))
+              ],
               onChanged: _salvando
                   ? null
                   : (val) {
@@ -209,11 +229,18 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
             DropdownButtonFormField<String>(
               value: _marcaCode,
               decoration: InputDecoration(
-                labelText: _carregandoOpcoes && _marcas.isEmpty ? 'Carregando marcas...' : 'Marca',
+                labelText: _carregandoOpcoes && _marcas.isEmpty
+                    ? 'Carregando marcas...'
+                    : 'Marca',
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
-              items: [for (final m in _marcas) DropdownMenuItem(value: m.code, child: Text(m.name, overflow: TextOverflow.ellipsis))],
+              items: [
+                for (final m in _marcas)
+                  DropdownMenuItem(
+                      value: m.code,
+                      child: Text(m.name, overflow: TextOverflow.ellipsis))
+              ],
               onChanged: (_salvando || _carregandoOpcoes)
                   ? null
                   : (val) {
@@ -225,8 +252,16 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _modeloCode,
-              decoration: const InputDecoration(labelText: 'Modelo', border: OutlineInputBorder(), isDense: true),
-              items: [for (final m in _modelos) DropdownMenuItem(value: m.code, child: Text(m.name, overflow: TextOverflow.ellipsis))],
+              decoration: const InputDecoration(
+                  labelText: 'Modelo',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              items: [
+                for (final m in _modelos)
+                  DropdownMenuItem(
+                      value: m.code,
+                      child: Text(m.name, overflow: TextOverflow.ellipsis))
+              ],
               onChanged: (_salvando || _carregandoOpcoes || _marcaCode == null)
                   ? null
                   : (val) {
@@ -238,9 +273,19 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _anoCode,
-              decoration: const InputDecoration(labelText: 'Ano/combustível', border: OutlineInputBorder(), isDense: true),
-              items: [for (final a in _anos) DropdownMenuItem(value: a.code, child: Text(a.name, overflow: TextOverflow.ellipsis))],
-              onChanged: (_salvando || _carregandoOpcoes || _modeloCode == null) ? null : (val) => setState(() => _anoCode = val),
+              decoration: const InputDecoration(
+                  labelText: 'Ano/combustível',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              items: [
+                for (final a in _anos)
+                  DropdownMenuItem(
+                      value: a.code,
+                      child: Text(a.name, overflow: TextOverflow.ellipsis))
+              ],
+              onChanged: (_salvando || _carregandoOpcoes || _modeloCode == null)
+                  ? null
+                  : (val) => setState(() => _anoCode = val),
             ),
             const SizedBox(height: 10),
             Row(
@@ -248,13 +293,18 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
                 FilledButton(
                   onPressed: (_salvando || _anoCode == null) ? null : _vincular,
                   child: _salvando
-                      ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Vincular'),
                 ),
                 if (_jaVinculado) ...[
                   const SizedBox(width: 12),
                   TextButton(
-                    onPressed: _salvando ? null : () => setState(() => _editando = false),
+                    onPressed: _salvando
+                        ? null
+                        : () => setState(() => _editando = false),
                     child: const Text('Cancelar'),
                   ),
                 ],

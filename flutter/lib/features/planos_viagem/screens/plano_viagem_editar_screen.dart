@@ -5,6 +5,8 @@ import '../providers/planos_viagem_provider.dart';
 import '../services/planos_viagem_service.dart';
 import 'plano_viagem_form.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Editar Plano de Viagem (cliente), porta de
 // planos-viagem/[id]/editar/page.tsx. Carrega o plano + pedágios já
 // salvos antes de montar o form (o form precisa dos pedágios prontos pra
@@ -25,8 +27,12 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
         title: const Text('Excluir Plano de Viagem?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -45,6 +51,12 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Editar Plano de Viagem'),
         actions: [
           IconButton(
@@ -56,19 +68,25 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
       ),
       body: planoAsync.when(
         data: (plano) {
-          if (plano == null) return const Center(child: Text('Plano não encontrado.'));
+          if (plano == null)
+            return const Center(child: Text('Plano não encontrado.'));
           return pedagiosAsync.when(
             data: (pedagios) => Column(
               children: [
                 prePedidoAsync.maybeWhen(
-                  data: (prePedido) => prePedido == null ? const SizedBox() : _cardPrePedido(prePedido),
+                  data: (prePedido) => prePedido == null
+                      ? const SizedBox()
+                      : _cardPrePedido(prePedido),
                   orElse: () => const SizedBox(),
                 ),
-                Expanded(child: PlanoViagemForm(existente: plano, pedagiosIniciais: pedagios)),
+                Expanded(
+                    child: PlanoViagemForm(
+                        existente: plano, pedagiosIniciais: pedagios)),
               ],
             ),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Erro ao carregar pedágios: $e')),
+            error: (e, _) =>
+                Center(child: Text('Erro ao carregar pedágios: $e')),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -102,12 +120,19 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text('Pré-Pedido nº ${prePedido.numero}',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1E3A8A))),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Color(0xFF1E3A8A))),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                child: Text(statusLabel, style: const TextStyle(fontSize: 11, color: Color(0xFF1E40AF))),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12)),
+                child: Text(statusLabel,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF1E40AF))),
               ),
             ],
           ),
@@ -120,8 +145,11 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           ...prePedido.paradas.map((p) => Container(
                 margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     Expanded(
@@ -133,15 +161,21 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: p.atendido ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                        color: p.atendido
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         p.atendido ? 'Abastecido' : 'Pendente',
                         style: TextStyle(
-                            fontSize: 10, color: p.atendido ? const Color(0xFF15803D) : Colors.grey.shade600),
+                            fontSize: 10,
+                            color: p.atendido
+                                ? const Color(0xFF15803D)
+                                : Colors.grey.shade600),
                       ),
                     ),
                   ],

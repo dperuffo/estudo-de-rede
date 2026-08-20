@@ -77,13 +77,16 @@ class Oficina {
 
 typedef FiltrosOficinas = ({String? uf, String? especialidade});
 
-final catalogoOficinasProvider = FutureProvider.autoDispose.family<List<Oficina>, FiltrosOficinas>((ref, filtros) async {
+final catalogoOficinasProvider = FutureProvider.autoDispose
+    .family<List<Oficina>, FiltrosOficinas>((ref, filtros) async {
   var query = SupabaseService.client
       .from('oficinas_credenciadas')
-      .select('id, nome, especialidades, telefone, email, municipio, uf, avaliacao_media')
+      .select(
+          'id, nome, especialidades, telefone, email, municipio, uf, avaliacao_media')
       .eq('ativo', true);
   if (filtros.uf != null) query = query.eq('uf', filtros.uf!);
-  if (filtros.especialidade != null) query = query.contains('especialidades', [filtros.especialidade]);
+  if (filtros.especialidade != null)
+    query = query.contains('especialidades', [filtros.especialidade]);
   final rows = await query.order('nome') as List;
   return rows.map((r) => Oficina.fromMap(r as Map<String, dynamic>)).toList();
 });
@@ -147,12 +150,15 @@ class PedidoOrcamento {
       descricaoServico: m['descricao_servico'] as String,
       status: m['status'] as String? ?? 'aberto',
       criadoEm: m['criado_em'] as String? ?? '',
-      propostas: propostasRaw.map((p) => PropostaOrcamento.fromMap(p as Map<String, dynamic>)).toList(),
+      propostas: propostasRaw
+          .map((p) => PropostaOrcamento.fromMap(p as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
 
-final meusPedidosOrcamentoProvider = FutureProvider.autoDispose<List<PedidoOrcamento>>((ref) async {
+final meusPedidosOrcamentoProvider =
+    FutureProvider.autoDispose<List<PedidoOrcamento>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -163,5 +169,7 @@ final meusPedidosOrcamentoProvider = FutureProvider.autoDispose<List<PedidoOrcam
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false)
       .limit(100) as List;
-  return rows.map((r) => PedidoOrcamento.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => PedidoOrcamento.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

@@ -48,7 +48,8 @@ class PostoDashboardScreen extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(dashboardPostoProvider),
       child: dadosAsync.when(
-        loading: () => const Center(child: Padding(
+        loading: () => const Center(
+            child: Padding(
           padding: EdgeInsets.only(top: 80),
           child: CircularProgressIndicator(),
         )),
@@ -58,42 +59,46 @@ class PostoDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 40),
             const Icon(Icons.error_outline, size: 40, color: Colors.red),
             const SizedBox(height: 12),
-            Text('Não deu pra carregar o painel.\n$e', textAlign: TextAlign.center),
+            Text('Não deu pra carregar o painel.\n$e',
+                textAlign: TextAlign.center),
           ],
         ),
         data: (dados) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             Text(
-              sessao?.nomeEmpresa != null ? 'Dashboard — ${sessao!.nomeEmpresa}' : 'Dashboard',
+              sessao?.nomeEmpresa != null
+                  ? 'Dashboard — ${sessao!.nomeEmpresa}'
+                  : 'Dashboard',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             const Text('Desempenho de vendas e negociações.',
                 style: TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 20),
-
             _tituloSecao('Vendas — últimos 30 dias'),
             _gradeIndicadores([
-              _Indicador('Abastecimentos', _numero.format(dados.totalAbastecimentos)),
-              _Indicador('Volume', '${_numero.format(dados.volumeVendido.round())} L'),
+              _Indicador(
+                  'Abastecimentos', _numero.format(dados.totalAbastecimentos)),
+              _Indicador(
+                  'Volume', '${_numero.format(dados.volumeVendido.round())} L'),
               _Indicador('Receita', _moeda.format(dados.receitaVendida)),
               _Indicador('Preço médio', _moeda.format(dados.precoMedioGeral)),
               _Indicador('Ticket médio', _moeda.format(dados.ticketMedio)),
             ]),
-
             const SizedBox(height: 20),
-            _tituloSecao('Venda diária por combustível — últimos $janelaGraficoDias dias'),
+            _tituloSecao(
+                'Venda diária por combustível — últimos $janelaGraficoDias dias'),
             if (dados.serieDiariaPorCombustivel.isEmpty)
               _cardVazio('Sem dados suficientes no período.')
             else
               Card(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
-                  child: _graficoLinhaVendaDiaria(dados.serieDiariaPorCombustivel),
+                  child:
+                      _graficoLinhaVendaDiaria(dados.serieDiariaPorCombustivel),
                 ),
               ),
-
             const SizedBox(height: 20),
             _tituloSecao('Desempenho por combustível'),
             if (dados.desempenhoPorCombustivel.isEmpty)
@@ -120,9 +125,11 @@ class PostoDashboardScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(_moeda.format(d.receita),
-                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
                                 Text('${d.participacao.toStringAsFixed(0)}%',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                           ))
@@ -130,16 +137,15 @@ class PostoDashboardScreen extends ConsumerWidget {
                 ),
               ),
             ],
-
             const SizedBox(height: 20),
             _tituloSecao('Negociações'),
             _gradeIndicadores([
               _Indicador('Aguardando resposta', '${dados.pendentes}'),
               _Indicador('Vigentes', '${dados.vigentes}'),
               _Indicador('Clientes ativos', '${dados.clientesAtivos}'),
-              _Indicador('Vol. mín./mês', '${_numero.format(dados.volumeContratado.round())} L'),
+              _Indicador('Vol. mín./mês',
+                  '${_numero.format(dados.volumeContratado.round())} L'),
             ]),
-
             const SizedBox(height: 20),
             _tituloSecao('Negociações vigentes agora'),
             if (dados.vigentesLista.isEmpty)
@@ -162,7 +168,6 @@ class PostoDashboardScreen extends ConsumerWidget {
                       .toList(),
                 ),
               ),
-
             if (dados.pendentesLista.isNotEmpty) ...[
               const SizedBox(height: 20),
               _tituloSecao('Aguardando sua resposta'),
@@ -173,7 +178,8 @@ class PostoDashboardScreen extends ConsumerWidget {
                             dense: true,
                             title: Text(n.clienteNome ?? '—'),
                             trailing: TextButton(
-                              onPressed: () => context.push('/posto/negociacoes'),
+                              onPressed: () =>
+                                  context.push('/posto/negociacoes'),
                               child: const Text('Responder'),
                             ),
                           ))
@@ -193,7 +199,8 @@ class PostoDashboardScreen extends ConsumerWidget {
   // abaixo, tooltip formatado, legenda manual.
   Widget _graficoLinhaVendaDiaria(List<PontoVendaDiaria> pontos) {
     final dias = pontos.map((p) => p.dia).toSet().toList()..sort();
-    final combustiveis = pontos.map((p) => p.combustivel).toSet().toList()..sort();
+    final combustiveis = pontos.map((p) => p.combustivel).toSet().toList()
+      ..sort();
     if (dias.isEmpty || combustiveis.isEmpty) return const SizedBox();
 
     final linhas = <LineChartBarData>[];
@@ -201,7 +208,8 @@ class PostoDashboardScreen extends ConsumerWidget {
       final comb = combustiveis[ci];
       final spots = <FlSpot>[];
       for (var di = 0; di < dias.length; di++) {
-        final ponto = pontos.where((p) => p.dia == dias[di] && p.combustivel == comb);
+        final ponto =
+            pontos.where((p) => p.dia == dias[di] && p.combustivel == comb);
         final volume = ponto.isNotEmpty ? ponto.first.volume : 0.0;
         spots.add(FlSpot(di.toDouble(), volume));
       }
@@ -222,13 +230,15 @@ class PostoDashboardScreen extends ConsumerWidget {
         child: LineChart(LineChartData(
           lineBarsData: linhas,
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(
+            leftTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 44,
-              getTitlesWidget: (v, _) =>
-                  Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)),
+              getTitlesWidget: (v, _) => Text(_numero.format(v.round()),
+                  style: const TextStyle(fontSize: 9)),
             )),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(
+            bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
               interval: dias.length > 6 ? (dias.length / 6).ceilToDouble() : 1,
@@ -258,11 +268,17 @@ class PostoDashboardScreen extends ConsumerWidget {
               getTooltipItems: (spots) => spots
                   .map((s) => LineTooltipItem(
                         '● ',
-                        TextStyle(color: _coresCombustivel[s.barIndex % _coresCombustivel.length], fontSize: 11),
+                        TextStyle(
+                            color: _coresCombustivel[
+                                s.barIndex % _coresCombustivel.length],
+                            fontSize: 11),
                         children: [
                           TextSpan(
                             text: '${_numero.format(s.y.round())} L',
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       ))
@@ -277,7 +293,10 @@ class PostoDashboardScreen extends ConsumerWidget {
         children: List.generate(
           combustiveis.length,
           (i) => Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 12, height: 3, color: _coresCombustivel[i % _coresCombustivel.length]),
+            Container(
+                width: 12,
+                height: 3,
+                color: _coresCombustivel[i % _coresCombustivel.length]),
             const SizedBox(width: 4),
             Text(combustiveis[i], style: const TextStyle(fontSize: 11)),
           ]),
@@ -301,7 +320,10 @@ class PostoDashboardScreen extends ConsumerWidget {
                 title: '${e.value.participacao.toStringAsFixed(0)}%',
                 color: cor,
                 radius: 60,
-                titleStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                titleStyle: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
               );
             }).toList(),
             centerSpaceRadius: 32,
@@ -321,11 +343,13 @@ class PostoDashboardScreen extends ConsumerWidget {
                   Container(
                       width: 10,
                       height: 10,
-                      decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
+                      decoration: BoxDecoration(
+                          color: cor, borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(e.value.combustivel,
-                        style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis),
                   ),
                 ]),
               );
@@ -340,14 +364,16 @@ class PostoDashboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(
           texto.toUpperCase(),
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
         ),
       );
 
   Widget _cardVazio(String texto) => Card(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Center(child: Text(texto, style: const TextStyle(color: Colors.grey))),
+          child: Center(
+              child: Text(texto, style: const TextStyle(color: Colors.grey))),
         ),
       );
 
@@ -367,12 +393,14 @@ class PostoDashboardScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(i.label,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
                         Text(i.valor,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                       ],

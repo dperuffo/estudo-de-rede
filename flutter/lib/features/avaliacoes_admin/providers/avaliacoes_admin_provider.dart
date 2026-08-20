@@ -55,10 +55,12 @@ class Avaliacao {
   }
 }
 
-final avaliacoesAdminProvider = FutureProvider.autoDispose<List<Avaliacao>>((ref) async {
+final avaliacoesAdminProvider =
+    FutureProvider.autoDispose<List<Avaliacao>>((ref) async {
   final rows = await SupabaseService.client
       .from('avaliacoes')
-      .select('id, user_email, estrelas, comentario, resposta_admin, respondido_por, respondido_em, criado_em, empresas(nome)')
+      .select(
+          'id, user_email, estrelas, comentario, resposta_admin, respondido_por, respondido_em, criado_em, empresas(nome)')
       .order('criado_em', ascending: false) as List;
   return rows.map((r) => Avaliacao.fromMap(r as Map<String, dynamic>)).toList();
 });
@@ -67,12 +69,17 @@ class KpisAvaliacoes {
   final int total;
   final double notaMedia;
   final int pendentes;
-  const KpisAvaliacoes({required this.total, required this.notaMedia, required this.pendentes});
+  const KpisAvaliacoes(
+      {required this.total, required this.notaMedia, required this.pendentes});
 }
 
 KpisAvaliacoes calcularKpisAvaliacoes(List<Avaliacao> lista) {
   final total = lista.length;
-  final notaMedia = total > 0 ? lista.fold<int>(0, (s, a) => s + a.estrelas) / total : 0.0;
-  final pendentes = lista.where((a) => a.respostaAdmin == null || a.respostaAdmin!.isEmpty).length;
-  return KpisAvaliacoes(total: total, notaMedia: notaMedia, pendentes: pendentes);
+  final notaMedia =
+      total > 0 ? lista.fold<int>(0, (s, a) => s + a.estrelas) / total : 0.0;
+  final pendentes = lista
+      .where((a) => a.respostaAdmin == null || a.respostaAdmin!.isEmpty)
+      .length;
+  return KpisAvaliacoes(
+      total: total, notaMedia: notaMedia, pendentes: pendentes);
 }

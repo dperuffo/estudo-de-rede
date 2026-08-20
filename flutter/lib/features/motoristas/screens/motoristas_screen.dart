@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/motoristas_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _data = DateFormat('dd/MM/yyyy');
 
 String _fmtData(String? iso) {
@@ -47,7 +49,14 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
     final async = ref.watch(motoristasClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Motoristas')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Motoristas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/motoristas/novo'),
         icon: const Icon(Icons.person_add),
@@ -61,7 +70,8 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Nenhum motorista cadastrado ainda.', style: TextStyle(color: Colors.grey)),
+                child: Text('Nenhum motorista cadastrado ainda.',
+                    style: TextStyle(color: Colors.grey)),
               ),
             );
           }
@@ -74,7 +84,8 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
             if (_filtroStatus == 'inativos' && m.ativo) return false;
             if (buscaLimpa.isEmpty) return true;
             final bateNome = m.nomeCompleto.toLowerCase().contains(buscaLimpa);
-            final bateCpf = buscaDigitos.isNotEmpty && _somenteDigitos(m.cpf).contains(buscaDigitos);
+            final bateCpf = buscaDigitos.isNotEmpty &&
+                _somenteDigitos(m.cpf).contains(buscaDigitos);
             return bateNome || bateCpf;
           }).toList();
 
@@ -85,11 +96,15 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _indicador('Total', motoristas.length.toString())),
+                    Expanded(
+                        child:
+                            _indicador('Total', motoristas.length.toString())),
                     const SizedBox(width: 8),
                     Expanded(child: _indicador('Ativos', ativos.toString())),
                     const SizedBox(width: 8),
-                    Expanded(child: _indicador('Inativos', (motoristas.length - ativos).toString())),
+                    Expanded(
+                        child: _indicador('Inativos',
+                            (motoristas.length - ativos).toString())),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -119,17 +134,20 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                     ChoiceChip(
                       label: const Text('Todos'),
                       selected: _filtroStatus == 'todos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'todos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'todos'),
                     ),
                     ChoiceChip(
                       label: const Text('Ativos'),
                       selected: _filtroStatus == 'ativos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'ativos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'ativos'),
                     ),
                     ChoiceChip(
                       label: const Text('Inativos'),
                       selected: _filtroStatus == 'inativos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'inativos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'inativos'),
                     ),
                   ],
                 ),
@@ -138,7 +156,8 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text('Nenhum motorista encontrado com esse filtro.',
+                      child: Text(
+                          'Nenhum motorista encontrado com esse filtro.',
                           style: TextStyle(color: Colors.grey.shade600)),
                     ),
                   )
@@ -147,28 +166,38 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           onTap: () => context.push('/motoristas/${m.id}'),
-                          title:
-                              Text(m.nomeCompleto, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          title: Text(m.nomeCompleto,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14)),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('CPF ${m.cpf} · ${m.classificacao}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
                               if (m.cnhVencimento != null)
-                                Text('CNH vence em ${_fmtData(m.cnhVencimento)}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text(
+                                    'CNH vence em ${_fmtData(m.cnhVencimento)}',
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: (m.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                              color: (m.ativo
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFF64748B))
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(m.status,
                                 style: TextStyle(
                                     fontSize: 11,
-                                    color: m.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                    color: m.ativo
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFF64748B),
                                     fontWeight: FontWeight.w600)),
                           ),
                           isThreeLine: m.cnhVencimento != null,
@@ -188,9 +217,12 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
         padding: const EdgeInsets.all(10),
         child: Column(
           children: [
-            Text(valor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(valor,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),

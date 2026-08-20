@@ -9,7 +9,10 @@ import 'chips_reputacao_motorista.dart';
 import '../../agendamentos_patio/providers/agendamentos_patio_provider.dart';
 import '../../agendamentos_patio/widgets/agendamento_patio_card.dart';
 
-final _formatoMoedaFreteDet = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+import '../../../core/theme/app_theme.dart';
+
+final _formatoMoedaFreteDet =
+    NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 // Fase PWA-Fretes — porta de fretes/[id]/page.tsx: card do frete, painel
 // de propostas (mercado aberto), postos recomendados, linha do tempo (com
@@ -23,18 +26,28 @@ class FreteDetalheScreen extends ConsumerWidget {
     final freteAsync = ref.watch(freteDetalheProvider(freteId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes do frete')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Detalhes do frete')),
       body: freteAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),
         data: (frete) {
-          if (frete == null) return const Center(child: Text('Frete não encontrado.'));
+          if (frete == null)
+            return const Center(child: Text('Frete não encontrado.'));
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _CartaoFrete(frete: frete),
               const SizedBox(height: 16),
-              _BlocoPagamentos(freteId: freteId, freteConcluido: frete.status == 'concluido'),
+              _BlocoPagamentos(
+                  freteId: freteId,
+                  freteConcluido: frete.status == 'concluido'),
               if (frete.coleta.preenchido || frete.entrega.preenchido) ...[
                 const SizedBox(height: 16),
                 _BlocoEndereco(titulo: '📍 Coleta', endereco: frete.coleta),
@@ -55,22 +68,27 @@ class FreteDetalheScreen extends ConsumerWidget {
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(12),
-                    child: Text('Frete atribuído diretamente — aguardando o motorista aceitar ou recusar no app dele.'),
+                    child: Text(
+                        'Frete atribuído diretamente — aguardando o motorista aceitar ou recusar no app dele.'),
                   ),
                 ),
               if (frete.status == 'disponivel') ...[
-                const Text('Propostas recebidas', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Propostas recebidas',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 _PainelPropostas(freteId: freteId, freteAberto: true),
                 const SizedBox(height: 16),
               ],
               _BlocoDocumentos(freteId: freteId),
               const SizedBox(height: 16),
-              if (frete.status != 'cancelado' && frete.status != 'recusado') ...[
+              if (frete.status != 'cancelado' &&
+                  frete.status != 'recusado') ...[
                 _BlocoPostosRecomendados(freteId: freteId),
                 const SizedBox(height: 16),
               ],
-              if (frete.status == 'aceito' || frete.status == 'em_andamento' || frete.status == 'concluido')
+              if (frete.status == 'aceito' ||
+                  frete.status == 'em_andamento' ||
+                  frete.status == 'concluido')
                 _BlocoTimeline(freteId: freteId),
               if (frete.status == 'concluido') ...[
                 const SizedBox(height: 16),
@@ -98,43 +116,61 @@ class _CartaoFrete extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(frete.titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17))),
-                Text(labelStatusFrete[frete.status] ?? frete.status, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                Expanded(
+                    child: Text(frete.titulo,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 17))),
+                Text(labelStatusFrete[frete.status] ?? frete.status,
+                    style:
+                        const TextStyle(fontSize: 11, color: Colors.black54)),
               ],
             ),
             const SizedBox(height: 8),
-            Text('${frete.origemLabel} → ${frete.destinoLabel}', style: const TextStyle(fontSize: 14)),
+            Text('${frete.origemLabel} → ${frete.destinoLabel}',
+                style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 16,
               runSpacing: 4,
               children: [
                 Text(_formatoMoedaFreteDet.format(frete.valorOferecido),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                if (frete.kmEstimado != null) Text('${frete.kmEstimado!.toStringAsFixed(0)} km', style: const TextStyle(fontSize: 12.5)),
-                if (frete.tipoCarga != null) Text('Carga: ${frete.tipoCarga}', style: const TextStyle(fontSize: 12.5)),
-                if (frete.pesoCargaKg != null) Text('${frete.pesoCargaKg!.toStringAsFixed(0)} kg', style: const TextStyle(fontSize: 12.5)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                if (frete.kmEstimado != null)
+                  Text('${frete.kmEstimado!.toStringAsFixed(0)} km',
+                      style: const TextStyle(fontSize: 12.5)),
+                if (frete.tipoCarga != null)
+                  Text('Carga: ${frete.tipoCarga}',
+                      style: const TextStyle(fontSize: 12.5)),
+                if (frete.pesoCargaKg != null)
+                  Text('${frete.pesoCargaKg!.toStringAsFixed(0)} kg',
+                      style: const TextStyle(fontSize: 12.5)),
               ],
             ),
             if (frete.descricao != null) ...[
               const SizedBox(height: 10),
               Text(frete.descricao!, style: const TextStyle(fontSize: 13)),
             ],
-            if (frete.cargaComprimentoM != null || frete.cargaLarguraM != null || frete.cargaAlturaM != null) ...[
+            if (frete.cargaComprimentoM != null ||
+                frete.cargaLarguraM != null ||
+                frete.cargaAlturaM != null) ...[
               const SizedBox(height: 8),
               Text(
                 '📐 Dimensões: ${frete.cargaComprimentoM ?? '—'}m × ${frete.cargaLarguraM ?? '—'}m × ${frete.cargaAlturaM ?? '—'}m (C×L×A)',
                 style: const TextStyle(fontSize: 11.5, color: Colors.black54),
               ),
             ],
-            if (frete.veiculosAceitos.isNotEmpty || frete.carroceriasAceitas.isNotEmpty) ...[
+            if (frete.veiculosAceitos.isNotEmpty ||
+                frete.carroceriasAceitas.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
                 runSpacing: 4,
                 children: [
-                  ...frete.veiculosAceitos.map((v) => _tagPeq('🚚 $v', Colors.blue)),
-                  ...frete.carroceriasAceitas.map((c) => _tagPeq('📦 $c', Colors.black54)),
+                  ...frete.veiculosAceitos
+                      .map((v) => _tagPeq('🚚 $v', Colors.blue)),
+                  ...frete.carroceriasAceitas
+                      .map((c) => _tagPeq('📦 $c', Colors.black54)),
                 ],
               ),
             ],
@@ -146,7 +182,9 @@ class _CartaoFrete extends StatelessWidget {
 
   Widget _tagPeq(String texto, Color cor) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: cor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: cor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12)),
         child: Text(texto, style: TextStyle(fontSize: 10.5, color: cor)),
       );
 }
@@ -165,12 +203,17 @@ class _BlocoEndereco extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(titulo,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 4),
             Text(endereco.linhaEndereco, style: const TextStyle(fontSize: 13)),
-            if (endereco.cep != null) Text('CEP ${endereco.cep}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            if (endereco.cep != null)
+              Text('CEP ${endereco.cep}',
+                  style: const TextStyle(fontSize: 11, color: Colors.black54)),
             if (endereco.referencia != null)
-              Text('Referência: ${endereco.referencia}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+              Text('Referência: ${endereco.referencia}',
+                  style: const TextStyle(fontSize: 11, color: Colors.black54)),
             if (endereco.data != null || endereco.hora != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -179,7 +222,8 @@ class _BlocoEndereco extends StatelessWidget {
                   style: const TextStyle(fontSize: 11.5, color: Colors.black54),
                 ),
               ),
-            if (endereco.contatoNome != null || endereco.contatoTelefone != null)
+            if (endereco.contatoNome != null ||
+                endereco.contatoTelefone != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
@@ -217,7 +261,8 @@ class _BlocoAgendamentoPatio extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final agendamentosAsync = ref.watch(agendamentosPatioFreteProvider(freteId));
+    final agendamentosAsync =
+        ref.watch(agendamentosPatioFreteProvider(freteId));
 
     return Card(
       child: Padding(
@@ -225,7 +270,8 @@ class _BlocoAgendamentoPatio extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('🗓️ Agendamento de Pátio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const Text('🗓️ Agendamento de Pátio',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 4),
             const Text(
               'Janela de carga/descarga combinada com o local. Confirma sozinho pra "em andamento"/"concluído" quando '
@@ -234,8 +280,10 @@ class _BlocoAgendamentoPatio extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             agendamentosAsync.when(
-              loading: () => const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
-              error: (e, _) => Text('Erro ao carregar agendamento: $e', style: const TextStyle(fontSize: 12, color: Colors.red)),
+              loading: () => const Padding(
+                  padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
+              error: (e, _) => Text('Erro ao carregar agendamento: $e',
+                  style: const TextStyle(fontSize: 12, color: Colors.red)),
               data: (agendamentos) {
                 AgendamentoPatio? achar(String tipo) {
                   for (final a in agendamentos) {
@@ -244,8 +292,12 @@ class _BlocoAgendamentoPatio extends ConsumerWidget {
                   return null;
                 }
 
-                final localColeta = coleta.cidade != null ? '${coleta.cidade}/${coleta.uf ?? ''}' : origemLabel;
-                final localEntrega = entrega.cidade != null ? '${entrega.cidade}/${entrega.uf ?? ''}' : destinoLabel;
+                final localColeta = coleta.cidade != null
+                    ? '${coleta.cidade}/${coleta.uf ?? ''}'
+                    : origemLabel;
+                final localEntrega = entrega.cidade != null
+                    ? '${entrega.cidade}/${entrega.uf ?? ''}'
+                    : destinoLabel;
 
                 return Column(
                   children: [
@@ -287,8 +339,14 @@ class _PainelPropostas extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Text('Erro ao carregar propostas: $e'),
       data: (propostas) {
-        if (propostas.isEmpty) return const Text('Nenhuma proposta recebida ainda.', style: TextStyle(color: Colors.black45));
-        return Column(children: propostas.map((p) => _LinhaProposta(freteId: freteId, proposta: p, freteAberto: freteAberto)).toList());
+        if (propostas.isEmpty)
+          return const Text('Nenhuma proposta recebida ainda.',
+              style: TextStyle(color: Colors.black45));
+        return Column(
+            children: propostas
+                .map((p) => _LinhaProposta(
+                    freteId: freteId, proposta: p, freteAberto: freteAberto))
+                .toList());
       },
     );
   }
@@ -298,7 +356,10 @@ class _LinhaProposta extends ConsumerStatefulWidget {
   final String freteId;
   final Proposta proposta;
   final bool freteAberto;
-  const _LinhaProposta({required this.freteId, required this.proposta, required this.freteAberto});
+  const _LinhaProposta(
+      {required this.freteId,
+      required this.proposta,
+      required this.freteAberto});
 
   @override
   ConsumerState<_LinhaProposta> createState() => _LinhaPropostaState();
@@ -346,7 +407,8 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
   Widget build(BuildContext context) {
     final p = widget.proposta;
     final aberta = p.status == 'aberta';
-    final podeAgir = aberta && widget.freteAberto && p.ultimoAutor == 'motorista';
+    final podeAgir =
+        aberta && widget.freteAberto && p.ultimoAutor == 'motorista';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -362,8 +424,11 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.nomeMotorista, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text(p.telefoneMotorista ?? '—', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(p.nomeMotorista,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(p.telefoneMotorista ?? '—',
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black54)),
                       const SizedBox(height: 4),
                       ChipsReputacaoMotorista(reputacao: p.reputacao),
                     ],
@@ -372,18 +437,24 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(_formatoMoedaFreteDet.format(p.ultimoValor), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('Rodada ${p.rodadaAtual} · última de ${p.ultimoAutor == 'motorista' ? 'motorista' : 'você'}',
-                        style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                    Text(_formatoMoedaFreteDet.format(p.ultimoValor),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                        'Rodada ${p.rodadaAtual} · última de ${p.ultimoAutor == 'motorista' ? 'motorista' : 'você'}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black54)),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            Text(_labelStatusNegociacao[p.status] ?? p.status, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            Text(_labelStatusNegociacao[p.status] ?? p.status,
+                style: const TextStyle(fontSize: 11, color: Colors.black54)),
             if (_erro != null) ...[
               const SizedBox(height: 6),
-              Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              Text(_erro!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
             ],
             if (podeAgir) ...[
               const SizedBox(height: 8),
@@ -391,15 +462,24 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                 spacing: 8,
                 children: [
                   ElevatedButton(
-                    onPressed: _processando ? null : () => _rodar(() => FretesService().aceitarProposta(p.negociacaoId)),
+                    onPressed: _processando
+                        ? null
+                        : () => _rodar(() =>
+                            FretesService().aceitarProposta(p.negociacaoId)),
                     child: const Text('Aceitar'),
                   ),
                   OutlinedButton(
-                    onPressed: _processando ? null : () => setState(() => _contrapropondo = !_contrapropondo),
+                    onPressed: _processando
+                        ? null
+                        : () =>
+                            setState(() => _contrapropondo = !_contrapropondo),
                     child: const Text('Contrapropor'),
                   ),
                   TextButton(
-                    onPressed: _processando ? null : () => _rodar(() => FretesService().recusarProposta(p.negociacaoId)),
+                    onPressed: _processando
+                        ? null
+                        : () => _rodar(() =>
+                            FretesService().recusarProposta(p.negociacaoId)),
                     style: TextButton.styleFrom(foregroundColor: Colors.red),
                     child: const Text('Recusar'),
                   ),
@@ -413,8 +493,12 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                   Expanded(
                     child: TextField(
                       controller: _valorCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'Novo valor (R\$)', isDense: true, border: OutlineInputBorder()),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Novo valor (R\$)',
+                          isDense: true,
+                          border: OutlineInputBorder()),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -422,13 +506,17 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                     onPressed: _processando
                         ? null
                         : () {
-                            final valor = double.tryParse(_valorCtrl.text.replaceAll(',', '.'));
+                            final valor = double.tryParse(
+                                _valorCtrl.text.replaceAll(',', '.'));
                             if (valor == null || valor <= 0) {
-                              setState(() => _erro = 'Informe um valor válido.');
+                              setState(
+                                  () => _erro = 'Informe um valor válido.');
                               return;
                             }
-                            _rodar(() => FretesService().contraporProposta(p.negociacaoId, valor)).then((_) {
-                              if (mounted) setState(() => _contrapropondo = false);
+                            _rodar(() => FretesService().contraporProposta(
+                                p.negociacaoId, valor)).then((_) {
+                              if (mounted)
+                                setState(() => _contrapropondo = false);
                             });
                           },
                     child: const Text('Enviar'),
@@ -458,7 +546,8 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('🛢️ Postos recomendados', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('🛢️ Postos recomendados',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             const Text(
               'Sugira paradas de abastecimento no caminho — pode vincular a um benefício de Parcerias Locais daquele posto.',
@@ -469,34 +558,55 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('Erro: $e'),
               data: (postos) {
-                if (postos.isEmpty) return const Text('Nenhum posto recomendado ainda.', style: TextStyle(color: Colors.black45, fontSize: 13));
+                if (postos.isEmpty)
+                  return const Text('Nenhum posto recomendado ainda.',
+                      style: TextStyle(color: Colors.black45, fontSize: 13));
                 return Column(
                   children: postos
                       .map((p) => Padding(
                             padding: const EdgeInsets.only(bottom: 6),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8)),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(p.nomePosto, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                        Text(p.nomePosto,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13)),
                                         if (p.itemCatalogoId != null)
-                                          const Text('🎟️ com benefício vinculado', style: TextStyle(fontSize: 11, color: Colors.blue)),
-                                        if (p.observacao != null) Text(p.observacao!, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                                          const Text(
+                                              '🎟️ com benefício vinculado',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.blue)),
+                                        if (p.observacao != null)
+                                          Text(p.observacao!,
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black54)),
                                       ],
                                     ),
                                   ),
                                   TextButton(
                                     onPressed: () async {
-                                      await FretesService().removerPostoRecomendado(p.id);
-                                      ref.invalidate(postosRecomendadosProvider(freteId));
+                                      await FretesService()
+                                          .removerPostoRecomendado(p.id);
+                                      ref.invalidate(
+                                          postosRecomendadosProvider(freteId));
                                     },
-                                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                    child: const Text('Remover', style: TextStyle(fontSize: 12)),
+                                    style: TextButton.styleFrom(
+                                        foregroundColor: Colors.red),
+                                    child: const Text('Remover',
+                                        style: TextStyle(fontSize: 12)),
                                   ),
                                 ],
                               ),
@@ -510,7 +620,8 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
             _FormPostoRecomendado(
               freteId: freteId,
               itens: itensAsync.valueOrNull ?? [],
-              onAdicionado: () => ref.invalidate(postosRecomendadosProvider(freteId)),
+              onAdicionado: () =>
+                  ref.invalidate(postosRecomendadosProvider(freteId)),
             ),
           ],
         ),
@@ -523,7 +634,8 @@ class _FormPostoRecomendado extends StatefulWidget {
   final String freteId;
   final List<ItemParceriaOpcao> itens;
   final VoidCallback onAdicionado;
-  const _FormPostoRecomendado({required this.freteId, required this.itens, required this.onAdicionado});
+  const _FormPostoRecomendado(
+      {required this.freteId, required this.itens, required this.onAdicionado});
 
   @override
   State<_FormPostoRecomendado> createState() => _FormPostoRecomendadoState();
@@ -573,18 +685,28 @@ class _FormPostoRecomendadoState extends State<_FormPostoRecomendado> {
       children: [
         TextField(
           controller: _nomeCtrl,
-          decoration: const InputDecoration(labelText: 'Nome do posto', isDense: true, border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Nome do posto',
+              isDense: true,
+              border: OutlineInputBorder()),
         ),
         const SizedBox(height: 8),
         if (widget.itens.isNotEmpty)
           DropdownButtonFormField<String>(
             initialValue: _itemId,
-            decoration: const InputDecoration(labelText: 'Vincular benefício (opcional)', isDense: true, border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Vincular benefício (opcional)',
+                isDense: true,
+                border: OutlineInputBorder()),
             items: [
               const DropdownMenuItem(value: null, child: Text('Nenhum')),
               ...widget.itens.map((i) => DropdownMenuItem(
                     value: i.id,
-                    child: Text(i.parceiroNome != null ? '${i.titulo} — ${i.parceiroNome}' : i.titulo, overflow: TextOverflow.ellipsis),
+                    child: Text(
+                        i.parceiroNome != null
+                            ? '${i.titulo} — ${i.parceiroNome}'
+                            : i.titulo,
+                        overflow: TextOverflow.ellipsis),
                   )),
             ],
             onChanged: (v) => setState(() => _itemId = v),
@@ -592,7 +714,10 @@ class _FormPostoRecomendadoState extends State<_FormPostoRecomendado> {
         const SizedBox(height: 8),
         TextField(
           controller: _obsCtrl,
-          decoration: const InputDecoration(labelText: 'Observação (opcional)', isDense: true, border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Observação (opcional)',
+              isDense: true,
+              border: OutlineInputBorder()),
         ),
         if (_erro != null) ...[
           const SizedBox(height: 6),
@@ -626,7 +751,8 @@ class _BlocoTimeline extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📍 Linha do tempo', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('📍 Linha do tempo',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 ...eventos.map(
                   (e) => Padding(
@@ -637,13 +763,19 @@ class _BlocoTimeline extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(labelEventoFrete[e.tipoEvento] ?? e.tipoEvento, style: const TextStyle(fontSize: 13)),
+                              Text(
+                                  labelEventoFrete[e.tipoEvento] ??
+                                      e.tipoEvento,
+                                  style: const TextStyle(fontSize: 13)),
                               if (e.observacao != null)
-                                Text(e.observacao!, style: const TextStyle(fontSize: 11.5, color: Colors.black54)),
+                                Text(e.observacao!,
+                                    style: const TextStyle(
+                                        fontSize: 11.5, color: Colors.black54)),
                               Text(
                                 '${e.criadoEm.toLocal().day.toString().padLeft(2, '0')}/${e.criadoEm.toLocal().month.toString().padLeft(2, '0')} às '
                                 '${e.criadoEm.toLocal().hour.toString().padLeft(2, '0')}:${e.criadoEm.toLocal().minute.toString().padLeft(2, '0')}',
-                                style: const TextStyle(fontSize: 10.5, color: Colors.black45),
+                                style: const TextStyle(
+                                    fontSize: 10.5, color: Colors.black45),
                               ),
                             ],
                           ),
@@ -652,11 +784,15 @@ class _BlocoTimeline extends ConsumerWidget {
                           GestureDetector(
                             onTap: () => showDialog(
                               context: context,
-                              builder: (_) => Dialog(child: InteractiveViewer(child: Image.network(e.fotoUrlAssinada!))),
+                              builder: (_) => Dialog(
+                                  child: InteractiveViewer(
+                                      child:
+                                          Image.network(e.fotoUrlAssinada!))),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: Image.network(e.fotoUrlAssinada!, width: 44, height: 44, fit: BoxFit.cover),
+                              child: Image.network(e.fotoUrlAssinada!,
+                                  width: 44, height: 44, fit: BoxFit.cover),
                             ),
                           ),
                       ],
@@ -682,7 +818,13 @@ class _BlocoAvaliacao extends ConsumerStatefulWidget {
 
 // Fase Destaques-Automaticos — mesma lista permitida pela constraint
 // fretes_avaliacoes_tags_validas no banco.
-const _tagsDisponiveis = ['Pontual', 'Cuidado com a carga', 'Comunicativo', 'Educado', 'Recomendo'];
+const _tagsDisponiveis = [
+  'Pontual',
+  'Cuidado com a carga',
+  'Comunicativo',
+  'Educado',
+  'Recomendo'
+];
 
 class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
   int _estrelas = 5;
@@ -727,16 +869,21 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('⭐ Avaliação', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('⭐ Avaliação',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             avaliacoesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('Erro: $e'),
               data: (avaliacoes) {
-                final doCliente = avaliacoes.where((a) => a.avaliador == 'cliente').isEmpty
+                final doCliente = avaliacoes
+                        .where((a) => a.avaliador == 'cliente')
+                        .isEmpty
                     ? null
                     : avaliacoes.firstWhere((a) => a.avaliador == 'cliente');
-                final doMotorista = avaliacoes.where((a) => a.avaliador == 'motorista').isEmpty
+                final doMotorista = avaliacoes
+                        .where((a) => a.avaliador == 'motorista')
+                        .isEmpty
                     ? null
                     : avaliacoes.firstWhere((a) => a.avaliador == 'motorista');
 
@@ -744,7 +891,9 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (doMotorista != null)
-                      Text('O motorista te avaliou: ${'★' * doMotorista.estrelas}', style: const TextStyle(fontSize: 13)),
+                      Text(
+                          'O motorista te avaliou: ${'★' * doMotorista.estrelas}',
+                          style: const TextStyle(fontSize: 13)),
                     const SizedBox(height: 8),
                     if (doCliente == null && !_enviado) ...[
                       Row(
@@ -752,7 +901,9 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                           final n = i + 1;
                           return IconButton(
                             onPressed: () => setState(() => _estrelas = n),
-                            icon: Icon(n <= _estrelas ? Icons.star : Icons.star_border, color: Colors.amber),
+                            icon: Icon(
+                                n <= _estrelas ? Icons.star : Icons.star_border,
+                                color: Colors.amber),
                           );
                         }),
                       ),
@@ -761,9 +912,12 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                         runSpacing: 6,
                         children: _tagsDisponiveis
                             .map((tag) => FilterChip(
-                                  label: Text(tag, style: const TextStyle(fontSize: 12)),
+                                  label: Text(tag,
+                                      style: const TextStyle(fontSize: 12)),
                                   selected: _tagsSelecionadas.contains(tag),
-                                  onSelected: (sel) => setState(() => sel ? _tagsSelecionadas.add(tag) : _tagsSelecionadas.remove(tag)),
+                                  onSelected: (sel) => setState(() => sel
+                                      ? _tagsSelecionadas.add(tag)
+                                      : _tagsSelecionadas.remove(tag)),
                                 ))
                             .toList(),
                       ),
@@ -771,19 +925,26 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                       TextField(
                         controller: _comentarioCtrl,
                         maxLines: 2,
-                        decoration: const InputDecoration(labelText: 'Comentário (opcional)', isDense: true, border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Comentário (opcional)',
+                            isDense: true,
+                            border: OutlineInputBorder()),
                       ),
                       if (_erro != null) ...[
                         const SizedBox(height: 6),
-                        Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                        Text(_erro!,
+                            style: const TextStyle(
+                                color: Colors.red, fontSize: 12)),
                       ],
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: _enviando ? null : _avaliar,
-                        child: Text(_enviando ? 'Enviando...' : 'Avaliar motorista'),
+                        child: Text(
+                            _enviando ? 'Enviando...' : 'Avaliar motorista'),
                       ),
                     ] else if (_enviado)
-                      const Text('Avaliação enviada. Obrigado!', style: TextStyle(color: Colors.green))
+                      const Text('Avaliação enviada. Obrigado!',
+                          style: TextStyle(color: Colors.green))
                     else if (doCliente != null)
                       Text(
                         'Você avaliou o motorista: ${'★' * doCliente.estrelas}'
@@ -828,7 +989,8 @@ class _BlocoPagamentos extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('💰 Pagamento do frete', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('💰 Pagamento do frete',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text(
                   'Confirme aqui quando cada parcela for paga ao motorista — não movimenta dinheiro automaticamente, é só pra controle.',
@@ -853,7 +1015,10 @@ class _LinhaPagamento extends ConsumerStatefulWidget {
   final String freteId;
   final PagamentoFrete pagamento;
   final bool bloqueado;
-  const _LinhaPagamento({required this.freteId, required this.pagamento, required this.bloqueado});
+  const _LinhaPagamento(
+      {required this.freteId,
+      required this.pagamento,
+      required this.bloqueado});
 
   @override
   ConsumerState<_LinhaPagamento> createState() => _LinhaPagamentoState();
@@ -868,7 +1033,8 @@ class _LinhaPagamentoState extends ConsumerState<_LinhaPagamento> {
       _enviando = true;
       _erro = null;
     });
-    final erro = await FretesService().marcarPagamento(freteId: widget.freteId, tipo: widget.pagamento.tipo);
+    final erro = await FretesService()
+        .marcarPagamento(freteId: widget.freteId, tipo: widget.pagamento.tipo);
     if (!mounted) return;
     setState(() {
       _enviando = false;
@@ -885,27 +1051,44 @@ class _LinhaPagamentoState extends ConsumerState<_LinhaPagamento> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8)),
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${labelTipoPagamentoFrete[p.tipo] ?? p.tipo} — ${p.percentual.toStringAsFixed(0)}%',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text(_formatoMoedaDoc.format(p.valor), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                  if (_erro != null) Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 11)),
+                  Text(
+                      '${labelTipoPagamentoFrete[p.tipo] ?? p.tipo} — ${p.percentual.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(_formatoMoedaDoc.format(p.valor),
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54)),
+                  if (_erro != null)
+                    Text(_erro!,
+                        style:
+                            const TextStyle(color: Colors.red, fontSize: 11)),
                 ],
               ),
             ),
             if (pago)
-              const Text('✓ Pago', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))
+              const Text('✓ Pago',
+                  style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12))
             else
               OutlinedButton(
                 onPressed: (_enviando || widget.bloqueado) ? null : _confirmar,
                 child: Text(
-                  _enviando ? '...' : (widget.bloqueado ? 'Aguarda conclusão' : 'Confirmar pagamento'),
+                  _enviando
+                      ? '...'
+                      : (widget.bloqueado
+                          ? 'Aguarda conclusão'
+                          : 'Confirmar pagamento'),
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -955,7 +1138,8 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
   }
 
   Future<void> _enviarCte() async {
-    final resultado = await FilePicker.pickFiles(withData: true, type: FileType.custom, allowedExtensions: ['xml']);
+    final resultado = await FilePicker.pickFiles(
+        withData: true, type: FileType.custom, allowedExtensions: ['xml']);
     if (resultado == null || resultado.files.isEmpty) return;
     final arquivo = resultado.files.first;
     if (arquivo.bytes == null) return;
@@ -965,7 +1149,8 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
       _mensagemCte = null;
     });
     final texto = utf8.decode(arquivo.bytes!, allowMalformed: true);
-    final erro = await FretesService().enviarCte(freteId: widget.freteId, xmlTexto: texto);
+    final erro = await FretesService()
+        .enviarCte(freteId: widget.freteId, xmlTexto: texto);
     setState(() {
       _enviandoCte = false;
       _erroCte = erro != null;
@@ -979,7 +1164,9 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
       _enviandoCiot = true;
       _mensagemCiot = null;
     });
-    final valor = _valorFreteCtrl.text.trim().isEmpty ? null : double.tryParse(_valorFreteCtrl.text.trim().replaceAll(',', '.'));
+    final valor = _valorFreteCtrl.text.trim().isEmpty
+        ? null
+        : double.tryParse(_valorFreteCtrl.text.trim().replaceAll(',', '.'));
     final erro = await FretesService().registrarCiot(
       freteId: widget.freteId,
       numeroCiot: _numeroCiotCtrl.text,
@@ -1017,31 +1204,42 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('📄 Documentos do frete (CT-e / CIOT)', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('📄 Documentos do frete (CT-e / CIOT)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const Text(
               'Emitidos fora da plataforma (SEFAZ / integradora credenciada na ANTT) — aqui é só o registro.',
               style: TextStyle(fontSize: 11, color: Colors.black54),
             ),
             const SizedBox(height: 12),
-            const Text('CT-e', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            const Text('CT-e',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 4),
             ctesAsync.when(
-              loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator()),
-              error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 11, color: Colors.red)),
+              loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: LinearProgressIndicator()),
+              error: (e, _) => Text('Erro: $e',
+                  style: const TextStyle(fontSize: 11, color: Colors.red)),
               data: (ctes) => ctes.isEmpty
-                  ? const Text('Nenhum CT-e registrado ainda.', style: TextStyle(fontSize: 12, color: Colors.black45))
+                  ? const Text('Nenhum CT-e registrado ainda.',
+                      style: TextStyle(fontSize: 12, color: Colors.black45))
                   : Column(
                       children: ctes
                           .map((c) => ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
-                                title: Text('Nº ${c.numeroCte ?? "—"} / série ${c.serie ?? "—"}', style: const TextStyle(fontSize: 13)),
+                                title: Text(
+                                    'Nº ${c.numeroCte ?? "—"} / série ${c.serie ?? "—"}',
+                                    style: const TextStyle(fontSize: 13)),
                                 subtitle: Text(
                                   '${c.valorPrestacao != null ? _formatoMoedaDoc.format(c.valorPrestacao) : "—"} · protocolo ${c.protocoloAutorizacao ?? "—"}',
                                   style: const TextStyle(fontSize: 11),
                                 ),
                                 trailing: c.xmlUrlAssinada != null
-                                    ? IconButton(icon: const Icon(Icons.description, size: 18), onPressed: () {})
+                                    ? IconButton(
+                                        icon: const Icon(Icons.description,
+                                            size: 18),
+                                        onPressed: () {})
                                     : null,
                               ))
                           .toList(),
@@ -1056,22 +1254,32 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
             if (_mensagemCte != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(_mensagemCte!, style: TextStyle(fontSize: 11, color: _erroCte ? Colors.red : Colors.green)),
+                child: Text(_mensagemCte!,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: _erroCte ? Colors.red : Colors.green)),
               ),
             const Divider(height: 24),
-            const Text('CIOT', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            const Text('CIOT',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 4),
             ciotsAsync.when(
-              loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator()),
-              error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 11, color: Colors.red)),
+              loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: LinearProgressIndicator()),
+              error: (e, _) => Text('Erro: $e',
+                  style: const TextStyle(fontSize: 11, color: Colors.red)),
               data: (ciots) => ciots.isEmpty
-                  ? const Text('Nenhum CIOT registrado ainda.', style: TextStyle(fontSize: 12, color: Colors.black45))
+                  ? const Text('Nenhum CIOT registrado ainda.',
+                      style: TextStyle(fontSize: 12, color: Colors.black45))
                   : Column(
                       children: ciots
                           .map((c) => ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
-                                title: Text(c.numeroCiot, style: const TextStyle(fontSize: 13, fontFamily: 'monospace')),
+                                title: Text(c.numeroCiot,
+                                    style: const TextStyle(
+                                        fontSize: 13, fontFamily: 'monospace')),
                                 subtitle: Text(
                                   '${c.placaVeiculo ?? "—"} · RNTRC ${c.rntrc ?? "—"} · ${c.valorFrete != null ? _formatoMoedaDoc.format(c.valorFrete) : "—"}',
                                   style: const TextStyle(fontSize: 11),
@@ -1083,23 +1291,37 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
             const SizedBox(height: 6),
             TextField(
               controller: _numeroCiotCtrl,
-              decoration: const InputDecoration(labelText: 'Número do CIOT (12 dígitos)', isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Número do CIOT (12 dígitos)', isDense: true),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 6),
             Row(children: [
-              Expanded(child: TextField(controller: _rntrcCtrl, decoration: const InputDecoration(labelText: 'RNTRC', isDense: true))),
+              Expanded(
+                  child: TextField(
+                      controller: _rntrcCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'RNTRC', isDense: true))),
               const SizedBox(width: 8),
-              Expanded(child: TextField(controller: _placaCtrl, decoration: const InputDecoration(labelText: 'Placa', isDense: true))),
+              Expanded(
+                  child: TextField(
+                      controller: _placaCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Placa', isDense: true))),
             ]),
             const SizedBox(height: 6),
             TextField(
               controller: _valorFreteCtrl,
-              decoration: const InputDecoration(labelText: 'Valor do frete', isDense: true),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Valor do frete', isDense: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 6),
-            TextField(controller: _observacaoCtrl, decoration: const InputDecoration(labelText: 'Observação (opcional)', isDense: true)),
+            TextField(
+                controller: _observacaoCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Observação (opcional)', isDense: true)),
             const SizedBox(height: 6),
             OutlinedButton.icon(
               onPressed: () async {
@@ -1119,7 +1341,10 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
             if (_mensagemCiot != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(_mensagemCiot!, style: TextStyle(fontSize: 11, color: _erroCiot ? Colors.red : Colors.green)),
+                child: Text(_mensagemCiot!,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: _erroCiot ? Colors.red : Colors.green)),
               ),
           ],
         ),

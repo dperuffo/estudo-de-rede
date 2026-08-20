@@ -41,7 +41,12 @@ export '../../posto/providers/documentos_provider.dart'
 // `posto/providers/documentos_provider.dart` — só a QUERY muda (aqui é
 // por `empresaId` arbitrário escolhido pelo admin, lá é sempre
 // `sessao.empresaId`).
-const statusDocumentacao = ['nao_iniciada', 'pendente', 'aprovada', 'rejeitada'];
+const statusDocumentacao = [
+  'nao_iniciada',
+  'pendente',
+  'aprovada',
+  'rejeitada'
+];
 
 class EmpresaDocumentacaoResumo {
   final String id;
@@ -62,32 +67,43 @@ class EmpresaDocumentacaoResumo {
     this.documentacaoRevisadoEm,
   });
 
-  factory EmpresaDocumentacaoResumo.fromMap(Map<String, dynamic> m) => EmpresaDocumentacaoResumo(
+  factory EmpresaDocumentacaoResumo.fromMap(Map<String, dynamic> m) =>
+      EmpresaDocumentacaoResumo(
         id: m['id'] as String,
         nome: m['nome'] as String? ?? '—',
         cnpj: m['cnpj'] as String?,
         segmento: m['segmento'] as String?,
-        documentacaoStatus: m['documentacao_status'] as String? ?? 'nao_iniciada',
+        documentacaoStatus:
+            m['documentacao_status'] as String? ?? 'nao_iniciada',
         documentacaoEnviadaEm: m['documentacao_enviada_em'] as String?,
         documentacaoRevisadoEm: m['documentacao_revisado_em'] as String?,
       );
 }
 
-final documentosEmpresasListaProvider =
-    FutureProvider.autoDispose.family<List<EmpresaDocumentacaoResumo>, String>((ref, status) async {
+final documentosEmpresasListaProvider = FutureProvider.autoDispose
+    .family<List<EmpresaDocumentacaoResumo>, String>((ref, status) async {
   final rows = await SupabaseService.client
       .from('empresas')
-      .select('id, nome, cnpj, segmento, documentacao_status, documentacao_enviada_em, documentacao_revisado_em')
+      .select(
+          'id, nome, cnpj, segmento, documentacao_status, documentacao_enviada_em, documentacao_revisado_em')
       .eq('documentacao_status', status)
-      .order('documentacao_enviada_em', ascending: true, nullsFirst: true) as List;
-  return rows.map((r) => EmpresaDocumentacaoResumo.fromMap(r as Map<String, dynamic>)).toList();
+      .order('documentacao_enviada_em',
+          ascending: true, nullsFirst: true) as List;
+  return rows
+      .map((r) => EmpresaDocumentacaoResumo.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final documentosEmpresasContagemProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
+final documentosEmpresasContagemProvider =
+    FutureProvider.autoDispose<Map<String, int>>((ref) async {
   final supabase = SupabaseService.client;
   final contagens = <String, int>{};
   for (final s in statusDocumentacao) {
-    final resp = await supabase.from('empresas').select('id').eq('documentacao_status', s).count(CountOption.exact);
+    final resp = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('documentacao_status', s)
+        .count(CountOption.exact);
     contagens[s] = resp.count;
   }
   return contagens;
@@ -99,14 +115,23 @@ class EmpresaDocumentacaoDetalhe {
   final String? cnpj;
   final String? segmento;
   final SituacaoDocumentacao situacao;
-  const EmpresaDocumentacaoDetalhe({required this.id, required this.nome, this.cnpj, this.segmento, required this.situacao});
+  const EmpresaDocumentacaoDetalhe(
+      {required this.id,
+      required this.nome,
+      this.cnpj,
+      this.segmento,
+      required this.situacao});
 }
 
-final documentacaoEmpresaDetalheProvider =
-    FutureProvider.autoDispose.family<EmpresaDocumentacaoDetalhe?, String>((ref, empresaId) async {
+final documentacaoEmpresaDetalheProvider = FutureProvider.autoDispose
+    .family<EmpresaDocumentacaoDetalhe?, String>((ref, empresaId) async {
   final supabase = SupabaseService.client;
 
-  final empresa = await supabase.from('empresas').select('id, nome, cnpj, segmento').eq('id', empresaId).maybeSingle();
+  final empresa = await supabase
+      .from('empresas')
+      .select('id, nome, cnpj, segmento')
+      .eq('id', empresaId)
+      .maybeSingle();
   if (empresa == null) return null;
 
   final sociosRaw = await supabase
@@ -114,17 +139,23 @@ final documentacaoEmpresaDetalheProvider =
       .select('id, nome, cpf')
       .eq('empresa_id', empresaId)
       .order('criado_em') as List;
-  final socios = sociosRaw.map((m) => SocioEmpresa.fromMap(m as Map<String, dynamic>)).toList();
+  final socios = sociosRaw
+      .map((m) => SocioEmpresa.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   final documentosRaw = await supabase
       .from('empresas_documentos')
       .select('id, tipo, socio_id, nome_arquivo, storage_path, enviado_em')
       .eq('empresa_id', empresaId) as List;
-  final documentos = documentosRaw.map((m) => DocumentoEmpresa.fromMap(m as Map<String, dynamic>)).toList();
+  final documentos = documentosRaw
+      .map((m) => DocumentoEmpresa.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   for (final d in documentos) {
     try {
-      d.urlAssinada = await supabase.storage.from(documentosBucket).createSignedUrl(d.storagePath, 3600);
+      d.urlAssinada = await supabase.storage
+          .from(documentosBucket)
+          .createSignedUrl(d.storagePath, 3600);
     } catch (_) {
       d.urlAssinada = null;
     }
@@ -132,7 +163,8 @@ final documentacaoEmpresaDetalheProvider =
 
   final empresaDoc = await supabase
       .from('empresas')
-      .select('documentacao_status, documentacao_motivo_rejeicao, documentacao_enviada_em, documentacao_revisado_em')
+      .select(
+          'documentacao_status, documentacao_motivo_rejeicao, documentacao_enviada_em, documentacao_revisado_em')
       .eq('id', empresaId)
       .maybeSingle();
 

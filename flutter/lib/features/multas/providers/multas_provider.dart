@@ -123,7 +123,8 @@ class Multa {
 
 typedef FiltrosMultas = ({String? status});
 
-final multasListProvider = FutureProvider.autoDispose.family<List<Multa>, FiltrosMultas>((ref, filtros) async {
+final multasListProvider = FutureProvider.autoDispose
+    .family<List<Multa>, FiltrosMultas>((ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -133,11 +134,13 @@ final multasListProvider = FutureProvider.autoDispose.family<List<Multa>, Filtro
           'id, empresa_id, placa, numero_ait, data_infracao, data_limite_indicacao, descricao, gravidade, valor_original, valor_desconto, status, motorista_id, motoristas(nome_completo)')
       .eq('empresa_id', empresaId);
   if (filtros.status != null) query = query.eq('status', filtros.status!);
-  final rows = await query.order('data_infracao', ascending: false).limit(200) as List;
+  final rows =
+      await query.order('data_infracao', ascending: false).limit(200) as List;
   return rows.map((r) => Multa.fromMap(r as Map<String, dynamic>)).toList();
 });
 
-final multaDetalheProvider = FutureProvider.autoDispose.family<Multa?, String>((ref, id) async {
+final multaDetalheProvider =
+    FutureProvider.autoDispose.family<Multa?, String>((ref, id) async {
   final row = await SupabaseService.client
       .from('multas')
       .select(
@@ -152,7 +155,8 @@ final multaDetalheProvider = FutureProvider.autoDispose.family<Multa?, String>((
 // existente em Parâmetros de Uso (parametros_vinculo_motorista_veiculo),
 // resolvendo qual vínculo estava ATIVO na data da infração — mesma
 // consulta de multas/[id]/page.tsx.
-final sugestaoCondutorProvider = FutureProvider.autoDispose.family<String?, ({String placa, String dataInfracao})>((ref, args) async {
+final sugestaoCondutorProvider = FutureProvider.autoDispose
+    .family<String?, ({String placa, String dataInfracao})>((ref, args) async {
   final row = await SupabaseService.client
       .from('parametros_vinculo_motorista_veiculo')
       .select('motorista_id')
@@ -169,11 +173,16 @@ class HistoricoMultaVeiculo {
   final String dataInfracao;
   final String? descricao;
   final String status;
-  const HistoricoMultaVeiculo({required this.id, required this.dataInfracao, this.descricao, required this.status});
+  const HistoricoMultaVeiculo(
+      {required this.id,
+      required this.dataInfracao,
+      this.descricao,
+      required this.status});
 }
 
-final historicoMultasVeiculoProvider =
-    FutureProvider.autoDispose.family<List<HistoricoMultaVeiculo>, ({String placa, String excluirId})>((ref, args) async {
+final historicoMultasVeiculoProvider = FutureProvider.autoDispose
+    .family<List<HistoricoMultaVeiculo>, ({String placa, String excluirId})>(
+        (ref, args) async {
   final rows = await SupabaseService.client
       .from('multas')
       .select('id, data_infracao, descricao, status')

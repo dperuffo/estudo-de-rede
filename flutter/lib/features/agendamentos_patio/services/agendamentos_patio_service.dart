@@ -33,7 +33,8 @@ class AgendamentosPatioService {
     final conflito = rows.first as Map<String, dynamic>;
     final frete = conflito['fretes'] as Map<String, dynamic>?;
     final inicio = DateTime.parse(conflito['janela_inicio'] as String);
-    final horario = '${inicio.hour.toString().padLeft(2, '0')}:${inicio.minute.toString().padLeft(2, '0')}';
+    final horario =
+        '${inicio.hour.toString().padLeft(2, '0')}:${inicio.minute.toString().padLeft(2, '0')}';
     return 'A doca "$doca" já tem um agendamento às $horario (frete "${frete?['titulo'] ?? 'sem título'}"). Escolha outro horário ou outra doca.';
   }
 
@@ -49,10 +50,15 @@ class AgendamentosPatioService {
     String? observacoes,
     String? criadoPor,
   }) async {
-    if (!janelaFim.isAfter(janelaInicio)) return 'O fim da janela precisa ser depois do início.';
+    if (!janelaFim.isAfter(janelaInicio))
+      return 'O fim da janela precisa ser depois do início.';
 
     if (doca != null && doca.isNotEmpty) {
-      final conflito = await _conflitoDeDoca(empresaId: empresaId, doca: doca, janelaInicio: janelaInicio, janelaFim: janelaFim);
+      final conflito = await _conflitoDeDoca(
+          empresaId: empresaId,
+          doca: doca,
+          janelaInicio: janelaInicio,
+          janelaFim: janelaFim);
       if (conflito != null) return conflito;
     }
 
@@ -86,7 +92,8 @@ class AgendamentosPatioService {
     required DateTime janelaFim,
     String? observacoes,
   }) async {
-    if (!janelaFim.isAfter(janelaInicio)) return 'O fim da janela precisa ser depois do início.';
+    if (!janelaFim.isAfter(janelaInicio))
+      return 'O fim da janela precisa ser depois do início.';
 
     if (doca != null && doca.isNotEmpty) {
       final conflito = await _conflitoDeDoca(
@@ -117,12 +124,18 @@ class AgendamentosPatioService {
   Future<void> confirmar(String id) async {
     await _supabase
         .from('agendamentos_patio')
-        .update({'status': 'confirmado', 'atualizado_em': DateTime.now().toIso8601String()})
+        .update({
+          'status': 'confirmado',
+          'atualizado_em': DateTime.now().toIso8601String()
+        })
         .eq('id', id)
         .eq('status', 'agendado');
   }
 
   Future<void> cancelar(String id) async {
-    await _supabase.from('agendamentos_patio').update({'status': 'cancelado', 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', id);
+    await _supabase.from('agendamentos_patio').update({
+      'status': 'cancelado',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 }

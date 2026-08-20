@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/sinistros_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Indicadores-da-Frota C (30/07/2026) — porta de sinistros/page.tsx:
 // lista + KPIs (total, com vítima, custo estimado).
 class SinistrosScreen extends ConsumerStatefulWidget {
@@ -38,7 +40,14 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
     final sinistrosAsync = ref.watch(sinistrosListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sinistros e Acidentes')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Sinistros e Acidentes')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/sinistros/novo'),
         icon: const Icon(Icons.add),
@@ -53,11 +62,14 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
                   .where((s) =>
                       s.placa.toLowerCase().contains(termo) ||
                       s.tipo.toLowerCase().contains(termo) ||
-                      (s.motoristaNome?.toLowerCase().contains(termo) ?? false) ||
-                      (s.localOcorrencia?.toLowerCase().contains(termo) ?? false))
+                      (s.motoristaNome?.toLowerCase().contains(termo) ??
+                          false) ||
+                      (s.localOcorrencia?.toLowerCase().contains(termo) ??
+                          false))
                   .toList();
           final comVitima = lista.where((s) => s.houveVitima).length;
-          final custoTotal = lista.fold<double>(0, (s, x) => s + (x.custoEstimado ?? 0));
+          final custoTotal =
+              lista.fold<double>(0, (s, x) => s + (x.custoEstimado ?? 0));
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -87,7 +99,10 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
               if (filtrados.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('Nenhum sinistro registrado para esse filtro.', style: TextStyle(color: Colors.grey))),
+                  child: Center(
+                      child: Text(
+                          'Nenhum sinistro registrado para esse filtro.',
+                          style: TextStyle(color: Colors.grey))),
                 )
               else
                 ...filtrados.map(_card),
@@ -107,15 +122,23 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
         decoration: BoxDecoration(
           color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+          border: Border.all(
+              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -130,8 +153,13 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
       child: ListTile(
         title: Row(
           children: [
-            Expanded(child: Text('${s.placa} · ${s.tipo}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
-            if (s.houveVitima) const Icon(Icons.warning_amber, size: 16, color: Color(0xFFB91C1C)),
+            Expanded(
+                child: Text('${s.placa} · ${s.tipo}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14))),
+            if (s.houveVitima)
+              const Icon(Icons.warning_amber,
+                  size: 16, color: Color(0xFFB91C1C)),
           ],
         ),
         subtitle: Padding(
@@ -151,9 +179,16 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
               if (s.gravidade != null) ...[
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: cor?.fundo ?? const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
-                  child: Text(s.gravidade!, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: cor?.texto ?? Colors.grey.shade700)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: cor?.fundo ?? const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text(s.gravidade!,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: cor?.texto ?? Colors.grey.shade700)),
                 ),
               ],
             ],

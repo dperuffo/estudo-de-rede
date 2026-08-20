@@ -77,9 +77,11 @@ Future<void> _notificarNegociacao(String negociacaoId, String evento) async {
 // campos não-sensíveis). O mesmo bug existe na função TS original
 // (exigirDocumentacaoAprovada na web) — nunca apareceu lá porque só foi
 // testado com a conta superusuária, que bypassa RLS.
-Future<String?> _exigirDocumentacaoAprovada(String empresaId, String contexto) async {
-  final linhas = await SupabaseService.client
-      .rpc('status_documentacao_empresa_publico', params: {'p_empresa_id': empresaId}) as List;
+Future<String?> _exigirDocumentacaoAprovada(
+    String empresaId, String contexto) async {
+  final linhas = await SupabaseService.client.rpc(
+      'status_documentacao_empresa_publico',
+      params: {'p_empresa_id': empresaId}) as List;
   if (linhas.isEmpty) return 'Empresa não encontrada.';
   final empresa = linhas.first as Map<String, dynamic>;
   if (empresa['documentacao_status'] == 'aprovada') return null;
@@ -102,12 +104,14 @@ class ResultadoCriarNegociacao {
 class NegociacoesService {
   final _supabase = SupabaseService.client;
 
-  Future<String?> decidirNegociacao(String negociacaoId, {required bool aceitar}) async {
+  Future<String?> decidirNegociacao(String negociacaoId,
+      {required bool aceitar}) async {
     final email = AuthService().emailAtual;
 
     final negociacao = await _supabase
         .from('negociacoes_postos')
-        .select('id, status, rodada_atual, empresa_posto_id, empresa_cliente_id')
+        .select(
+            'id, status, rodada_atual, empresa_posto_id, empresa_cliente_id')
         .eq('id', negociacaoId)
         .maybeSingle();
     if (negociacao == null) return 'Negociação não encontrada.';
@@ -120,8 +124,11 @@ class NegociacoesService {
 
     // Fase 27.125 — gate de assinatura: posto em trial não pode aceitar.
     if (aceitar && empresaPostoId != null) {
-      final empresa =
-          await _supabase.from('empresas').select('status').eq('id', empresaPostoId).maybeSingle();
+      final empresa = await _supabase
+          .from('empresas')
+          .select('status')
+          .eq('id', empresaPostoId)
+          .maybeSingle();
       if (empresa?['status'] == 'trial') {
         return 'Este posto ainda está no período de teste. Para aceitar negociações e operar na '
             'plataforma, assine um plano em Assinatura.';
@@ -130,7 +137,8 @@ class NegociacoesService {
 
     // Fase 27.149 — gate de documentação societária aprovada.
     if (aceitar && empresaPostoId != null) {
-      final erroDocumentacao = await _exigirDocumentacaoAprovada(empresaPostoId, 'Aceitar esta negociação');
+      final erroDocumentacao = await _exigirDocumentacaoAprovada(
+          empresaPostoId, 'Aceitar esta negociação');
       if (erroDocumentacao != null) return erroDocumentacao;
     }
 
@@ -141,10 +149,15 @@ class NegociacoesService {
     try {
       rodadaDecidida = await _supabase
           .from('negociacoes_postos_rodadas')
-          .update({'decisao': aceitar ? 'aceita' : 'recusada', 'decidido_em': agora, 'decidido_por': email})
+          .update({
+            'decisao': aceitar ? 'aceita' : 'recusada',
+            'decidido_em': agora,
+            'decidido_por': email
+          })
           .eq('negociacao_id', negociacaoId)
           .eq('numero_rodada', rodadaAtual)
-          .select('combustivel, vigencia_inicio, vigencia_fim, volume_minimo_mensal, preco_unitario')
+          .select(
+              'combustivel, vigencia_inicio, vigencia_fim, volume_minimo_mensal, preco_unitario')
           .single();
     } on PostgrestException catch (e) {
       return e.message;
@@ -154,11 +167,17 @@ class NegociacoesService {
 
     // Fase 27.107 — encerra qualquer outra negociação já aceita do mesmo
     // par posto+cliente antes de marcar esta como aceita.
-    if (novoStatus == 'aceita' && empresaPostoId != null && empresaClienteId != null) {
+    if (novoStatus == 'aceita' &&
+        empresaPostoId != null &&
+        empresaClienteId != null) {
       try {
         await _supabase
             .from('negociacoes_postos')
-            .update({'status': 'cancelada', 'atualizado_em': agora, 'atualizado_por': email})
+            .update({
+              'status': 'cancelada',
+              'atualizado_em': agora,
+              'atualizado_por': email
+            })
             .eq('empresa_posto_id', empresaPostoId)
             .eq('empresa_cliente_id', empresaClienteId)
             .eq('status', 'aceita')
@@ -182,7 +201,10 @@ class NegociacoesService {
     };
 
     try {
-      await _supabase.from('negociacoes_postos').update(atualizacaoCabecalho).eq('id', negociacaoId);
+      await _supabase
+          .from('negociacoes_postos')
+          .update(atualizacaoCabecalho)
+          .eq('id', negociacaoId);
     } on PostgrestException catch (e) {
       return e.message;
     }
@@ -191,7 +213,8 @@ class NegociacoesService {
     return null;
   }
 
-  Future<String?> adicionarContraproposta(String negociacaoId, DadosRodada dados) async {
+  Future<String?> adicionarContraproposta(
+      String negociacaoId, DadosRodada dados) async {
     final erroValidacao = validarDadosRodada(dados);
     if (erroValidacao != null) return erroValidacao;
 
@@ -219,7 +242,11 @@ class NegociacoesService {
     try {
       await _supabase
           .from('negociacoes_postos_rodadas')
-          .update({'decisao': 'contraproposta', 'decidido_em': agora, 'decidido_por': email})
+          .update({
+            'decisao': 'contraproposta',
+            'decidido_em': agora,
+            'decidido_por': email
+          })
           .eq('negociacao_id', negociacaoId)
           .eq('numero_rodada', rodadaAtual);
 
@@ -261,44 +288,52 @@ class NegociacoesService {
     required DadosRodada dados,
   }) async {
     final erroValidacao = validarDadosRodada(dados);
-    if (erroValidacao != null) return ResultadoCriarNegociacao.erro(erroValidacao);
+    if (erroValidacao != null)
+      return ResultadoCriarNegociacao.erro(erroValidacao);
 
-    final cnpjNormalizado = cnpjCliente.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
+    final cnpjNormalizado =
+        cnpjCliente.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
     if (cnpjNormalizado.isEmpty) {
       return const ResultadoCriarNegociacao.erro('Informe o CNPJ do cliente.');
     }
 
-    final empresaClienteId =
-        await _supabase.rpc('empresa_id_do_cnpj', params: {'p_cnpj': cnpjNormalizado}) as String?;
+    final empresaClienteId = await _supabase.rpc('empresa_id_do_cnpj',
+        params: {'p_cnpj': cnpjNormalizado}) as String?;
     if (empresaClienteId == null) {
       return const ResultadoCriarNegociacao.erro(
         'Nenhum cliente encontrado com esse CNPJ. Confira se o cliente já é cadastrado na FNI.',
       );
     }
 
-    final erroDocumentacao = await _exigirDocumentacaoAprovada(empresaClienteId, 'Criar uma negociação');
-    if (erroDocumentacao != null) return ResultadoCriarNegociacao.erro(erroDocumentacao);
+    final erroDocumentacao = await _exigirDocumentacaoAprovada(
+        empresaClienteId, 'Criar uma negociação');
+    if (erroDocumentacao != null)
+      return ResultadoCriarNegociacao.erro(erroDocumentacao);
 
     final email = AuthService().emailAtual;
 
-    final clienteNome =
-        await _supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaClienteId}) as String?;
-    final postoNome =
-        await _supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaPostoId}) as String?;
+    final clienteNome = await _supabase.rpc('nome_empresa_publico',
+        params: {'p_empresa_id': empresaClienteId}) as String?;
+    final postoNome = await _supabase.rpc('nome_empresa_publico',
+        params: {'p_empresa_id': empresaPostoId}) as String?;
 
     try {
-      final negociacao = await _supabase.from('negociacoes_postos').insert({
-        'empresa_cliente_id': empresaClienteId,
-        'empresa_posto_id': empresaPostoId,
-        'posto_cnpj': '',
-        'origem': 'posto',
-        'status': 'pendente_cliente',
-        'rodada_atual': 1,
-        'criado_por': email,
-        'atualizado_por': email,
-        'cliente_nome': clienteNome,
-        'posto_nome': postoNome,
-      }).select('id').single();
+      final negociacao = await _supabase
+          .from('negociacoes_postos')
+          .insert({
+            'empresa_cliente_id': empresaClienteId,
+            'empresa_posto_id': empresaPostoId,
+            'posto_cnpj': '',
+            'origem': 'posto',
+            'status': 'pendente_cliente',
+            'rodada_atual': 1,
+            'criado_por': email,
+            'atualizado_por': email,
+            'cliente_nome': clienteNome,
+            'posto_nome': postoNome,
+          })
+          .select('id')
+          .single();
 
       final negociacaoId = negociacao['id'].toString();
 

@@ -24,21 +24,38 @@ const List<({String href, String label, IconData icon})> _itensMenuPosto = [
   (href: '/posto/usuarios', label: 'Usuários', icon: Icons.people),
   (href: '/posto/clientes', label: 'Clientes', icon: Icons.business),
   (href: '/posto/negociacoes', label: 'Negociações', icon: Icons.handshake),
-  (href: '/posto/abastecimentos', label: 'Abastecimentos', icon: Icons.local_gas_station),
-  (href: '/posto/parcerias-locais', label: 'Parcerias Locais', icon: Icons.card_giftcard),
+  (
+    href: '/posto/abastecimentos',
+    label: 'Abastecimentos',
+    icon: Icons.local_gas_station
+  ),
+  (
+    href: '/posto/parcerias-locais',
+    label: 'Parcerias Locais',
+    icon: Icons.card_giftcard
+  ),
   (href: '/posto/precos', label: 'Meus Preços', icon: Icons.sell),
   (href: '/posto/pre-pedidos', label: 'Pré-Pedidos', icon: Icons.checklist),
   (href: '/posto/financeiro', label: 'Financeiro', icon: Icons.attach_money),
-  (href: '/posto/meus-dados', label: 'Meus Dados / PIX', icon: Icons.account_balance),
+  (
+    href: '/posto/meus-dados',
+    label: 'Meus Dados / PIX',
+    icon: Icons.account_balance
+  ),
   (href: '/posto/assistente', label: 'Assistente FNI', icon: Icons.smart_toy),
-  (href: '/posto/assinatura', label: 'Minha Assinatura', icon: Icons.credit_card),
+  (
+    href: '/posto/assinatura',
+    label: 'Minha Assinatura',
+    icon: Icons.credit_card
+  ),
   (href: '/posto/avaliar', label: 'Avaliar Plataforma', icon: Icons.star),
   (href: '/posto/chamados', label: 'Chamados', icon: Icons.confirmation_number),
   (href: '/posto/documentos', label: 'Documentos', icon: Icons.folder),
   (href: '/posto/lgpd', label: 'Privacidade (LGPD)', icon: Icons.lock),
   (href: '/posto/avisos', label: 'Avisos', icon: Icons.notifications_outlined),
 ];
-final List<String> _hrefsRastreaveisPosto = _itensMenuPosto.map((i) => i.href).toList();
+final List<String> _hrefsRastreaveisPosto =
+    _itensMenuPosto.map((i) => i.href).toList();
 
 // Fase FLT-1 — shell da visão Posto, espelhando a estrutura de menu de
 // menuPostoGestao + menuPostoOperacao em src/app/(dashboard)/layout.tsx da
@@ -57,10 +74,12 @@ class PostoHomeScreen extends ConsumerWidget {
     // home_screen.dart (shell cliente): só esconde do menu o que o
     // app_router.dart (Camada 5) já bloquearia ao navegar.
     final perfilAtual = sessao.valueOrNull?.perfil;
-    final bypassPermissao = ehBypassPermissao(perfilAtual, sessao.valueOrNull?.email);
+    final bypassPermissao =
+        ehBypassPermissao(perfilAtual, sessao.valueOrNull?.email);
     final mapaPermissoes = bypassPermissao
         ? const <String, bool>{}
-        : ref.watch(permissoesMapaProvider(perfilAtual)).valueOrNull ?? const <String, bool>{};
+        : ref.watch(permissoesMapaProvider(perfilAtual)).valueOrNull ??
+            const <String, bool>{};
 
     // Fase Acesso-Rápido-Favoritos (04/08/2026) — ver comentário completo
     // no HomeScreen (shell cliente); mesmo raciocínio aqui pro shell posto.
@@ -72,16 +91,23 @@ class PostoHomeScreen extends ConsumerWidget {
       });
     }
 
-    bool podeAcessar(String rota) => bypassPermissao || temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
-    final favoritosHrefs = (ref.watch(favoritosMenuProvider).valueOrNull ?? const []).map((f) => f.href).toSet();
+    bool podeAcessar(String rota) =>
+        bypassPermissao ||
+        temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
+    final favoritosHrefs =
+        (ref.watch(favoritosMenuProvider).valueOrNull ?? const [])
+            .map((f) => f.href)
+            .toSet();
     final mapaItensFavoritos = {
       for (final i in _itensMenuPosto)
-        if (podeAcessar(i.href)) i.href: ItemAtalhoMenu(href: i.href, label: i.label, icon: i.icon),
+        if (podeAcessar(i.href))
+          i.href: ItemAtalhoMenu(href: i.href, label: i.label, icon: i.icon),
     };
 
     return Scaffold(
       key: rootScaffoldKey,
-      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes, favoritosHrefs),
+      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao,
+          mapaPermissoes, favoritosHrefs),
       // Fase Liquid-Glass-PWA (20/08/2026) — mesma superfície bronze/champanhe
       // do menu (ver _buildDrawer), agora na barra do topo.
       appBar: AppBar(
@@ -92,8 +118,13 @@ class PostoHomeScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppTheme.glassTexto,
         iconTheme: const IconThemeData(color: AppTheme.glassIcone),
-        titleTextStyle: const TextStyle(color: AppTheme.glassTexto, fontSize: 18, fontWeight: FontWeight.w600),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        titleTextStyle: const TextStyle(
+            color: AppTheme.glassTexto,
+            fontSize: 18,
+            fontWeight: FontWeight.w600),
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
         actions: const [SinoAvisos()],
       ),
       body: Column(
@@ -114,14 +145,20 @@ class PostoHomeScreen extends ConsumerWidget {
               indicatorColor: AppTheme.glassPillClaro,
               iconTheme: MaterialStateProperty.resolveWith(
                 (states) => IconThemeData(
-                  color: states.contains(MaterialState.selected) ? AppTheme.glassTextoAtivo : AppTheme.glassIcone,
+                  color: states.contains(MaterialState.selected)
+                      ? AppTheme.glassTextoAtivo
+                      : AppTheme.glassIcone,
                 ),
               ),
               labelTextStyle: MaterialStateProperty.resolveWith(
                 (states) => TextStyle(
                   fontSize: 11,
-                  fontWeight: states.contains(MaterialState.selected) ? FontWeight.w700 : FontWeight.w500,
-                  color: states.contains(MaterialState.selected) ? AppTheme.glassTextoAtivo : AppTheme.glassTextoMuted,
+                  fontWeight: states.contains(MaterialState.selected)
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                  color: states.contains(MaterialState.selected)
+                      ? AppTheme.glassTextoAtivo
+                      : AppTheme.glassTextoMuted,
                 ),
               ),
             ),
@@ -130,10 +167,14 @@ class PostoHomeScreen extends ConsumerWidget {
             selectedIndex: _idx(loc),
             onDestinationSelected: (i) => _nav(context, i),
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.dashboard), label: 'Painel'),
-              NavigationDestination(icon: Icon(Icons.handshake), label: 'Negoc.'),
-              NavigationDestination(icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
-              NavigationDestination(icon: Icon(Icons.attach_money), label: 'Financ.'),
+              NavigationDestination(
+                  icon: Icon(Icons.dashboard), label: 'Painel'),
+              NavigationDestination(
+                  icon: Icon(Icons.handshake), label: 'Negoc.'),
+              NavigationDestination(
+                  icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
+              NavigationDestination(
+                  icon: Icon(Icons.attach_money), label: 'Financ.'),
               NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
             ],
           ),
@@ -151,18 +192,22 @@ class PostoHomeScreen extends ConsumerWidget {
     Set<String> favoritosHrefs,
   ) {
     bool pode(String rota) =>
-        bypassPermissao || temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
+        bypassPermissao ||
+        temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
 
     // Fase Acesso-Rápido-Favoritos (04/08/2026) — ver comentário completo
     // no HomeScreen (shell cliente): closure local pra capturar
     // `ref`/`favoritosHrefs` sem precisar tocar nas chamadas `_item(...)`
     // já espalhadas pelo Drawer abaixo.
-    ListTile _item(BuildContext context, IconData icon, String label, String route, {int badge = 0}) {
+    ListTile _item(
+        BuildContext context, IconData icon, String label, String route,
+        {int badge = 0}) {
       final favoritado = favoritosHrefs.contains(route);
       return ListTile(
         dense: true,
         leading: Icon(icon, color: AppTheme.glassIcone, size: 20),
-        title: Text(label, style: const TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
+        title: Text(label,
+            style: const TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -171,7 +216,8 @@ class PostoHomeScreen extends ConsumerWidget {
                 width: 10,
                 height: 10,
                 margin: const EdgeInsets.only(right: 8),
-                decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444), shape: BoxShape.circle),
               ),
             InkWell(
               borderRadius: BorderRadius.circular(999),
@@ -181,7 +227,9 @@ class PostoHomeScreen extends ConsumerWidget {
                 child: Icon(
                   favoritado ? Icons.star : Icons.star_border,
                   size: 18,
-                  color: favoritado ? Colors.amber.shade400 : AppTheme.glassIcone.withOpacity(0.35),
+                  color: favoritado
+                      ? Colors.amber.shade400
+                      : AppTheme.glassIcone.withOpacity(0.35),
                 ),
               ),
             ),
@@ -202,7 +250,8 @@ class PostoHomeScreen extends ConsumerWidget {
     final temMultiplasEmpresas = (sessao?.empresasIds.length ?? 0) > 1;
     // Fase FLT-7 — mesmas bolinhas de notificação da web, ver
     // notificacoes_provider.dart.
-    final badges = ref.watch(notificacoesBadgesProvider).valueOrNull ?? NotificacoesBadges.vazio;
+    final badges = ref.watch(notificacoesBadgesProvider).valueOrNull ??
+        NotificacoesBadges.vazio;
     // Fase Central-Avisos (28/07/2026, achado real) — mesmo raciocínio do
     // home_screen.dart (cliente): sino só existia na AppBar, sem item no
     // Drawer. Rota é /posto/avisos (mesma AvisosScreen, ver app_router.dart).
@@ -239,7 +288,8 @@ class PostoHomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.95),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.1)),
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFF0B1220).withOpacity(0.3),
@@ -250,7 +300,8 @@ class PostoHomeScreen extends ConsumerWidget {
                         ),
                         child: AspectRatio(
                           aspectRatio: 1132 / 441,
-                          child: Image.asset('assets/logo_fni.png', fit: BoxFit.contain),
+                          child: Image.asset('assets/logo_fni.png',
+                              fit: BoxFit.contain),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -258,7 +309,10 @@ class PostoHomeScreen extends ConsumerWidget {
                         nomeEmpresa ?? 'Posto',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppTheme.glassTexto, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                            color: AppTheme.glassTexto,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
                       const Text(
@@ -281,10 +335,14 @@ class PostoHomeScreen extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const [
-                                Icon(Icons.swap_horiz, color: AppTheme.glassTexto, size: 16),
+                                Icon(Icons.swap_horiz,
+                                    color: AppTheme.glassTexto, size: 16),
                                 SizedBox(width: 4),
                                 Text('Trocar posto',
-                                    style: TextStyle(color: AppTheme.glassTexto, fontSize: 12, fontWeight: FontWeight.w600)),
+                                    style: TextStyle(
+                                        color: AppTheme.glassTexto,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -304,38 +362,72 @@ class PostoHomeScreen extends ConsumerWidget {
             // "Meus Dados / PIX" aqui cobre o mesmo tema financeiro que
             // "Minha Empresa" cobre na web).
             _grp('Visão Geral'),
-            if (pode('/posto')) _item(context, Icons.dashboard, 'Dashboard', '/posto'),
-            if (pode('/posto/meu-posto')) _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
-            if (pode('/posto/rede-postos')) _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
+            if (pode('/posto'))
+              _item(context, Icons.dashboard, 'Dashboard', '/posto'),
+            if (pode('/posto/meu-posto'))
+              _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
+            if (pode('/posto/rede-postos'))
+              _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Cadastros'),
-            if (pode('/posto/usuarios')) _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
-            if (pode('/posto/clientes')) _item(context, Icons.business, 'Clientes', '/posto/clientes'),
+            if (pode('/posto/usuarios'))
+              _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
+            if (pode('/posto/clientes'))
+              _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Operação'),
-            if (pode('/posto/negociacoes')) _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
-            if (pode('/posto/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
-            if (pode('/posto/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
-            if (pode('/posto/precos')) _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
+            if (pode('/posto/negociacoes'))
+              _item(
+                  context, Icons.handshake, 'Negociações', '/posto/negociacoes',
+                  badge: badges.negociacoes),
+            if (pode('/posto/abastecimentos'))
+              _item(context, Icons.local_gas_station, 'Abastecimentos',
+                  '/posto/abastecimentos',
+                  badge: badges.ajustesAbastecimento),
+            if (pode('/posto/parcerias-locais'))
+              _item(context, Icons.card_giftcard, 'Parcerias Locais',
+                  '/posto/parcerias-locais'),
+            if (pode('/posto/precos'))
+              _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
             // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
             // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
-            if (pode('/posto/pre-pedidos')) _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
+            if (pode('/posto/pre-pedidos'))
+              _item(context, Icons.checklist, 'Pré-Pedidos',
+                  '/posto/pre-pedidos'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Financeiro'),
-            if (pode('/posto/financeiro')) _item(context, Icons.attach_money, 'Financeiro', '/posto/financeiro'),
-            if (pode('/posto/meus-dados')) _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
+            if (pode('/posto/financeiro'))
+              _item(context, Icons.attach_money, 'Financeiro',
+                  '/posto/financeiro'),
+            if (pode('/posto/meus-dados'))
+              _item(context, Icons.account_balance, 'Meus Dados / PIX',
+                  '/posto/meus-dados'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Conta e Ajuda'),
-            if (pode('/posto/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/posto/assistente'),
-            if (pode('/posto/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/posto/assinatura'),
-            if (pode('/posto/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
-            if (pode('/posto/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
+            if (pode('/posto/assistente'))
+              _item(context, Icons.smart_toy, 'Assistente FNI',
+                  '/posto/assistente'),
+            if (pode('/posto/assinatura'))
+              _item(context, Icons.credit_card, 'Minha Assinatura',
+                  '/posto/assinatura'),
+            if (pode('/posto/avaliar'))
+              _item(
+                  context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
+            if (pode('/posto/chamados'))
+              _item(context, Icons.confirmation_number, 'Chamados',
+                  '/posto/chamados',
+                  badge: badges.chamados),
             const Divider(color: Colors.white24, height: 1),
             _grp('Sistema'),
-            if (pode('/posto/documentos')) _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
-            if (pode('/posto/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
+            if (pode('/posto/documentos'))
+              _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
+            if (pode('/posto/lgpd'))
+              _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
             const Divider(color: Colors.white24, height: 1),
-            if (pode('/posto/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/posto/avisos', badge: avisosNaoLidos),
+            if (pode('/posto/avisos'))
+              _item(context, Icons.notifications_outlined, 'Avisos',
+                  '/posto/avisos',
+                  badge: avisosNaoLidos),
             const Divider(color: Colors.white24, height: 1),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -356,7 +448,11 @@ class PostoHomeScreen extends ConsumerWidget {
 
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.glassTextoMuted)),
+        child: Text(label,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.glassTextoMuted)),
       );
 
   int _idx(String loc) {

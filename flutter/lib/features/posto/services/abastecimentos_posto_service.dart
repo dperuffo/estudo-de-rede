@@ -32,7 +32,8 @@ const coresProvedor = <String, int>{
   'Veloe': 0xFFFCE7F3, // rosa
 };
 
-String nomeProvedor(String provedor) => provedor == 'profrotas' ? 'PróFrotas' : provedor;
+String nomeProvedor(String provedor) =>
+    provedor == 'profrotas' ? 'PróFrotas' : provedor;
 
 class FiltrosAbastecimentosPosto {
   final String? combustivel;
@@ -78,7 +79,8 @@ class RegistroAbastecimentoPosto {
 
   String get chave => '$provedor:$id';
 
-  factory RegistroAbastecimentoPosto.fromMap(Map<String, dynamic> m) => RegistroAbastecimentoPosto(
+  factory RegistroAbastecimentoPosto.fromMap(Map<String, dynamic> m) =>
+      RegistroAbastecimentoPosto(
         id: m['id'].toString(),
         provedor: m['provedor'] as String? ?? '',
         codigoAbastecimento: m['codigo_abastecimento'] as String?,
@@ -158,10 +160,14 @@ class AbastecimentosPostoService {
     FiltrosAbastecimentosPosto filtros = const FiltrosAbastecimentosPosto(),
     int limite = 50,
   }) async {
-    final empresa =
-        await _supabase.from('empresas').select('cnpj').eq('id', empresaPostoId).maybeSingle();
+    final empresa = await _supabase
+        .from('empresas')
+        .select('cnpj')
+        .eq('id', empresaPostoId)
+        .maybeSingle();
     final meuCnpj = empresa?['cnpj'] as String?;
-    if (meuCnpj == null || meuCnpj.isEmpty) return ResultadoAbastecimentosPosto.vazio;
+    if (meuCnpj == null || meuCnpj.isEmpty)
+      return ResultadoAbastecimentosPosto.vazio;
 
     final variantes = _variantesCnpj(meuCnpj);
 
@@ -192,10 +198,11 @@ class AbastecimentosPostoService {
       // RLS). Corrigido chamando a RPC SECURITY DEFINER
       // `nomes_empresas_publico` (mesmo padrão de `nome_empresa_publico`,
       // agora em lote).
-      final empresasRaw = await _supabase
-          .rpc('nomes_empresas_publico', params: {'p_empresa_ids': idsClientes}) as List;
+      final empresasRaw = await _supabase.rpc('nomes_empresas_publico',
+          params: {'p_empresa_ids': idsClientes}) as List;
       clientesOpcoes = empresasRaw
-          .map((m) => (id: m['id'] as String, nome: m['nome'] as String? ?? '—'))
+          .map(
+              (m) => (id: m['id'] as String, nome: m['nome'] as String? ?? '—'))
           .toList()
         ..sort((a, b) => a.nome.compareTo(b.nome));
     }
@@ -228,7 +235,8 @@ class AbastecimentosPostoService {
 
     PostgrestFilterBuilder<T> aplicar<T>(PostgrestFilterBuilder<T> query) {
       var q = query.inFilter('posto_cnpj', variantes);
-      if (filtros.combustivel != null) q = q.eq('produto', filtros.combustivel!);
+      if (filtros.combustivel != null)
+        q = q.eq('produto', filtros.combustivel!);
       if (filtros.clienteId != null) q = q.eq('empresa_id', filtros.clienteId!);
       if (filtros.provedor != null) q = q.eq('provedor', filtros.provedor!);
       if (termo != null && termo.isNotEmpty) {
@@ -237,10 +245,12 @@ class AbastecimentosPostoService {
           'motorista_nome.ilike.%$termo%',
           'codigo_abastecimento.ilike.%$termo%',
         ];
-        if (idsClientesQ.isNotEmpty) clausulas.add('empresa_id.in.(${idsClientesQ.join(",")})');
+        if (idsClientesQ.isNotEmpty)
+          clausulas.add('empresa_id.in.(${idsClientesQ.join(",")})');
         q = q.or(clausulas.join(','));
       }
-      if (filtros.de != null && filtros.de!.isNotEmpty) q = q.gte('data_abastecimento', filtros.de!);
+      if (filtros.de != null && filtros.de!.isNotEmpty)
+        q = q.gte('data_abastecimento', filtros.de!);
       if (filtros.ate != null && filtros.ate!.isNotEmpty) {
         q = q.lte('data_abastecimento', '${filtros.ate}T23:59:59');
       }
@@ -248,11 +258,14 @@ class AbastecimentosPostoService {
     }
 
     final contagemResp =
-        await aplicar(_supabase.from('abastecimentos_unificado').select('id')).count(CountOption.exact);
+        await aplicar(_supabase.from('abastecimentos_unificado').select('id'))
+            .count(CountOption.exact);
     final total = contagemResp.count;
 
-    final agregadosRaw =
-        await aplicar(_supabase.from('abastecimentos_unificado').select('litros, valor_total')).limit(50000);
+    final agregadosRaw = await aplicar(_supabase
+            .from('abastecimentos_unificado')
+            .select('litros, valor_total'))
+        .limit(50000);
     var volumeTotal = 0.0;
     var receitaTotal = 0.0;
     for (final r in agregadosRaw) {
@@ -260,12 +273,12 @@ class AbastecimentosPostoService {
       receitaTotal += (r['valor_total'] as num?)?.toDouble() ?? 0;
     }
 
-    final paginaRaw = await aplicar(_supabase.from('abastecimentos_unificado').select(
-          'id, provedor, codigo_abastecimento, data_abastecimento, empresa_id, placa, motorista_nome, produto, litros, valor_total',
-        ))
-        .order('data_abastecimento', ascending: false)
-        .limit(limite);
-    final registros = paginaRaw.map((m) => RegistroAbastecimentoPosto.fromMap(m)).toList();
+    final paginaRaw =
+        await aplicar(_supabase.from('abastecimentos_unificado').select(
+              'id, provedor, codigo_abastecimento, data_abastecimento, empresa_id, placa, motorista_nome, produto, litros, valor_total',
+            )).order('data_abastecimento', ascending: false).limit(limite);
+    final registros =
+        paginaRaw.map((m) => RegistroAbastecimentoPosto.fromMap(m)).toList();
 
     // NF-e emitida/rejeitada + ajuste pendente por linha — mesmas 3 tabelas
     // já usadas na web (RLS própria por empresa_posto_id). Só cobre a
@@ -310,9 +323,14 @@ class AbastecimentosPostoService {
         final idProfrotas = n['abastecimento_id'];
         final idExterno = n['abastecimento_externo_id'];
         final numero = n['numero_nf']?.toString();
-        if (idProfrotas != null) notaPorAbastecimento.putIfAbsent('profrotas:$idProfrotas', () => numero);
-        final registroExterno = idExterno != null ? registroPorIdExterno[idExterno.toString()] : null;
-        if (registroExterno != null) notaPorAbastecimento.putIfAbsent(registroExterno.chave, () => numero);
+        if (idProfrotas != null)
+          notaPorAbastecimento.putIfAbsent(
+              'profrotas:$idProfrotas', () => numero);
+        final registroExterno = idExterno != null
+            ? registroPorIdExterno[idExterno.toString()]
+            : null;
+        if (registroExterno != null)
+          notaPorAbastecimento.putIfAbsent(registroExterno.chave, () => numero);
       }
       for (final p in pendenciasRaw) {
         final idProfrotas = p['abastecimento_id'];
@@ -320,19 +338,28 @@ class AbastecimentosPostoService {
         final motivo = _motivoLabel[p['motivo']] ?? 'NF-e rejeitada.';
         if (idProfrotas != null) {
           final chave = 'profrotas:$idProfrotas';
-          if (!notaPorAbastecimento.containsKey(chave)) pendenciaPorAbastecimento.putIfAbsent(chave, () => motivo);
+          if (!notaPorAbastecimento.containsKey(chave))
+            pendenciaPorAbastecimento.putIfAbsent(chave, () => motivo);
         }
-        final registroExterno = idExterno != null ? registroPorIdExterno[idExterno.toString()] : null;
-        if (registroExterno != null && !notaPorAbastecimento.containsKey(registroExterno.chave)) {
-          pendenciaPorAbastecimento.putIfAbsent(registroExterno.chave, () => motivo);
+        final registroExterno = idExterno != null
+            ? registroPorIdExterno[idExterno.toString()]
+            : null;
+        if (registroExterno != null &&
+            !notaPorAbastecimento.containsKey(registroExterno.chave)) {
+          pendenciaPorAbastecimento.putIfAbsent(
+              registroExterno.chave, () => motivo);
         }
       }
       for (final a in ajustesRaw) {
         final idProfrotas = a['abastecimento_id'];
         final idExterno = a['abastecimento_externo_id'];
-        if (idProfrotas != null) comAjustePendente.add('profrotas:$idProfrotas');
-        final registroExterno = idExterno != null ? registroPorIdExterno[idExterno.toString()] : null;
-        if (registroExterno != null) comAjustePendente.add(registroExterno.chave);
+        if (idProfrotas != null)
+          comAjustePendente.add('profrotas:$idProfrotas');
+        final registroExterno = idExterno != null
+            ? registroPorIdExterno[idExterno.toString()]
+            : null;
+        if (registroExterno != null)
+          comAjustePendente.add(registroExterno.chave);
       }
     }
 

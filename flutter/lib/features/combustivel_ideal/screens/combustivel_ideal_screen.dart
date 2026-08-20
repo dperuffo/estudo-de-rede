@@ -4,6 +4,8 @@ import '../../inteligencia_rede/widgets/inteligencia_shared.dart';
 import '../providers/combustivel_ideal_provider.dart';
 import '../providers/diesel_ideal_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Onda-2 (benchmark TicketLog, item #6) — porta de
 // combustivel-ideal/page.tsx (web). Pedido do Daniel: "Implementar estas
 // duas iniciativas na web e PWA cliente".
@@ -22,6 +24,12 @@ class CombustivelIdealScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Combustível Ideal'),
           bottom: const TabBar(
             tabs: [
@@ -48,11 +56,13 @@ class _AbaFlex extends ConsumerStatefulWidget {
 class _AbaFlexState extends ConsumerState<_AbaFlex> {
   String _busca = '';
 
-  List<ItemComparadorCombustivel> _filtrar(List<ItemComparadorCombustivel> itens) {
+  List<ItemComparadorCombustivel> _filtrar(
+      List<ItemComparadorCombustivel> itens) {
     final q = _busca.trim().toUpperCase();
     if (q.isEmpty) return itens;
     return itens.where((i) {
-      final alvo = '${i.placa} ${i.marca ?? ''} ${i.modelo ?? ''}'.toUpperCase();
+      final alvo =
+          '${i.placa} ${i.marca ?? ''} ${i.modelo ?? ''}'.toUpperCase();
       return alvo.contains(q);
     }).toList();
   }
@@ -70,8 +80,10 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
           children: [Text('Erro ao carregar: $e')],
         ),
         data: (itens) {
-          final totalEtanol = itens.where((i) => i.recomendacao == 'etanol').length;
-          final totalGasolina = itens.where((i) => i.recomendacao == 'gasolina').length;
+          final totalEtanol =
+              itens.where((i) => i.recomendacao == 'etanol').length;
+          final totalGasolina =
+              itens.where((i) => i.recomendacao == 'gasolina').length;
           final itensFiltrados = _filtrar(itens);
 
           return ListView(
@@ -87,9 +99,13 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                 children: [
                   Expanded(child: _kpi('Veículos', itens.length.toString())),
                   const SizedBox(width: 8),
-                  Expanded(child: _kpi('Etanol compensa', totalEtanol.toString(), destaque: true)),
+                  Expanded(
+                      child: _kpi('Etanol compensa', totalEtanol.toString(),
+                          destaque: true)),
                   const SizedBox(width: 8),
-                  Expanded(child: _kpi('Gasolina compensa', totalGasolina.toString())),
+                  Expanded(
+                      child:
+                          _kpi('Gasolina compensa', totalGasolina.toString())),
                 ],
               ),
               const SizedBox(height: 12),
@@ -114,8 +130,11 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                     isDense: true,
                     prefixIcon: const Icon(Icons.search, size: 20),
                     hintText: 'Buscar por placa, marca ou modelo...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    suffixText: _busca.isNotEmpty ? '${itensFiltrados.length}/${itens.length}' : null,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    suffixText: _busca.isNotEmpty
+                        ? '${itensFiltrados.length}/${itens.length}'
+                        : null,
                   ),
                 ),
               const SizedBox(height: 12),
@@ -123,14 +142,16 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text('Nenhum veículo flex encontrado.', style: TextStyle(color: Colors.grey)),
+                    child: Text('Nenhum veículo flex encontrado.',
+                        style: TextStyle(color: Colors.grey)),
                   ),
                 )
               else if (itensFiltrados.isEmpty)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text('Nenhum veículo encontrado para "$_busca".', style: const TextStyle(color: Colors.grey)),
+                    child: Text('Nenhum veículo encontrado para "$_busca".',
+                        style: const TextStyle(color: Colors.grey)),
                   ),
                 )
               else
@@ -149,11 +170,15 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey, letterSpacing: 0.2)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 9, color: Colors.grey, letterSpacing: 0.2)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold, color: destaque ? const Color(0xFF16A34A) : null)),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: destaque ? const Color(0xFF16A34A) : null)),
           ],
         ),
       ),
@@ -161,15 +186,18 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
   }
 
   Widget _cardVeiculo(ItemComparadorCombustivel i) {
-    final veiculo = [i.marca, i.modelo].where((s) => s != null && s.isNotEmpty).join(' ');
+    final veiculo =
+        [i.marca, i.modelo].where((s) => s != null && s.isNotEmpty).join(' ');
     Color? corBadge;
     String? textoBadge;
     if (i.recomendacao == 'etanol') {
       corBadge = const Color(0xFF16A34A);
-      textoBadge = '🌱 Etanol${i.economiaPct != null ? ' (${i.economiaPct}% mais barato)' : ''}';
+      textoBadge =
+          '🌱 Etanol${i.economiaPct != null ? ' (${i.economiaPct}% mais barato)' : ''}';
     } else if (i.recomendacao == 'gasolina') {
       corBadge = const Color(0xFFD97706);
-      textoBadge = '⛽ Gasolina${i.economiaPct != null ? ' (${i.economiaPct}% mais barato)' : ''}';
+      textoBadge =
+          '⛽ Gasolina${i.economiaPct != null ? ' (${i.economiaPct}% mais barato)' : ''}';
     }
 
     return Card(
@@ -182,10 +210,14 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
             Row(
               children: [
                 Expanded(
-                  child: Text('${i.placa}${veiculo.isNotEmpty ? ' — $veiculo' : ''}',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Text(
+                      '${i.placa}${veiculo.isNotEmpty ? ' — $veiculo' : ''}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
-                if (i.uf != null) Text(i.uf!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                if (i.uf != null)
+                  Text(i.uf!,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 8),
@@ -195,18 +227,30 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
               linhas: [
                 [
                   'Preço',
-                  i.precoGasolina != null ? 'R\$ ${i.precoGasolina!.toStringAsFixed(3)}' : '—',
-                  i.precoEtanol != null ? 'R\$ ${i.precoEtanol!.toStringAsFixed(3)}' : '—',
+                  i.precoGasolina != null
+                      ? 'R\$ ${i.precoGasolina!.toStringAsFixed(3)}'
+                      : '—',
+                  i.precoEtanol != null
+                      ? 'R\$ ${i.precoEtanol!.toStringAsFixed(3)}'
+                      : '—',
                 ],
                 [
                   'Rendimento',
-                  i.rendimentoGasolina != null ? '${i.rendimentoGasolina!.toStringAsFixed(2)} km/l' : '—',
-                  i.rendimentoEtanol != null ? '${i.rendimentoEtanol!.toStringAsFixed(2)} km/l' : '—',
+                  i.rendimentoGasolina != null
+                      ? '${i.rendimentoGasolina!.toStringAsFixed(2)} km/l'
+                      : '—',
+                  i.rendimentoEtanol != null
+                      ? '${i.rendimentoEtanol!.toStringAsFixed(2)} km/l'
+                      : '—',
                 ],
                 [
                   'Custo/km',
-                  i.custoKmGasolina != null ? 'R\$ ${i.custoKmGasolina!.toStringAsFixed(3)}' : '—',
-                  i.custoKmEtanol != null ? 'R\$ ${i.custoKmEtanol!.toStringAsFixed(3)}' : '—',
+                  i.custoKmGasolina != null
+                      ? 'R\$ ${i.custoKmGasolina!.toStringAsFixed(3)}'
+                      : '—',
+                  i.custoKmEtanol != null
+                      ? 'R\$ ${i.custoKmEtanol!.toStringAsFixed(3)}'
+                      : '—',
                 ],
               ],
             ),
@@ -214,14 +258,20 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
             if (textoBadge != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: corBadge!.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                    color: corBadge!.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12)),
                 child: Text(
                   '$textoBadge${i.rendimentoEstimado ? ' · rendimento estimado' : ''}',
-                  style: TextStyle(fontSize: 11, color: corBadge, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: corBadge,
+                      fontWeight: FontWeight.w600),
                 ),
               )
             else
-              const Text('Dados insuficientes para recomendar', style: TextStyle(fontSize: 11, color: Colors.grey)),
+              const Text('Dados insuficientes para recomendar',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),
@@ -243,7 +293,8 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
     final q = _busca.trim().toUpperCase();
     if (q.isEmpty) return itens;
     return itens.where((i) {
-      final alvo = '${i.placa} ${i.marca ?? ''} ${i.modelo ?? ''}'.toUpperCase();
+      final alvo =
+          '${i.placa} ${i.marca ?? ''} ${i.modelo ?? ''}'.toUpperCase();
       return alvo.contains(q);
     }).toList();
   }
@@ -261,8 +312,10 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
           children: [Text('Erro ao carregar: $e')],
         ),
         data: (itens) {
-          final totalAditivado = itens.where((i) => i.recomendacao == 'aditivado').length;
-          final totalComum = itens.where((i) => i.recomendacao == 'comum').length;
+          final totalAditivado =
+              itens.where((i) => i.recomendacao == 'aditivado').length;
+          final totalComum =
+              itens.where((i) => i.recomendacao == 'comum').length;
           final itensFiltrados = _filtrar(itens);
 
           return ListView(
@@ -279,11 +332,17 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
               if (itens.isNotEmpty)
                 Row(
                   children: [
-                    Expanded(child: _kpi('Veículo × família', itens.length.toString())),
+                    Expanded(
+                        child:
+                            _kpi('Veículo × família', itens.length.toString())),
                     const SizedBox(width: 8),
-                    Expanded(child: _kpi('Aditivado compensa', totalAditivado.toString(), destaque: true)),
+                    Expanded(
+                        child: _kpi(
+                            'Aditivado compensa', totalAditivado.toString(),
+                            destaque: true)),
                     const SizedBox(width: 8),
-                    Expanded(child: _kpi('Comum compensa', totalComum.toString())),
+                    Expanded(
+                        child: _kpi('Comum compensa', totalComum.toString())),
                   ],
                 ),
               const SizedBox(height: 12),
@@ -294,8 +353,11 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
                     isDense: true,
                     prefixIcon: const Icon(Icons.search, size: 20),
                     hintText: 'Buscar por placa, marca ou modelo...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    suffixText: _busca.isNotEmpty ? '${itensFiltrados.length}/${itens.length}' : null,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    suffixText: _busca.isNotEmpty
+                        ? '${itensFiltrados.length}/${itens.length}'
+                        : null,
                   ),
                 ),
               const SizedBox(height: 12),
@@ -303,7 +365,8 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text('Nenhum veículo com histórico de abastecimento a diesel encontrado.',
+                    child: Text(
+                        'Nenhum veículo com histórico de abastecimento a diesel encontrado.',
                         style: TextStyle(color: Colors.grey)),
                   ),
                 )
@@ -311,7 +374,8 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text('Nenhum veículo encontrado para "$_busca".', style: const TextStyle(color: Colors.grey)),
+                    child: Text('Nenhum veículo encontrado para "$_busca".',
+                        style: const TextStyle(color: Colors.grey)),
                   ),
                 )
               else
@@ -330,11 +394,15 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey, letterSpacing: 0.2)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 9, color: Colors.grey, letterSpacing: 0.2)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold, color: destaque ? const Color(0xFF0284C7) : null)),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: destaque ? const Color(0xFF0284C7) : null)),
           ],
         ),
       ),
@@ -342,17 +410,25 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
   }
 
   Widget _cardVeiculo(ItemComparadorDiesel i) {
-    final veiculo = [i.marca, i.modelo].where((s) => s != null && s.isNotEmpty).join(' ');
+    final veiculo =
+        [i.marca, i.modelo].where((s) => s != null && s.isNotEmpty).join(' ');
 
     Widget rodape;
     if (i.recomendacao != null) {
-      final cor = i.recomendacao == 'aditivado' ? const Color(0xFF0284C7) : Colors.grey.shade700;
+      final cor = i.recomendacao == 'aditivado'
+          ? const Color(0xFF0284C7)
+          : Colors.grey.shade700;
       rodape = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: cor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12)),
         child: Text(
-          i.recomendacao == 'aditivado' ? '✨ Aditivado compensa' : '🛢️ Comum compensa',
-          style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
+          i.recomendacao == 'aditivado'
+              ? '✨ Aditivado compensa'
+              : '🛢️ Comum compensa',
+          style:
+              TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
         ),
       );
     } else if (i.premioAditivadoPct != null) {
@@ -362,7 +438,8 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
         style: const TextStyle(fontSize: 11, color: Colors.grey),
       );
     } else {
-      rodape = const Text('Dados insuficientes', style: TextStyle(fontSize: 11, color: Colors.grey));
+      rodape = const Text('Dados insuficientes',
+          style: TextStyle(fontSize: 11, color: Colors.grey));
     }
 
     return Card(
@@ -375,10 +452,14 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
             Row(
               children: [
                 Expanded(
-                  child: Text('${i.placa}${veiculo.isNotEmpty ? ' — $veiculo' : ''} · Diesel ${i.familia}',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Text(
+                      '${i.placa}${veiculo.isNotEmpty ? ' — $veiculo' : ''} · Diesel ${i.familia}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
-                if (i.uf != null) Text(i.uf!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                if (i.uf != null)
+                  Text(i.uf!,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 8),
@@ -388,18 +469,30 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
               linhas: [
                 [
                   'Preço',
-                  i.precoComum != null ? 'R\$ ${i.precoComum!.toStringAsFixed(3)}' : '—',
-                  i.precoAditivado != null ? 'R\$ ${i.precoAditivado!.toStringAsFixed(3)}' : '—',
+                  i.precoComum != null
+                      ? 'R\$ ${i.precoComum!.toStringAsFixed(3)}'
+                      : '—',
+                  i.precoAditivado != null
+                      ? 'R\$ ${i.precoAditivado!.toStringAsFixed(3)}'
+                      : '—',
                 ],
                 [
                   'Rendimento',
-                  i.rendimentoComum != null ? '${i.rendimentoComum!.toStringAsFixed(2)} km/l' : '—',
-                  i.rendimentoAditivado != null ? '${i.rendimentoAditivado!.toStringAsFixed(2)} km/l' : '—',
+                  i.rendimentoComum != null
+                      ? '${i.rendimentoComum!.toStringAsFixed(2)} km/l'
+                      : '—',
+                  i.rendimentoAditivado != null
+                      ? '${i.rendimentoAditivado!.toStringAsFixed(2)} km/l'
+                      : '—',
                 ],
                 [
                   'Custo/km',
-                  i.custoKmComum != null ? 'R\$ ${i.custoKmComum!.toStringAsFixed(4)}' : '—',
-                  i.custoKmAditivado != null ? 'R\$ ${i.custoKmAditivado!.toStringAsFixed(4)}' : '—',
+                  i.custoKmComum != null
+                      ? 'R\$ ${i.custoKmComum!.toStringAsFixed(4)}'
+                      : '—',
+                  i.custoKmAditivado != null
+                      ? 'R\$ ${i.custoKmAditivado!.toStringAsFixed(4)}'
+                      : '—',
                 ],
               ],
             ),

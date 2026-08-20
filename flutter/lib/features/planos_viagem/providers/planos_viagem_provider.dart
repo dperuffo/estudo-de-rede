@@ -21,7 +21,13 @@ import '../../../core/services/supabase_service.dart';
 // rotograma_provider.dart); coluna "Cliente" na tabela (só aparece pra
 // admin vendo vários clientes ao mesmo tempo).
 
-const statusPlanoViagem = ['rascunho', 'planejado', 'em_andamento', 'concluido', 'cancelado'];
+const statusPlanoViagem = [
+  'rascunho',
+  'planejado',
+  'em_andamento',
+  'concluido',
+  'cancelado'
+];
 const statusPlanoViagemLabel = {
   'rascunho': 'Rascunho',
   'planejado': 'Planejado',
@@ -109,7 +115,8 @@ class PlanoViagem {
   });
 
   double get margemEstimada => receitaViagem - custoTotalEstimado;
-  double? get margemReal => custoTotalReal != null ? receitaViagem - custoTotalReal! : null;
+  double? get margemReal =>
+      custoTotalReal != null ? receitaViagem - custoTotalReal! : null;
 
   factory PlanoViagem.fromMap(Map<String, dynamic> m) {
     final motorista = m['motoristas'] as Map<String, dynamic>?;
@@ -129,7 +136,8 @@ class PlanoViagem {
       kmEstimado: (n('km_estimado') ?? 0).toDouble(),
       consumoKmL: (n('consumo_km_l') ?? 0).toDouble(),
       precoCombustivel: (n('preco_combustivel') ?? 0).toDouble(),
-      custoCombustivelEstimado: (n('custo_combustivel_estimado') ?? 0).toDouble(),
+      custoCombustivelEstimado:
+          (n('custo_combustivel_estimado') ?? 0).toDouble(),
       custoCombustivelReal: n('custo_combustivel_real')?.toDouble(),
       combustivelRealLitros: n('combustivel_real_litros')?.toDouble(),
       combustivelRealRevisadoEm: m['combustivel_real_revisado_em'] as String?,
@@ -154,8 +162,8 @@ class PlanoViagem {
 // em manutencao_preditiva_provider.dart), dá igualdade estrutural de graça.
 typedef FiltrosPlanosViagem = ({String? status, String? placa});
 
-final planosViagemListaProvider =
-    FutureProvider.autoDispose.family<List<PlanoViagem>, FiltrosPlanosViagem>((ref, filtros) async {
+final planosViagemListaProvider = FutureProvider.autoDispose
+    .family<List<PlanoViagem>, FiltrosPlanosViagem>((ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -177,8 +185,11 @@ final planosViagemListaProvider =
     query = query.ilike('placa', '%${filtros.placa!.trim()}%');
   }
 
-  final rows = await query.order('criado_em', ascending: false).limit(500) as List;
-  return rows.map((r) => PlanoViagem.fromMap(r as Map<String, dynamic>)).toList();
+  final rows =
+      await query.order('criado_em', ascending: false).limit(500) as List;
+  return rows
+      .map((r) => PlanoViagem.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // KPIs sobre o resultado já filtrado — mesmo cálculo do page.tsx.
@@ -199,11 +210,13 @@ class KpisPlanosViagem {
 
 KpisPlanosViagem calcularKpisPlanos(List<PlanoViagem> planos) {
   final totalPlanos = planos.length;
-  final orcamentoTotalEstimado = planos.fold<double>(0, (s, p) => s + p.custoTotalEstimado);
+  final orcamentoTotalEstimado =
+      planos.fold<double>(0, (s, p) => s + p.custoTotalEstimado);
   final receitaTotal = planos.fold<double>(0, (s, p) => s + p.receitaViagem);
   final margemEstimada = receitaTotal - orcamentoTotalEstimado;
   final kmTotalEstimado = planos.fold<double>(0, (s, p) => s + p.kmEstimado);
-  final custoMedioPorKm = kmTotalEstimado > 0 ? orcamentoTotalEstimado / kmTotalEstimado : 0.0;
+  final custoMedioPorKm =
+      kmTotalEstimado > 0 ? orcamentoTotalEstimado / kmTotalEstimado : 0.0;
   return KpisPlanosViagem(
     totalPlanos: totalPlanos,
     orcamentoTotalEstimado: orcamentoTotalEstimado,
@@ -218,7 +231,11 @@ class DesempenhoVeiculo {
   final int planos;
   final double km;
   final double custo;
-  const DesempenhoVeiculo({required this.placa, required this.planos, required this.km, required this.custo});
+  const DesempenhoVeiculo(
+      {required this.placa,
+      required this.planos,
+      required this.km,
+      required this.custo});
 }
 
 // "Desempenho por Veículo" — agrupado em memória, mesmo espírito do
@@ -228,7 +245,8 @@ List<DesempenhoVeiculo> agruparPorVeiculo(List<PlanoViagem> planos) {
   for (final p in planos) {
     final placa = p.placa;
     if (placa == null || placa.isEmpty) continue;
-    final atual = mapa[placa] ?? DesempenhoVeiculo(placa: placa, planos: 0, km: 0, custo: 0);
+    final atual = mapa[placa] ??
+        DesempenhoVeiculo(placa: placa, planos: 0, km: 0, custo: 0);
     mapa[placa] = DesempenhoVeiculo(
       placa: placa,
       planos: atual.planos + 1,
@@ -236,17 +254,24 @@ List<DesempenhoVeiculo> agruparPorVeiculo(List<PlanoViagem> planos) {
       custo: atual.custo + p.custoTotalEstimado,
     );
   }
-  final lista = mapa.values.toList()..sort((a, b) => b.custo.compareTo(a.custo));
+  final lista = mapa.values.toList()
+    ..sort((a, b) => b.custo.compareTo(a.custo));
   return lista;
 }
 
-final planoViagemDetalheProvider = FutureProvider.autoDispose.family<PlanoViagem?, String>((ref, id) async {
-  final row = await SupabaseService.client.from('planos_viagem').select('*').eq('id', id).maybeSingle();
+final planoViagemDetalheProvider =
+    FutureProvider.autoDispose.family<PlanoViagem?, String>((ref, id) async {
+  final row = await SupabaseService.client
+      .from('planos_viagem')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
   if (row == null) return null;
   return PlanoViagem.fromMap(row);
 });
 
-final pedagiosPlanoProvider = FutureProvider.autoDispose.family<List<Pedagio>, String>((ref, planoId) async {
+final pedagiosPlanoProvider = FutureProvider.autoDispose
+    .family<List<Pedagio>, String>((ref, planoId) async {
   final rows = await SupabaseService.client
       .from('planos_viagem_pedagios')
       .select('praca_nome, valor')
@@ -333,10 +358,15 @@ class PrePedido {
   final int numero;
   final String status; // ativo | concluido | cancelado
   final List<ParadaPrePedido> paradas;
-  const PrePedido({required this.id, required this.numero, required this.status, required this.paradas});
+  const PrePedido(
+      {required this.id,
+      required this.numero,
+      required this.status,
+      required this.paradas});
 }
 
-final prePedidoDoPlanoProvider = FutureProvider.autoDispose.family<PrePedido?, String>((ref, planoId) async {
+final prePedidoDoPlanoProvider =
+    FutureProvider.autoDispose.family<PrePedido?, String>((ref, planoId) async {
   final row = await SupabaseService.client
       .from('pre_pedidos')
       .select(
@@ -345,7 +375,9 @@ final prePedidoDoPlanoProvider = FutureProvider.autoDispose.family<PrePedido?, S
       .maybeSingle();
   if (row == null) return null;
   final paradasRaw = (row['pre_pedidos_paradas'] as List? ?? []);
-  final paradas = paradasRaw.map((p) => ParadaPrePedido.fromMap(p as Map<String, dynamic>)).toList()
+  final paradas = paradasRaw
+      .map((p) => ParadaPrePedido.fromMap(p as Map<String, dynamic>))
+      .toList()
     ..sort((a, b) => a.ordem.compareTo(b.ordem));
   return PrePedido(
     id: row['id'] as String,

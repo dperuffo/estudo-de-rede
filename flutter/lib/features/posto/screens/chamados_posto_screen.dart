@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/chamados_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _data = DateFormat('dd/MM/yyyy HH:mm');
 
 String _fmtData(String? iso) {
@@ -29,7 +31,8 @@ class ChamadosPostoScreen extends ConsumerStatefulWidget {
   const ChamadosPostoScreen({super.key});
 
   @override
-  ConsumerState<ChamadosPostoScreen> createState() => _ChamadosPostoScreenState();
+  ConsumerState<ChamadosPostoScreen> createState() =>
+      _ChamadosPostoScreenState();
 }
 
 class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
@@ -40,7 +43,14 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
     final async = ref.watch(chamadosPostoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chamados')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Chamados')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/posto/chamados/novo'),
         icon: const Icon(Icons.add),
@@ -51,12 +61,16 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
         error: (e, _) => Center(child: Text('Não deu pra carregar: $e')),
         data: (chamados) {
           final abertos = chamados.where((c) => c.status == 'aberto').length;
-          final emAnalise = chamados.where((c) => c.status == 'em_analise').length;
-          final resolvidos = chamados.where((c) => c.status == 'resolvido' || c.status == 'fechado').length;
+          final emAnalise =
+              chamados.where((c) => c.status == 'em_analise').length;
+          final resolvidos = chamados
+              .where((c) => c.status == 'resolvido' || c.status == 'fechado')
+              .length;
           final naoVistos = chamados.where((c) => c.naoVisto).length;
 
-          final filtrados =
-              _filtroStatus == null ? chamados : chamados.where((c) => c.status == _filtroStatus).toList();
+          final filtrados = _filtroStatus == null
+              ? chamados
+              : chamados.where((c) => c.status == _filtroStatus).toList();
 
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(chamadosPostoProvider),
@@ -72,9 +86,12 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                   childAspectRatio: 2.4,
                   children: [
                     _indicador('Abertos', abertos, const Color(0xFFB45309)),
-                    _indicador('Em análise', emAnalise, const Color(0xFF1D4ED8)),
-                    _indicador('Resolvidos', resolvidos, const Color(0xFF15803D)),
-                    _indicador('Não vistos', naoVistos, const Color(0xFFB91C1C)),
+                    _indicador(
+                        'Em análise', emAnalise, const Color(0xFF1D4ED8)),
+                    _indicador(
+                        'Resolvidos', resolvidos, const Color(0xFF15803D)),
+                    _indicador(
+                        'Não vistos', naoVistos, const Color(0xFFB91C1C)),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -89,7 +106,8 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                     ...statusTicket.entries.map((e) => ChoiceChip(
                           label: Text(e.value),
                           selected: _filtroStatus == e.key,
-                          onSelected: (_) => setState(() => _filtroStatus = e.key),
+                          onSelected: (_) =>
+                              setState(() => _filtroStatus = e.key),
                         )),
                   ],
                 ),
@@ -98,7 +116,8 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text('Nenhum chamado encontrado.', style: TextStyle(color: Colors.grey.shade600)),
+                      child: Text('Nenhum chamado encontrado.',
+                          style: TextStyle(color: Colors.grey.shade600)),
                     ),
                   )
                 else
@@ -116,30 +135,42 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                                     margin: const EdgeInsets.only(right: 8),
                                     width: 8,
                                     height: 8,
-                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                    decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle),
                                   ),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text('#${c.numero} · ${c.titulo}',
-                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13)),
                                       const SizedBox(height: 2),
-                                      Text('${tiposTicket[c.tipo] ?? c.tipo} · ${_fmtData(c.criadoEm)}',
-                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                      Text(
+                                          '${tiposTicket[c.tipo] ?? c.tipo} · ${_fmtData(c.criadoEm)}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600)),
                                     ],
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: (_corStatus[c.status] ?? Colors.grey).withOpacity(0.1),
+                                    color: (_corStatus[c.status] ?? Colors.grey)
+                                        .withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
                                     statusTicket[c.status] ?? c.status,
                                     style: TextStyle(
-                                        fontSize: 11, color: _corStatus[c.status], fontWeight: FontWeight.w600),
+                                        fontSize: 11,
+                                        color: _corStatus[c.status],
+                                        fontWeight: FontWeight.w600),
                                   ),
                                 ),
                               ],
@@ -162,8 +193,11 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('$valor', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: cor)),
-              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text('$valor',
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold, color: cor)),
+              Text(label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
             ],
           ),
         ),

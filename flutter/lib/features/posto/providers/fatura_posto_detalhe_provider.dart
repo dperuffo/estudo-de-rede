@@ -30,7 +30,8 @@ class ItemExtratoAbastecimento {
     this.valorTotal,
   });
 
-  factory ItemExtratoAbastecimento.fromMap(Map<String, dynamic> m) => ItemExtratoAbastecimento(
+  factory ItemExtratoAbastecimento.fromMap(Map<String, dynamic> m) =>
+      ItemExtratoAbastecimento(
         id: (m['id'] as num).toInt(),
         data: m['data_abastecimento'] as String?,
         motorista: m['motorista_nome'] as String?,
@@ -81,25 +82,30 @@ class FaturaPostoDetalhe {
   });
 }
 
-final faturaPostoDetalheProvider =
-    FutureProvider.autoDispose.family<FaturaPostoDetalhe?, String>((ref, faturaId) async {
+final faturaPostoDetalheProvider = FutureProvider.autoDispose
+    .family<FaturaPostoDetalhe?, String>((ref, faturaId) async {
   final supabase = SupabaseService.client;
 
   final fatura = await supabase
       .from('faturas_postos')
-      .select('id, numero_fatura, periodo_inicio, periodo_fim, vencimento, valor_total, '
+      .select(
+          'id, numero_fatura, periodo_inicio, periodo_fim, vencimento, valor_total, '
           'volume_total, quantidade_abastecimentos, status, data_geracao_boleto, cliente_nome, empresa_posto_id')
       .eq('id', faturaId)
       .maybeSingle();
   if (fatura == null) return null;
 
-  final itensRaw = await supabase.rpc('abastecimentos_da_fatura', params: {'p_fatura_id': faturaId}) as List;
-  final itens = itensRaw.map((m) => ItemExtratoAbastecimento.fromMap(m as Map<String, dynamic>)).toList();
+  final itensRaw = await supabase.rpc('abastecimentos_da_fatura',
+      params: {'p_fatura_id': faturaId}) as List;
+  final itens = itensRaw
+      .map((m) => ItemExtratoAbastecimento.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   String? postoNome;
   final empresaPostoId = fatura['empresa_posto_id'] as String?;
   if (empresaPostoId != null) {
-    postoNome = await supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaPostoId}) as String?;
+    postoNome = await supabase.rpc('nome_empresa_publico',
+        params: {'p_empresa_id': empresaPostoId}) as String?;
   }
 
   return FaturaPostoDetalhe(
@@ -110,7 +116,8 @@ final faturaPostoDetalheProvider =
     vencimento: fatura['vencimento'] as String?,
     valorTotal: (fatura['valor_total'] as num?)?.toDouble() ?? 0,
     volumeTotal: (fatura['volume_total'] as num?)?.toDouble() ?? 0,
-    quantidadeAbastecimentos: (fatura['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
+    quantidadeAbastecimentos:
+        (fatura['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
     status: fatura['status'] as String? ?? '',
     dataGeracaoBoleto: fatura['data_geracao_boleto'] as String?,
     clienteNome: fatura['cliente_nome'] as String?,

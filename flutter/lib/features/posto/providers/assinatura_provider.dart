@@ -60,10 +60,14 @@ class AssinaturaDetalhe {
   // a nenhuma — mesma regra do page.tsx original).
   final int qtdPostosNaRede;
   final List<FaturaAssinatura> invoices;
-  const AssinaturaDetalhe({required this.empresa, required this.qtdPostosNaRede, required this.invoices});
+  const AssinaturaDetalhe(
+      {required this.empresa,
+      required this.qtdPostosNaRede,
+      required this.invoices});
 }
 
-final assinaturaProvider = FutureProvider.autoDispose<AssinaturaDetalhe?>((ref) async {
+final assinaturaProvider =
+    FutureProvider.autoDispose<AssinaturaDetalhe?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -71,7 +75,8 @@ final assinaturaProvider = FutureProvider.autoDispose<AssinaturaDetalhe?>((ref) 
 
   final empresaMap = await supabase
       .from('empresas')
-      .select('id, nome, cnpj, plano, status, trial_ends_at, stripe_customer_id')
+      .select(
+          'id, nome, cnpj, plano, status, trial_ends_at, stripe_customer_id')
       .eq('id', empresaId)
       .single();
 
@@ -89,13 +94,18 @@ final assinaturaProvider = FutureProvider.autoDispose<AssinaturaDetalhe?>((ref) 
   // postos existem em qualquer Rede (segmento "Revenda") da qual esta
   // empresa é membro; se não estiver em nenhuma Rede, conta como 1 (o
   // próprio posto).
-  final meusVinculos =
-      await supabase.from('grupos_economicos_empresas').select('grupo_economico_id').eq('empresa_id', empresaId)
-          as List;
+  final meusVinculos = await supabase
+      .from('grupos_economicos_empresas')
+      .select('grupo_economico_id')
+      .eq('empresa_id', empresaId) as List;
   int qtdPostosNaRede = 1;
   if (meusVinculos.isNotEmpty) {
     final redeId = meusVinculos.first['grupo_economico_id'] as String;
-    final rede = await supabase.from('grupos_economicos').select('segmento').eq('id', redeId).maybeSingle();
+    final rede = await supabase
+        .from('grupos_economicos')
+        .select('segmento')
+        .eq('id', redeId)
+        .maybeSingle();
     if (rede != null && rede['segmento'] == 'Revenda') {
       final countResp = await supabase
           .from('grupos_economicos_empresas')
@@ -112,9 +122,12 @@ final assinaturaProvider = FutureProvider.autoDispose<AssinaturaDetalhe?>((ref) 
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false)
       .limit(24) as List;
-  final invoices = invoicesRaw.map((m) => FaturaAssinatura.fromMap(m as Map<String, dynamic>)).toList();
+  final invoices = invoicesRaw
+      .map((m) => FaturaAssinatura.fromMap(m as Map<String, dynamic>))
+      .toList();
 
-  return AssinaturaDetalhe(empresa: empresa, qtdPostosNaRede: qtdPostosNaRede, invoices: invoices);
+  return AssinaturaDetalhe(
+      empresa: empresa, qtdPostosNaRede: qtdPostosNaRede, invoices: invoices);
 });
 
 // Mesma régua da Fase 27.125 (combinada com o Daniel): 1 a 10 postos na
@@ -132,7 +145,10 @@ class PrecoPlano {
   final int? unitAmount;
   final String currency;
   final String? interval;
-  const PrecoPlano({required this.unitAmount, required this.currency, required this.interval});
+  const PrecoPlano(
+      {required this.unitAmount,
+      required this.currency,
+      required this.interval});
   factory PrecoPlano.fromMap(Map<String, dynamic> m) => PrecoPlano(
         unitAmount: (m['unit_amount'] as num?)?.toInt(),
         currency: m['currency'] as String? ?? 'brl',
@@ -140,11 +156,14 @@ class PrecoPlano {
       );
 }
 
-final precosPlanosProvider = FutureProvider.autoDispose<Map<String, PrecoPlano>>((ref) async {
+final precosPlanosProvider =
+    FutureProvider.autoDispose<Map<String, PrecoPlano>>((ref) async {
   try {
-    final resposta = await SupabaseService.client.functions.invoke('planos-precos');
+    final resposta =
+        await SupabaseService.client.functions.invoke('planos-precos');
     final data = resposta.data as Map<String, dynamic>;
-    return data.map((k, v) => MapEntry(k, PrecoPlano.fromMap(v as Map<String, dynamic>)));
+    return data.map(
+        (k, v) => MapEntry(k, PrecoPlano.fromMap(v as Map<String, dynamic>)));
   } catch (_) {
     return {};
   }
@@ -155,6 +174,8 @@ String formatarPrecoPlano(PrecoPlano? preco) {
   final valor = preco.unitAmount! / 100;
   final valorFmt = 'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
   if (preco.interval == null) return valorFmt;
-  final porIntervalo = preco.interval == 'month' ? 'mês' : (preco.interval == 'year' ? 'ano' : preco.interval!);
+  final porIntervalo = preco.interval == 'month'
+      ? 'mês'
+      : (preco.interval == 'year' ? 'ano' : preco.interval!);
   return '$valorFmt/$porIntervalo';
 }

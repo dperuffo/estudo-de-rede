@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../posto/providers/financeiro_posto_provider.dart' show CicloAbertoResumo, FaturaFinanceiro;
+import '../../posto/providers/financeiro_posto_provider.dart'
+    show CicloAbertoResumo, FaturaFinanceiro;
+
+import '../../../core/theme/app_theme.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -57,11 +60,18 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: Text(postoNome),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/financeiro'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/financeiro'),
         ),
       ),
       body: ListView(
@@ -73,30 +83,36 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(postoNome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(postoNome,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   if (cicloFaturamentoDias > 0) ...[
                     const SizedBox(height: 6),
                     Text('Ciclo de $cicloFaturamentoDias dias',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Ciclo em andamento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Ciclo em andamento',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (cicloAtual == null)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Nenhum ciclo em andamento agora.', style: TextStyle(color: Colors.grey.shade600)),
+                child: Text('Nenhum ciclo em andamento agora.',
+                    style: TextStyle(color: Colors.grey.shade600)),
               ),
             )
           else
             Card(
               child: InkWell(
-                onTap: () => context.push('/ciclos-abertos/${cicloAtual!.negociacaoId}'),
+                onTap: () =>
+                    context.push('/ciclos-abertos/${cicloAtual!.negociacaoId}'),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -107,19 +123,23 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                                 '${_fmtData(cicloAtual!.periodoInicio)} — ${_fmtData(cicloAtual!.periodoFimPrevisto)}',
-                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                          const Icon(Icons.chevron_right,
+                              color: Colors.grey, size: 18),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('${_numero.format(cicloAtual!.quantidadeAbastecimentos)} abastecimentos · '
+                      Text(
+                          '${_numero.format(cicloAtual!.quantidadeAbastecimentos)} abastecimentos · '
                           '${_moeda.format(cicloAtual!.valorAcumulado)}'),
                       if (cicloAtual!.quantidadePendenteNfe > 0) ...[
                         const SizedBox(height: 4),
                         Text(
                           '${cicloAtual!.quantidadePendenteNfe} sem NF-e ainda (${_moeda.format(cicloAtual!.valorPendenteNfe)}, fora do acumulado)',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF92400E)),
                         ),
                       ],
                     ],
@@ -128,13 +148,16 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 20),
-          Text('Faturas (${faturas.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Faturas (${faturas.length})',
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (faturas.isEmpty)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Nenhuma fatura ainda.', style: TextStyle(color: Colors.grey.shade600)),
+                child: Text('Nenhuma fatura ainda.',
+                    style: TextStyle(color: Colors.grey.shade600)),
               ),
             )
           else
@@ -162,14 +185,19 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: Text('Vencimento: ${_fmtData(f.vencimento)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13)),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(_moeda.format(f.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(_moeda.format(f.valorTotal),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   Text(_statusFaturaLabel[statusExib] ?? statusExib,
-                      style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: cor,
+                          fontWeight: FontWeight.w600)),
                 ],
               ),
               const SizedBox(width: 6),

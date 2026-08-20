@@ -31,7 +31,8 @@ class PrecoPosto {
       );
 }
 
-final precosPostoProvider = FutureProvider.autoDispose<List<PrecoPosto>>((ref) async {
+final precosPostoProvider =
+    FutureProvider.autoDispose<List<PrecoPosto>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -50,7 +51,9 @@ class PrecosPostoService {
   // "precos": mapa combustivel -> preço em texto (campo em branco = não
   // grava linha, igual à web — não exclui um preço já salvo). Retorna
   // mensagem de erro, ou null se deu certo.
-  Future<String?> salvar({required String empresaPostoId, required Map<String, String> precos}) async {
+  Future<String?> salvar(
+      {required String empresaPostoId,
+      required Map<String, String> precos}) async {
     final agora = DateTime.now().toUtc().toIso8601String();
     final email = AuthService().emailAtual;
     final linhas = <Map<String, dynamic>>[];
@@ -74,7 +77,9 @@ class PrecosPostoService {
     if (linhas.isEmpty) return 'Informe pelo menos um preço.';
 
     try {
-      await _supabase.from('precos_postos').upsert(linhas, onConflict: 'empresa_posto_id,combustivel');
+      await _supabase
+          .from('precos_postos')
+          .upsert(linhas, onConflict: 'empresa_posto_id,combustivel');
       return null;
     } catch (e) {
       return e.toString();

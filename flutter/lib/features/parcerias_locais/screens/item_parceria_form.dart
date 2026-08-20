@@ -10,7 +10,8 @@ class ItemParceriaForm extends StatefulWidget {
   final String empresaId;
   final ItemParceria? item; // null = criação
   final VoidCallback onSalvo;
-  const ItemParceriaForm({super.key, required this.empresaId, this.item, required this.onSalvo});
+  const ItemParceriaForm(
+      {super.key, required this.empresaId, this.item, required this.onSalvo});
 
   @override
   State<ItemParceriaForm> createState() => _ItemParceriaFormState();
@@ -35,8 +36,10 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
     _tituloCtrl = TextEditingController(text: item?.titulo ?? '');
     _descricaoCtrl = TextEditingController(text: item?.descricao ?? '');
     _parceiroCtrl = TextEditingController(text: item?.parceiroNome ?? '');
-    _pontosCtrl = TextEditingController(text: item != null ? '${item.pontosNecessarios}' : '');
-    _validadeCtrl = TextEditingController(text: item?.validadeDias != null ? '${item!.validadeDias}' : '');
+    _pontosCtrl = TextEditingController(
+        text: item != null ? '${item.pontosNecessarios}' : '');
+    _validadeCtrl = TextEditingController(
+        text: item?.validadeDias != null ? '${item!.validadeDias}' : '');
     _categoria = item?.categoria ?? categoriasFidelidade.first.$1;
     _ativo = item?.ativo ?? true;
   }
@@ -52,7 +55,8 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
   }
 
   Future<void> _selecionarImagem() async {
-    final resultado = await FilePicker.pickFiles(type: FileType.image, withData: true);
+    final resultado =
+        await FilePicker.pickFiles(type: FileType.image, withData: true);
     if (resultado == null || resultado.files.isEmpty) return;
     setState(() => _imagemSelecionada = resultado.files.first);
   }
@@ -67,14 +71,16 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
       return;
     }
     if (pontos == null || pontos <= 0) {
-      setState(() => _erro = 'Pontos necessários precisa ser um número maior que zero.');
+      setState(() =>
+          _erro = 'Pontos necessários precisa ser um número maior que zero.');
       return;
     }
     int? validade;
     if (_validadeCtrl.text.trim().isNotEmpty) {
       validade = int.tryParse(_validadeCtrl.text.trim());
       if (validade == null || validade <= 0) {
-        setState(() => _erro = 'Validade em dias precisa ser maior que zero (ou deixe em branco pra sem validade).');
+        setState(() => _erro =
+            'Validade em dias precisa ser maior que zero (ou deixe em branco pra sem validade).');
         return;
       }
     }
@@ -138,7 +144,9 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
           onChanged: (v) => setState(() => _categoria = v ?? _categoria),
         ),
         const SizedBox(height: 12),
-        TextField(controller: _tituloCtrl, decoration: const InputDecoration(labelText: 'Título')),
+        TextField(
+            controller: _tituloCtrl,
+            decoration: const InputDecoration(labelText: 'Título')),
         const SizedBox(height: 12),
         TextField(
           controller: _descricaoCtrl,
@@ -146,7 +154,10 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
           maxLines: 3,
         ),
         const SizedBox(height: 12),
-        TextField(controller: _parceiroCtrl, decoration: const InputDecoration(labelText: 'Nome do parceiro (opcional)')),
+        TextField(
+            controller: _parceiroCtrl,
+            decoration: const InputDecoration(
+                labelText: 'Nome do parceiro (opcional)')),
         const SizedBox(height: 12),
         TextField(
           controller: _pontosCtrl,
@@ -157,7 +168,8 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
         TextField(
           controller: _validadeCtrl,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Validade em dias (opcional)'),
+          decoration:
+              const InputDecoration(labelText: 'Validade em dias (opcional)'),
         ),
         if (widget.item != null) ...[
           const SizedBox(height: 8),
@@ -174,7 +186,9 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
           icon: const Icon(Icons.image_outlined),
           label: Text(_imagemSelecionada != null
               ? _imagemSelecionada!.name
-              : (widget.item?.imagemUrl != null ? 'Trocar imagem' : 'Selecionar imagem (opcional, máx. 3 MB)')),
+              : (widget.item?.imagemUrl != null
+                  ? 'Trocar imagem'
+                  : 'Selecionar imagem (opcional, máx. 3 MB)')),
         ),
         if (_erro != null) ...[
           const SizedBox(height: 12),
@@ -182,7 +196,8 @@ class _ItemParceriaFormState extends State<ItemParceriaForm> {
         ],
         const SizedBox(height: 16),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          style:
+              ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: _salvando ? null : _salvar,
           child: Text(_salvando ? 'Salvando...' : 'Salvar'),
         ),

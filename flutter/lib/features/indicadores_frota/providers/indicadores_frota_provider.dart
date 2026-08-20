@@ -7,9 +7,22 @@ import '../../../core/services/supabase_service.dart';
 // quem chama, protegida pela RLS de baixo, mesmo espírito de tco_provider.dart.
 
 class KpisFrota {
-  final int totalVeiculos, diasPeriodo, diasParadoTotal, diasDisponivelTotal, diasComMovimentoTotal;
-  final double? disponibilidadePct, kmTotal, cpkOperacional, litrosTotal, mediaKmL, utilizacaoPct, pctCorretiva;
-  final double custoOperacionalTotal, manutencaoPreventivaCusto, manutencaoCorretivaCusto, manutencaoNaoClassificadaCusto;
+  final int totalVeiculos,
+      diasPeriodo,
+      diasParadoTotal,
+      diasDisponivelTotal,
+      diasComMovimentoTotal;
+  final double? disponibilidadePct,
+      kmTotal,
+      cpkOperacional,
+      litrosTotal,
+      mediaKmL,
+      utilizacaoPct,
+      pctCorretiva;
+  final double custoOperacionalTotal,
+      manutencaoPreventivaCusto,
+      manutencaoCorretivaCusto,
+      manutencaoNaoClassificadaCusto;
   // Fase C (30/07/2026) — checklist de inspeção (conformidade/TMRNC) e
   // sinistros (sinistralidade), os 3 KPIs que faltavam do benchmark.
   final int itensInspecionados, itensConformes, totalSinistros;
@@ -43,7 +56,8 @@ class KpisFrota {
         diasPeriodo: (m['dias_periodo'] as num?)?.toInt() ?? 0,
         diasParadoTotal: (m['dias_parado_total'] as num?)?.toInt() ?? 0,
         diasDisponivelTotal: (m['dias_disponivel_total'] as num?)?.toInt() ?? 0,
-        diasComMovimentoTotal: (m['dias_com_movimento_total'] as num?)?.toInt() ?? 0,
+        diasComMovimentoTotal:
+            (m['dias_com_movimento_total'] as num?)?.toInt() ?? 0,
         disponibilidadePct: (m['disponibilidade_pct'] as num?)?.toDouble(),
         kmTotal: (m['km_total'] as num?)?.toDouble(),
         cpkOperacional: (m['cpk_operacional'] as num?)?.toDouble(),
@@ -51,10 +65,14 @@ class KpisFrota {
         mediaKmL: (m['media_km_l'] as num?)?.toDouble(),
         utilizacaoPct: (m['utilizacao_pct'] as num?)?.toDouble(),
         pctCorretiva: (m['pct_corretiva'] as num?)?.toDouble(),
-        custoOperacionalTotal: (m['custo_operacional_total'] as num?)?.toDouble() ?? 0,
-        manutencaoPreventivaCusto: (m['manutencao_preventiva_custo'] as num?)?.toDouble() ?? 0,
-        manutencaoCorretivaCusto: (m['manutencao_corretiva_custo'] as num?)?.toDouble() ?? 0,
-        manutencaoNaoClassificadaCusto: (m['manutencao_nao_classificada_custo'] as num?)?.toDouble() ?? 0,
+        custoOperacionalTotal:
+            (m['custo_operacional_total'] as num?)?.toDouble() ?? 0,
+        manutencaoPreventivaCusto:
+            (m['manutencao_preventiva_custo'] as num?)?.toDouble() ?? 0,
+        manutencaoCorretivaCusto:
+            (m['manutencao_corretiva_custo'] as num?)?.toDouble() ?? 0,
+        manutencaoNaoClassificadaCusto:
+            (m['manutencao_nao_classificada_custo'] as num?)?.toDouble() ?? 0,
         itensInspecionados: (m['itens_inspecionados'] as num?)?.toInt() ?? 0,
         itensConformes: (m['itens_conformes'] as num?)?.toInt() ?? 0,
         totalSinistros: (m['total_sinistros'] as num?)?.toInt() ?? 0,
@@ -66,7 +84,8 @@ class KpisFrota {
 
 typedef FiltroKpisFrota = ({String dataInicio, String dataFim});
 
-final kpisFrotaProvider = FutureProvider.autoDispose.family<KpisFrota?, FiltroKpisFrota>((ref, filtro) async {
+final kpisFrotaProvider = FutureProvider.autoDispose
+    .family<KpisFrota?, FiltroKpisFrota>((ref, filtro) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -86,10 +105,32 @@ final kpisFrotaProvider = FutureProvider.autoDispose.family<KpisFrota?, FiltroKp
 // veículo ativo — porta de indicadoresFrota.ts (web).
 class VeiculoKpi {
   final String placa;
-  final String? marca, modelo, tipoVeiculo, tipo, classificacao, centroCustoNome;
-  final int diasPeriodo, diasParado, diasDisponivel, diasComMovimento, itensInspecionados, itensConformes, totalSinistros;
-  final double kmPeriodo, custoOperacionalTotal, litros, manutencaoPreventivaCusto, manutencaoCorretivaCusto, manutencaoNaoClassificadaCusto;
-  final double? disponibilidadePct, cpkOperacional, mediaKmL, utilizacaoPct, pctCorretiva, conformidadePct, tmrncHoras;
+  final String? marca,
+      modelo,
+      tipoVeiculo,
+      tipo,
+      classificacao,
+      centroCustoNome;
+  final int diasPeriodo,
+      diasParado,
+      diasDisponivel,
+      diasComMovimento,
+      itensInspecionados,
+      itensConformes,
+      totalSinistros;
+  final double kmPeriodo,
+      custoOperacionalTotal,
+      litros,
+      manutencaoPreventivaCusto,
+      manutencaoCorretivaCusto,
+      manutencaoNaoClassificadaCusto;
+  final double? disponibilidadePct,
+      cpkOperacional,
+      mediaKmL,
+      utilizacaoPct,
+      pctCorretiva,
+      conformidadePct,
+      tmrncHoras;
   const VeiculoKpi({
     required this.placa,
     this.marca,
@@ -135,11 +176,15 @@ class VeiculoKpi {
         itensConformes: (m['itens_conformes'] as num?)?.toInt() ?? 0,
         totalSinistros: (m['total_sinistros'] as num?)?.toInt() ?? 0,
         kmPeriodo: (m['km_periodo'] as num?)?.toDouble() ?? 0,
-        custoOperacionalTotal: (m['custo_operacional_total'] as num?)?.toDouble() ?? 0,
+        custoOperacionalTotal:
+            (m['custo_operacional_total'] as num?)?.toDouble() ?? 0,
         litros: (m['litros'] as num?)?.toDouble() ?? 0,
-        manutencaoPreventivaCusto: (m['manutencao_preventiva_custo'] as num?)?.toDouble() ?? 0,
-        manutencaoCorretivaCusto: (m['manutencao_corretiva_custo'] as num?)?.toDouble() ?? 0,
-        manutencaoNaoClassificadaCusto: (m['manutencao_nao_classificada_custo'] as num?)?.toDouble() ?? 0,
+        manutencaoPreventivaCusto:
+            (m['manutencao_preventiva_custo'] as num?)?.toDouble() ?? 0,
+        manutencaoCorretivaCusto:
+            (m['manutencao_corretiva_custo'] as num?)?.toDouble() ?? 0,
+        manutencaoNaoClassificadaCusto:
+            (m['manutencao_nao_classificada_custo'] as num?)?.toDouble() ?? 0,
         disponibilidadePct: (m['disponibilidade_pct'] as num?)?.toDouble(),
         cpkOperacional: (m['cpk_operacional'] as num?)?.toDouble(),
         mediaKmL: (m['media_km_l'] as num?)?.toDouble(),
@@ -150,16 +195,20 @@ class VeiculoKpi {
       );
 }
 
-final kpisPorVeiculoProvider = FutureProvider.autoDispose.family<List<VeiculoKpi>, FiltroKpisFrota>((ref, filtro) async {
+final kpisPorVeiculoProvider = FutureProvider.autoDispose
+    .family<List<VeiculoKpi>, FiltroKpisFrota>((ref, filtro) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('kpis_frota_por_veiculo', params: {
+  final rows =
+      await SupabaseService.client.rpc('kpis_frota_por_veiculo', params: {
     'p_empresa_id': empresaId,
     'p_data_inicio': filtro.dataInicio,
     'p_data_fim': filtro.dataFim,
   }) as List;
-  return rows.map((r) => VeiculoKpi.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => VeiculoKpi.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Forma unificada usada pela tela — o agregado da frota inteira (KpisFrota),
@@ -168,7 +217,14 @@ final kpisPorVeiculoProvider = FutureProvider.autoDispose.family<List<VeiculoKpi
 class KpisExibicao {
   final int totalVeiculos, itensInspecionados, totalSinistros;
   final double diasPeriodo, manutencaoNaoClassificadaCusto;
-  final double? disponibilidadePct, cpkOperacional, mediaKmL, utilizacaoPct, pctCorretiva, conformidadePct, tmrncHoras, indiceSinistralidade;
+  final double? disponibilidadePct,
+      cpkOperacional,
+      mediaKmL,
+      utilizacaoPct,
+      pctCorretiva,
+      conformidadePct,
+      tmrncHoras,
+      indiceSinistralidade;
   const KpisExibicao({
     required this.totalVeiculos,
     required this.itensInspecionados,
@@ -240,8 +296,10 @@ double _pow10(int n) {
 // comentário na versão web).
 KpisExibicao agregarVeiculos(List<VeiculoKpi> veiculos, int diasPeriodo) {
   final totalVeiculos = veiculos.length;
-  double somar(double Function(VeiculoKpi) fn) => veiculos.fold(0, (s, v) => s + fn(v));
-  int somarInt(int Function(VeiculoKpi) fn) => veiculos.fold(0, (s, v) => s + fn(v));
+  double somar(double Function(VeiculoKpi) fn) =>
+      veiculos.fold(0, (s, v) => s + fn(v));
+  int somarInt(int Function(VeiculoKpi) fn) =>
+      veiculos.fold(0, (s, v) => s + fn(v));
 
   final diasParadoTotal = somarInt((v) => v.diasParado);
   final kmTotal = somar((v) => v.kmPeriodo);
@@ -255,7 +313,8 @@ KpisExibicao agregarVeiculos(List<VeiculoKpi> veiculos, int diasPeriodo) {
   final itensInspecionados = somarInt((v) => v.itensInspecionados);
   final itensConformes = somarInt((v) => v.itensConformes);
   final totalSinistros = somarInt((v) => v.totalSinistros);
-  final tmrncValores = veiculos.map((v) => v.tmrncHoras).whereType<double>().toList();
+  final tmrncValores =
+      veiculos.map((v) => v.tmrncHoras).whereType<double>().toList();
 
   return KpisExibicao(
     totalVeiculos: totalVeiculos,
@@ -264,14 +323,28 @@ KpisExibicao agregarVeiculos(List<VeiculoKpi> veiculos, int diasPeriodo) {
     diasPeriodo: diasPeriodo.toDouble(),
     manutencaoNaoClassificadaCusto: custoNaoClassificada,
     disponibilidadePct: (totalVeiculos > 0 && diasPeriodo > 0)
-        ? _arred((1 - diasParadoTotal / (totalVeiculos * diasPeriodo)).clamp(0, 1) * 100, 1)
+        ? _arred(
+            (1 - diasParadoTotal / (totalVeiculos * diasPeriodo)).clamp(0, 1) *
+                100,
+            1)
         : null,
     cpkOperacional: kmTotal > 0 ? _arred(custoTotal / kmTotal, 3) : null,
     mediaKmL: litrosTotal > 0 ? _arred(kmTotal / litrosTotal, 2) : null,
-    utilizacaoPct: diasDisponivelTotal > 0 ? _arred((diasComMovimentoTotal / diasDisponivelTotal).clamp(0, 1) * 100, 1) : null,
-    pctCorretiva: (custoPreventiva + custoCorretiva) > 0 ? _arred(custoCorretiva / (custoPreventiva + custoCorretiva) * 100, 1) : null,
-    conformidadePct: itensInspecionados > 0 ? _arred(itensConformes / itensInspecionados * 100, 1) : null,
-    tmrncHoras: tmrncValores.isNotEmpty ? _arred(tmrncValores.reduce((a, b) => a + b) / tmrncValores.length, 1) : null,
-    indiceSinistralidade: totalVeiculos > 0 ? _arred(totalSinistros / totalVeiculos * 100, 1) : null,
+    utilizacaoPct: diasDisponivelTotal > 0
+        ? _arred(
+            (diasComMovimentoTotal / diasDisponivelTotal).clamp(0, 1) * 100, 1)
+        : null,
+    pctCorretiva: (custoPreventiva + custoCorretiva) > 0
+        ? _arred(custoCorretiva / (custoPreventiva + custoCorretiva) * 100, 1)
+        : null,
+    conformidadePct: itensInspecionados > 0
+        ? _arred(itensConformes / itensInspecionados * 100, 1)
+        : null,
+    tmrncHoras: tmrncValores.isNotEmpty
+        ? _arred(tmrncValores.reduce((a, b) => a + b) / tmrncValores.length, 1)
+        : null,
+    indiceSinistralidade: totalVeiculos > 0
+        ? _arred(totalSinistros / totalVeiculos * 100, 1)
+        : null,
   );
 }

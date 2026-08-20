@@ -5,6 +5,8 @@ import '../../motoristas/providers/motoristas_provider.dart';
 import '../providers/centros_custo_provider.dart';
 import '../services/centros_custo_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — edição do centro de custo + alocação de motoristas. A web
 // também permite alocar/desalocar VEÍCULOS aqui (fora do escopo, ver
 // comentário em centros_custo_provider.dart).
@@ -13,10 +15,12 @@ class CentroCustoEditarScreen extends ConsumerStatefulWidget {
   const CentroCustoEditarScreen({super.key, required this.id});
 
   @override
-  ConsumerState<CentroCustoEditarScreen> createState() => _CentroCustoEditarScreenState();
+  ConsumerState<CentroCustoEditarScreen> createState() =>
+      _CentroCustoEditarScreenState();
 }
 
-class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScreen> {
+class _CentroCustoEditarScreenState
+    extends ConsumerState<CentroCustoEditarScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   final _codigoCtrl = TextEditingController();
@@ -65,14 +69,15 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
     ref.invalidate(centrosCustoClienteProvider);
     ref.invalidate(centroCustoDetalheProvider(widget.id));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Alterações salvas.')));
     }
   }
 
   Future<void> _alocarSelecionados() async {
     if (_selecionados.isEmpty) return;
-    final erro = await CentrosCustoService()
-        .alocarMotoristas(centroCustoId: widget.id, motoristaIds: _selecionados.toList());
+    final erro = await CentrosCustoService().alocarMotoristas(
+        centroCustoId: widget.id, motoristaIds: _selecionados.toList());
     if (!mounted) return;
     if (erro != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
@@ -84,7 +89,8 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
   }
 
   Future<void> _desalocar(String motoristaId) async {
-    final erro = await CentrosCustoService().desalocarMotoristas(motoristaIds: [motoristaId]);
+    final erro = await CentrosCustoService()
+        .desalocarMotoristas(motoristaIds: [motoristaId]);
     if (!mounted) return;
     if (erro != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
@@ -100,12 +106,20 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
     final motoristasAsync = ref.watch(motoristasClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar Centro de Custo')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Editar Centro de Custo')),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (c) {
-          if (c == null) return const Center(child: Text('Centro de custo não encontrado.'));
+          if (c == null)
+            return const Center(child: Text('Centro de custo não encontrado.'));
           if (!_preenchido) _preencher(c);
 
           return Form(
@@ -115,23 +129,28 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
               children: [
                 TextFormField(
                   controller: _nomeCtrl,
-                  decoration: const InputDecoration(labelText: 'Nome *', border: OutlineInputBorder()),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe o nome' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Nome *', border: OutlineInputBorder()),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Informe o nome' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _codigoCtrl,
-                  decoration: const InputDecoration(labelText: 'Código', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Código', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _responsavelCtrl,
-                  decoration: const InputDecoration(labelText: 'Responsável', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Responsável', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _descricaoCtrl,
-                  decoration: const InputDecoration(labelText: 'Descrição', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Descrição', border: OutlineInputBorder()),
                   maxLines: 3,
                 ),
                 const SizedBox(height: 8),
@@ -145,11 +164,15 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
                 FilledButton(
                   onPressed: _salvando ? null : _salvar,
                   child: _salvando
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Salvar alterações'),
                 ),
                 const Divider(height: 40),
-                Text('Motoristas alocados', style: Theme.of(context).textTheme.titleMedium),
+                Text('Motoristas alocados',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 motoristasAsync.when(
                   loading: () => const Padding(
@@ -158,9 +181,12 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
                   ),
                   error: (e, _) => Text('Erro ao carregar motoristas: $e'),
                   data: (motoristas) {
-                    final alocados = motoristas.where((m) => m.centroCustoId == widget.id).toList();
-                    final disponiveis =
-                        motoristas.where((m) => m.centroCustoId != widget.id && m.ativo).toList();
+                    final alocados = motoristas
+                        .where((m) => m.centroCustoId == widget.id)
+                        .toList();
+                    final disponiveis = motoristas
+                        .where((m) => m.centroCustoId != widget.id && m.ativo)
+                        .toList();
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +194,8 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
                         if (alocados.isEmpty)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 8),
-                            child: Text('Nenhum motorista alocado ainda.', style: TextStyle(color: Colors.grey)),
+                            child: Text('Nenhum motorista alocado ainda.',
+                                style: TextStyle(color: Colors.grey)),
                           )
                         else
                           ...alocados.map((m) => Card(
@@ -186,7 +213,8 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
                               )),
                         const SizedBox(height: 16),
                         if (disponiveis.isNotEmpty) ...[
-                          Text('Alocar motoristas', style: Theme.of(context).textTheme.titleSmall),
+                          Text('Alocar motoristas',
+                              style: Theme.of(context).textTheme.titleSmall),
                           const SizedBox(height: 4),
                           ...disponiveis.map((m) => CheckboxListTile(
                                 dense: true,
@@ -206,7 +234,9 @@ class _CentroCustoEditarScreenState extends ConsumerState<CentroCustoEditarScree
                               )),
                           const SizedBox(height: 8),
                           OutlinedButton(
-                            onPressed: _selecionados.isEmpty ? null : _alocarSelecionados,
+                            onPressed: _selecionados.isEmpty
+                                ? null
+                                : _alocarSelecionados,
                             child: Text(_selecionados.isEmpty
                                 ? 'Selecione motoristas para alocar'
                                 : 'Alocar ${_selecionados.length} motorista(s)'),

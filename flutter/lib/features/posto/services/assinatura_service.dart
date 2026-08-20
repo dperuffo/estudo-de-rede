@@ -21,7 +21,8 @@ class ResultadoCheckout {
 class AssinaturaService {
   final _supabase = SupabaseService.client;
 
-  Future<ResultadoCheckout> criarCheckout({required String empresaId, required String plano}) async {
+  Future<ResultadoCheckout> criarCheckout(
+      {required String empresaId, required String plano}) async {
     try {
       final resposta = await _supabase.functions.invoke(
         'create-checkout-session',
@@ -30,15 +31,18 @@ class AssinaturaService {
       final data = resposta.data as Map<String, dynamic>?;
       final url = data?['url'] as String?;
       if (url == null) {
-        return ResultadoCheckout.erro(data?['erro'] as String? ?? 'Não foi possível iniciar o checkout.');
+        return ResultadoCheckout.erro(
+            data?['erro'] as String? ?? 'Não foi possível iniciar o checkout.');
       }
       return ResultadoCheckout.ok(url);
     } catch (e) {
-      return const ResultadoCheckout.erro('Não foi possível falar com o Stripe agora. Tente novamente.');
+      return const ResultadoCheckout.erro(
+          'Não foi possível falar com o Stripe agora. Tente novamente.');
     }
   }
 
-  Future<ResultadoCheckout> abrirPortalPagamento({required String empresaId}) async {
+  Future<ResultadoCheckout> abrirPortalPagamento(
+      {required String empresaId}) async {
     try {
       final resposta = await _supabase.functions.invoke(
         'create-billing-portal-session',
@@ -47,11 +51,13 @@ class AssinaturaService {
       final data = resposta.data as Map<String, dynamic>?;
       final url = data?['url'] as String?;
       if (url == null) {
-        return ResultadoCheckout.erro(data?['erro'] as String? ?? 'Não foi possível abrir o portal de pagamento.');
+        return ResultadoCheckout.erro(data?['erro'] as String? ??
+            'Não foi possível abrir o portal de pagamento.');
       }
       return ResultadoCheckout.ok(url);
     } catch (e) {
-      return const ResultadoCheckout.erro('Não foi possível falar com o Stripe agora. Tente novamente.');
+      return const ResultadoCheckout.erro(
+          'Não foi possível falar com o Stripe agora. Tente novamente.');
     }
   }
 }

@@ -50,7 +50,8 @@ class AssinaturaClienteDetalhe {
   });
 }
 
-final assinaturaClienteProvider = FutureProvider.autoDispose<AssinaturaClienteDetalhe?>((ref) async {
+final assinaturaClienteProvider =
+    FutureProvider.autoDispose<AssinaturaClienteDetalhe?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -79,8 +80,9 @@ final assinaturaClienteProvider = FutureProvider.autoDispose<AssinaturaClienteDe
       .count(CountOption.exact);
   final qtdUsuarios = usuariosResp.count;
 
-  final qtdVeiculos =
-      await supabase.rpc('contar_veiculos_reais_empresa', params: {'p_empresa_id': empresaId}) as int? ?? 0;
+  final qtdVeiculos = await supabase.rpc('contar_veiculos_reais_empresa',
+          params: {'p_empresa_id': empresaId}) as int? ??
+      0;
 
   final invoicesRaw = await supabase
       .from('invoices')
@@ -88,7 +90,9 @@ final assinaturaClienteProvider = FutureProvider.autoDispose<AssinaturaClienteDe
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false)
       .limit(24) as List;
-  final invoices = invoicesRaw.map((m) => FaturaAssinatura.fromMap(m as Map<String, dynamic>)).toList();
+  final invoices = invoicesRaw
+      .map((m) => FaturaAssinatura.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   return AssinaturaClienteDetalhe(
     empresa: empresa,

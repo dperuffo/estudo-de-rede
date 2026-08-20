@@ -9,7 +9,13 @@ import '../../../core/services/supabase_service.dart';
 // Flutter roteia perfil "posto" pro shell /posto, que só existe nesse
 // contexto), diferente da web onde a mesma tela serve os dois lados.
 
-const statusNegociacao = ['pendente_posto', 'pendente_cliente', 'aceita', 'recusada', 'cancelada'];
+const statusNegociacao = [
+  'pendente_posto',
+  'pendente_cliente',
+  'aceita',
+  'recusada',
+  'cancelada'
+];
 
 const statusNegociacaoLabel = <String, String>{
   'pendente_posto': 'Aguardando posto',
@@ -86,7 +92,8 @@ class NegociacaoResumo {
 // web) — os filtros de status/vigência são aplicados em memória na tela,
 // em vez de uma query nova por aba (o volume é pequeno o bastante pra isso
 // ser mais simples do que reimplementar cada filtro como query separada).
-final negociacoesPostoProvider = FutureProvider.autoDispose<List<NegociacaoResumo>>((ref) async {
+final negociacoesPostoProvider =
+    FutureProvider.autoDispose<List<NegociacaoResumo>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -100,7 +107,9 @@ final negociacoesPostoProvider = FutureProvider.autoDispose<List<NegociacaoResum
       .order('atualizado_em', ascending: false)
       .limit(500);
 
-  return rows.map((m) => NegociacaoResumo.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => NegociacaoResumo.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 String hojeIsoUtc() => DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());

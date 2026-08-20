@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/veiculos_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Veículos (cliente). Ver escopo (sem paginação/importação
 // por planilha) no comentário de veiculos_provider.dart.
 class VeiculosScreen extends ConsumerStatefulWidget {
@@ -28,7 +30,14 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
     final async = ref.watch(veiculosClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Veículos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Veículos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/veiculos/novo'),
         icon: const Icon(Icons.add),
@@ -42,7 +51,8 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Nenhum veículo cadastrado ainda.', style: TextStyle(color: Colors.grey)),
+                child: Text('Nenhum veículo cadastrado ainda.',
+                    style: TextStyle(color: Colors.grey)),
               ),
             );
           }
@@ -56,7 +66,9 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
             final placa = v.placa.toLowerCase();
             final marca = (v.marca ?? '').toLowerCase();
             final modelo = (v.modelo ?? '').toLowerCase();
-            return placa.contains(buscaLimpa) || marca.contains(buscaLimpa) || modelo.contains(buscaLimpa);
+            return placa.contains(buscaLimpa) ||
+                marca.contains(buscaLimpa) ||
+                modelo.contains(buscaLimpa);
           }).toList();
 
           return RefreshIndicator(
@@ -66,11 +78,14 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _indicador('Total', veiculos.length.toString())),
+                    Expanded(
+                        child: _indicador('Total', veiculos.length.toString())),
                     const SizedBox(width: 8),
                     Expanded(child: _indicador('Ativos', ativos.toString())),
                     const SizedBox(width: 8),
-                    Expanded(child: _indicador('Inativos', (veiculos.length - ativos).toString())),
+                    Expanded(
+                        child: _indicador(
+                            'Inativos', (veiculos.length - ativos).toString())),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -100,17 +115,20 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
                     ChoiceChip(
                       label: const Text('Todos'),
                       selected: _filtroStatus == 'todos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'todos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'todos'),
                     ),
                     ChoiceChip(
                       label: const Text('Ativos'),
                       selected: _filtroStatus == 'ativos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'ativos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'ativos'),
                     ),
                     ChoiceChip(
                       label: const Text('Inativos'),
                       selected: _filtroStatus == 'inativos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'inativos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'inativos'),
                     ),
                   ],
                 ),
@@ -128,36 +146,52 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           onTap: () => context.push('/veiculos/${v.id}'),
-                          title: Text(v.placa, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          title: Text(v.placa,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14)),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                [v.marca, v.modelo].where((x) => x != null && x.isNotEmpty).join(' ').isEmpty
+                                [v.marca, v.modelo]
+                                        .where((x) => x != null && x.isNotEmpty)
+                                        .join(' ')
+                                        .isEmpty
                                     ? '—'
-                                    : [v.marca, v.modelo].where((x) => x != null && x.isNotEmpty).join(' '),
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    : [v.marca, v.modelo]
+                                        .where((x) => x != null && x.isNotEmpty)
+                                        .join(' '),
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey),
                               ),
                               Text(
                                 [
                                   if (v.tipoVeiculo != null) v.tipoVeiculo!,
                                   v.classificacao,
-                                  if (v.centroCustoNome != null) v.centroCustoNome!,
+                                  if (v.centroCustoNome != null)
+                                    v.centroCustoNome!,
                                 ].join(' · '),
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey),
                               ),
                             ],
                           ),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: (v.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                              color: (v.ativo
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFF64748B))
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(v.ativo ? 'Ativo' : 'Inativo',
                                 style: TextStyle(
                                     fontSize: 11,
-                                    color: v.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                    color: v.ativo
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFF64748B),
                                     fontWeight: FontWeight.w600)),
                           ),
                           isThreeLine: true,
@@ -177,9 +211,12 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
         padding: const EdgeInsets.all(10),
         child: Column(
           children: [
-            Text(valor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(valor,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),

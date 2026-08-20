@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../posto/services/abastecimentos_posto_service.dart' show RegistroAbastecimentoPosto, coresProvedor, nomeProvedor, produtosPosto;
+import '../../posto/services/abastecimentos_posto_service.dart'
+    show RegistroAbastecimentoPosto, coresProvedor, nomeProvedor, produtosPosto;
 import '../services/abastecimentos_cliente_service.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -30,7 +33,8 @@ class AbastecimentosScreen extends ConsumerStatefulWidget {
   const AbastecimentosScreen({super.key});
 
   @override
-  ConsumerState<AbastecimentosScreen> createState() => _AbastecimentosScreenState();
+  ConsumerState<AbastecimentosScreen> createState() =>
+      _AbastecimentosScreenState();
 }
 
 class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
@@ -61,7 +65,8 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
   void _carregar() {
     final empresaId = ref.read(sessaoProvider).valueOrNull?.empresaId;
     if (empresaId == null) {
-      setState(() => _futuro = Future.value(ResultadoAbastecimentosCliente.vazio));
+      setState(
+          () => _futuro = Future.value(ResultadoAbastecimentosCliente.vazio));
       return;
     }
     setState(() {
@@ -114,7 +119,14 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
       }
     });
     return Scaffold(
-      appBar: AppBar(title: const Text('Abastecimentos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Abastecimentos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/abastecimentos/novo'),
         icon: const Icon(Icons.add),
@@ -125,19 +137,27 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
         child: FutureBuilder<ResultadoAbastecimentosCliente>(
           future: _futuro,
           builder: (context, snap) {
-            if (!snap.hasData && snap.connectionState == ConnectionState.waiting) {
+            if (!snap.hasData &&
+                snap.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: Padding(padding: EdgeInsets.only(top: 80), child: CircularProgressIndicator()),
+                child: Padding(
+                    padding: EdgeInsets.only(top: 80),
+                    child: CircularProgressIndicator()),
               );
             }
             if (snap.hasError) {
               return ListView(
                 padding: const EdgeInsets.all(24),
-                children: [Text('Não deu pra carregar: ${snap.error}', textAlign: TextAlign.center)],
+                children: [
+                  Text('Não deu pra carregar: ${snap.error}',
+                      textAlign: TextAlign.center)
+                ],
               );
             }
             final dados = snap.data ?? ResultadoAbastecimentosCliente.vazio;
-            final precoMedio = dados.volumeTotal > 0 ? dados.receitaTotal / dados.volumeTotal : 0.0;
+            final precoMedio = dados.volumeTotal > 0
+                ? dados.receitaTotal / dados.volumeTotal
+                : 0.0;
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
@@ -157,8 +177,10 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                   mainAxisSpacing: 8,
                   children: [
                     _indicador('Registros', _numero.format(dados.total)),
-                    _indicador('Volume', '${_numero.format(dados.volumeTotal.round())} L'),
-                    _indicador('Valor total', _moeda.format(dados.receitaTotal)),
+                    _indicador('Volume',
+                        '${_numero.format(dados.volumeTotal.round())} L'),
+                    _indicador(
+                        'Valor total', _moeda.format(dados.receitaTotal)),
                     _indicador('Custo médio/L', _moeda.format(precoMedio)),
                   ],
                 ),
@@ -223,8 +245,10 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                         controller: _deCtrl,
                         readOnly: true,
                         onTap: () => _selecionarData(_deCtrl),
-                        decoration:
-                            const InputDecoration(labelText: 'De', border: OutlineInputBorder(), isDense: true),
+                        decoration: const InputDecoration(
+                            labelText: 'De',
+                            border: OutlineInputBorder(),
+                            isDense: true),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -233,8 +257,10 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                         controller: _ateCtrl,
                         readOnly: true,
                         onTap: () => _selecionarData(_ateCtrl),
-                        decoration:
-                            const InputDecoration(labelText: 'Até', border: OutlineInputBorder(), isDense: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Até',
+                            border: OutlineInputBorder(),
+                            isDense: true),
                       ),
                     ),
                   ],
@@ -242,7 +268,8 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton(onPressed: _carregar, child: const Text('Filtrar')),
+                  child: OutlinedButton(
+                      onPressed: _carregar, child: const Text('Filtrar')),
                 ),
                 const SizedBox(height: 16),
                 if (dados.registros.isEmpty)
@@ -250,7 +277,8 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Center(
-                        child: Text('Nenhum abastecimento encontrado.', style: TextStyle(color: Colors.grey.shade600)),
+                        child: Text('Nenhum abastecimento encontrado.',
+                            style: TextStyle(color: Colors.grey.shade600)),
                       ),
                     ),
                   )
@@ -273,7 +301,8 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
     );
   }
 
-  Widget _linhaRegistro(RegistroAbastecimentoPosto r, ResultadoAbastecimentosCliente dados) {
+  Widget _linhaRegistro(
+      RegistroAbastecimentoPosto r, ResultadoAbastecimentosCliente dados) {
     final temNota = dados.notaPorAbastecimento.containsKey(r.chave);
     final numeroNf = dados.notaPorAbastecimento[r.chave];
     final ajustePendente = dados.comAjustePendente.contains(r.chave);
@@ -294,27 +323,36 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                       width: 8,
                       height: 8,
                       margin: const EdgeInsets.only(right: 6),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                          color: Colors.red, shape: BoxShape.circle),
                     ),
                   Expanded(
-                    child: Text(r.codigoAbastecimento ?? '—', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    child: Text(r.codigoAbastecimento ?? '—',
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.grey)),
                   ),
                   _badgeProvedor(r.provedor),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(_fmtDataHora(r.dataAbastecimento), style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(_fmtDataHora(r.dataAbastecimento),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               Text(
                 '${r.placa ?? '—'} · ${r.motoristaNome ?? '—'}',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 6),
-              Text('${r.produto ?? '—'} · ${_numero.format(r.litros ?? 0)} L · ${_moeda.format(r.valorTotal ?? 0)}'),
+              Text(
+                  '${r.produto ?? '—'} · ${_numero.format(r.litros ?? 0)} L · ${_moeda.format(r.valorTotal ?? 0)}'),
               const SizedBox(height: 6),
               if (temNota)
-                _badgeTexto('Emitida${numeroNf != null ? ' · Nº $numeroNf' : ''}', const Color(0xFFDCFCE7), const Color(0xFF15803D))
+                _badgeTexto(
+                    'Emitida${numeroNf != null ? ' · Nº $numeroNf' : ''}',
+                    const Color(0xFFDCFCE7),
+                    const Color(0xFF15803D))
               else
-                _badgeTexto('Pendente', const Color(0xFFFEF3C7), const Color(0xFF92400E)),
+                _badgeTexto('Pendente', const Color(0xFFFEF3C7),
+                    const Color(0xFF92400E)),
             ],
           ),
         ),
@@ -336,8 +374,11 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
 
   Widget _badgeTexto(String texto, Color fundo, Color corTexto) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(12)),
-        child: Text(texto, style: TextStyle(fontSize: 11, color: corTexto, fontWeight: FontWeight.w600)),
+        decoration: BoxDecoration(
+            color: fundo, borderRadius: BorderRadius.circular(12)),
+        child: Text(texto,
+            style: TextStyle(
+                fontSize: 11, color: corTexto, fontWeight: FontWeight.w600)),
       );
 
   Widget _indicador(String label, String valor) => Card(
@@ -347,15 +388,23 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(label,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
-              Text(valor, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(valor,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
       );
 
-  Widget _chip(String label, bool selecionado, VoidCallback onTap) => ChoiceChip(
+  Widget _chip(String label, bool selecionado, VoidCallback onTap) =>
+      ChoiceChip(
         label: Text(label, style: const TextStyle(fontSize: 12)),
         selected: selecionado,
         onSelected: (_) => onTap(),

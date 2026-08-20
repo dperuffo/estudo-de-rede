@@ -42,7 +42,13 @@ class AbastecimentoBruto {
   final String? data;
   // Fase relatorios-mais-dimensoes (porte 02/08/2026) — campos novos que a
   // web já tinha (RelatoriosPersonalizados.tsx) e o Flutter ainda não tinha.
-  final String? municipioPosto, meioPagamento, tipoVeiculo, marcaVeiculo, modeloVeiculo, classificacaoVeiculo, centroCusto;
+  final String? municipioPosto,
+      meioPagamento,
+      tipoVeiculo,
+      marcaVeiculo,
+      modeloVeiculo,
+      classificacaoVeiculo,
+      centroCusto;
   const AbastecimentoBruto({
     this.placa,
     this.motorista,
@@ -63,7 +69,8 @@ class AbastecimentoBruto {
     this.classificacaoVeiculo,
     this.centroCusto,
   });
-  factory AbastecimentoBruto.fromMap(Map<String, dynamic> m) => AbastecimentoBruto(
+  factory AbastecimentoBruto.fromMap(Map<String, dynamic> m) =>
+      AbastecimentoBruto(
         placa: m['placa'] as String?,
         motorista: m['motorista'] as String?,
         produto: m['produto'] as String?,
@@ -90,7 +97,14 @@ class ManutencaoBruto {
   final double? custoTotal;
   // Fase relatorios-mais-dimensoes (porte 02/08/2026).
   final String? origem, tecnico, centroCusto;
-  const ManutencaoBruto({this.placa, this.oficina, this.custoTotal, this.data, this.origem, this.tecnico, this.centroCusto});
+  const ManutencaoBruto(
+      {this.placa,
+      this.oficina,
+      this.custoTotal,
+      this.data,
+      this.origem,
+      this.tecnico,
+      this.centroCusto});
   factory ManutencaoBruto.fromMap(Map<String, dynamic> m) => ManutencaoBruto(
         placa: m['placa'] as String?,
         oficina: m['oficina'] as String?,
@@ -139,7 +153,15 @@ class CustoFixoBruto {
 class NotaFiscalBruto {
   final String? produto, nomePosto, cnpjPosto, data;
   final double? numeroNf, quantidade, valorTotal, valorUnitario;
-  const NotaFiscalBruto({this.produto, this.nomePosto, this.cnpjPosto, this.numeroNf, this.quantidade, this.valorTotal, this.valorUnitario, this.data});
+  const NotaFiscalBruto(
+      {this.produto,
+      this.nomePosto,
+      this.cnpjPosto,
+      this.numeroNf,
+      this.quantidade,
+      this.valorTotal,
+      this.valorUnitario,
+      this.data});
   factory NotaFiscalBruto.fromMap(Map<String, dynamic> m) => NotaFiscalBruto(
         produto: m['produto'] as String?,
         nomePosto: m['nome_posto'] as String?,
@@ -184,7 +206,14 @@ class FreteBruto {
 class FinanceiroBruto {
   final String? movimento, status, contraparte, origem, data;
   final double? valorOriginal, valorPago;
-  const FinanceiroBruto({this.movimento, this.status, this.contraparte, this.origem, this.valorOriginal, this.valorPago, this.data});
+  const FinanceiroBruto(
+      {this.movimento,
+      this.status,
+      this.contraparte,
+      this.origem,
+      this.valorOriginal,
+      this.valorPago,
+      this.data});
   factory FinanceiroBruto.fromMap(Map<String, dynamic> m) => FinanceiroBruto(
         movimento: m['movimento'] as String?,
         status: m['status'] as String?,
@@ -198,8 +227,10 @@ class FinanceiroBruto {
 
 class AcaoSugeridaBruto {
   final String? tipo, severidade, status, alvoLabel, data;
-  const AcaoSugeridaBruto({this.tipo, this.severidade, this.status, this.alvoLabel, this.data});
-  factory AcaoSugeridaBruto.fromMap(Map<String, dynamic> m) => AcaoSugeridaBruto(
+  const AcaoSugeridaBruto(
+      {this.tipo, this.severidade, this.status, this.alvoLabel, this.data});
+  factory AcaoSugeridaBruto.fromMap(Map<String, dynamic> m) =>
+      AcaoSugeridaBruto(
         tipo: m['tipo'] as String?,
         severidade: m['severidade'] as String?,
         status: m['status'] as String?,
@@ -260,11 +291,13 @@ String _fmtData(DateTime d) =>
 // Mesma janela padrão da web: últimos 365 dias pra abastecimentos/
 // manutenção; custos fixos também olha 365 dias PRA FRENTE (seguro/IPVA
 // costumam ser lançados com competência futura).
-final relatoriosBrutosProvider = FutureProvider.autoDispose<RelatoriosBrutos>((ref) async {
+final relatoriosBrutosProvider =
+    FutureProvider.autoDispose<RelatoriosBrutos>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) {
-    return const RelatoriosBrutos(abastecimentos: [], manutencoes: [], custosFixos: []);
+    return const RelatoriosBrutos(
+        abastecimentos: [], manutencoes: [], custosFixos: []);
   }
   final supabase = SupabaseService.client;
   final hoje = DateTime.now();
@@ -321,16 +354,33 @@ final relatoriosBrutosProvider = FutureProvider.autoDispose<RelatoriosBrutos>((r
     }),
   ]);
 
-  final abastecimentos =
-      ((resultados[0] as List?) ?? []).map((r) => AbastecimentoBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final manutencoes = ((resultados[1] as List?) ?? []).map((r) => ManutencaoBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final custosFixos = ((resultados[2] as List?) ?? []).map((r) => CustoFixoBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final notasFiscais = ((resultados[3] as List?) ?? []).map((r) => NotaFiscalBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final fretes = ((resultados[4] as List?) ?? []).map((r) => FreteBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final financeiro = ((resultados[5] as List?) ?? []).map((r) => FinanceiroBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final acoesSugeridas = ((resultados[6] as List?) ?? []).map((r) => AcaoSugeridaBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final chamados = ((resultados[7] as List?) ?? []).map((r) => ChamadoBruto.fromMap(r as Map<String, dynamic>)).toList();
-  final avaliacoes = ((resultados[8] as List?) ?? []).map((r) => AvaliacaoBruto.fromMap(r as Map<String, dynamic>)).toList();
+  final abastecimentos = ((resultados[0] as List?) ?? [])
+      .map((r) => AbastecimentoBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final manutencoes = ((resultados[1] as List?) ?? [])
+      .map((r) => ManutencaoBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final custosFixos = ((resultados[2] as List?) ?? [])
+      .map((r) => CustoFixoBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final notasFiscais = ((resultados[3] as List?) ?? [])
+      .map((r) => NotaFiscalBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final fretes = ((resultados[4] as List?) ?? [])
+      .map((r) => FreteBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final financeiro = ((resultados[5] as List?) ?? [])
+      .map((r) => FinanceiroBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final acoesSugeridas = ((resultados[6] as List?) ?? [])
+      .map((r) => AcaoSugeridaBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final chamados = ((resultados[7] as List?) ?? [])
+      .map((r) => ChamadoBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
+  final avaliacoes = ((resultados[8] as List?) ?? [])
+      .map((r) => AvaliacaoBruto.fromMap(r as Map<String, dynamic>))
+      .toList();
 
   return RelatoriosBrutos(
     abastecimentos: abastecimentos,
@@ -397,7 +447,8 @@ class DimensaoRelatorio {
   final String id;
   final String label;
   final ExtratorDimensao extrator;
-  const DimensaoRelatorio({required this.id, required this.label, required this.extrator});
+  const DimensaoRelatorio(
+      {required this.id, required this.label, required this.extrator});
 }
 
 class MetricaRelatorio {
@@ -405,7 +456,11 @@ class MetricaRelatorio {
   final String label;
   final String formato; // int | dec | money | money3
   final CalculadoraMetrica calcular;
-  const MetricaRelatorio({required this.id, required this.label, required this.formato, required this.calcular});
+  const MetricaRelatorio(
+      {required this.id,
+      required this.label,
+      required this.formato,
+      required this.calcular});
 }
 
 // Porta fiel de DIMENSOES (RelatoriosPersonalizados.tsx). Fase
@@ -413,38 +468,93 @@ class MetricaRelatorio {
 // ganharam as dimensões novas que a web já tinha; 6 fontes novas adicionadas.
 final Map<String, List<DimensaoRelatorio>> dimensoesPorFonte = {
   'abastecimentos': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período (por mês)', extrator: (r) => mesRef((r as AbastecimentoBruto).data)),
-    DimensaoRelatorio(id: 'produto', label: 'Combustível', extrator: (r) => (r as AbastecimentoBruto).produto ?? '—'),
-    DimensaoRelatorio(id: 'placa', label: 'Veículo (Placa)', extrator: (r) => (r as AbastecimentoBruto).placa ?? '—'),
-    DimensaoRelatorio(id: 'motorista', label: 'Motorista', extrator: (r) => (r as AbastecimentoBruto).motorista ?? '—'),
-    DimensaoRelatorio(id: 'nome_posto', label: 'Posto', extrator: (r) => (r as AbastecimentoBruto).nomePosto ?? '—'),
-    DimensaoRelatorio(id: 'uf_posto', label: 'Estado (UF)', extrator: (r) => (r as AbastecimentoBruto).ufPosto ?? '—'),
-    DimensaoRelatorio(id: 'municipio_posto', label: 'Município do Posto', extrator: (r) => (r as AbastecimentoBruto).municipioPosto ?? '—'),
-    DimensaoRelatorio(id: 'meio_pagamento', label: 'Meio de Pagamento', extrator: (r) => (r as AbastecimentoBruto).meioPagamento ?? '—'),
-    DimensaoRelatorio(id: 'tipo_veiculo', label: 'Tipo de Veículo', extrator: (r) => (r as AbastecimentoBruto).tipoVeiculo ?? '—'),
-    DimensaoRelatorio(id: 'marca_veiculo', label: 'Marca do Veículo', extrator: (r) => (r as AbastecimentoBruto).marcaVeiculo ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período (por mês)',
+        extrator: (r) => mesRef((r as AbastecimentoBruto).data)),
+    DimensaoRelatorio(
+        id: 'produto',
+        label: 'Combustível',
+        extrator: (r) => (r as AbastecimentoBruto).produto ?? '—'),
+    DimensaoRelatorio(
+        id: 'placa',
+        label: 'Veículo (Placa)',
+        extrator: (r) => (r as AbastecimentoBruto).placa ?? '—'),
+    DimensaoRelatorio(
+        id: 'motorista',
+        label: 'Motorista',
+        extrator: (r) => (r as AbastecimentoBruto).motorista ?? '—'),
+    DimensaoRelatorio(
+        id: 'nome_posto',
+        label: 'Posto',
+        extrator: (r) => (r as AbastecimentoBruto).nomePosto ?? '—'),
+    DimensaoRelatorio(
+        id: 'uf_posto',
+        label: 'Estado (UF)',
+        extrator: (r) => (r as AbastecimentoBruto).ufPosto ?? '—'),
+    DimensaoRelatorio(
+        id: 'municipio_posto',
+        label: 'Município do Posto',
+        extrator: (r) => (r as AbastecimentoBruto).municipioPosto ?? '—'),
+    DimensaoRelatorio(
+        id: 'meio_pagamento',
+        label: 'Meio de Pagamento',
+        extrator: (r) => (r as AbastecimentoBruto).meioPagamento ?? '—'),
+    DimensaoRelatorio(
+        id: 'tipo_veiculo',
+        label: 'Tipo de Veículo',
+        extrator: (r) => (r as AbastecimentoBruto).tipoVeiculo ?? '—'),
+    DimensaoRelatorio(
+        id: 'marca_veiculo',
+        label: 'Marca do Veículo',
+        extrator: (r) => (r as AbastecimentoBruto).marcaVeiculo ?? '—'),
     DimensaoRelatorio(
       id: 'classificacao_veiculo',
       label: 'Classificação (Próprio/Agregado)',
       extrator: (r) => (r as AbastecimentoBruto).classificacaoVeiculo ?? '—',
     ),
-    DimensaoRelatorio(id: 'centro_custo', label: 'Centro de Custo', extrator: (r) => (r as AbastecimentoBruto).centroCusto ?? '—'),
+    DimensaoRelatorio(
+        id: 'centro_custo',
+        label: 'Centro de Custo',
+        extrator: (r) => (r as AbastecimentoBruto).centroCusto ?? '—'),
   ],
   'manutencao': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período (por mês)', extrator: (r) => mesRef((r as ManutencaoBruto).data)),
-    DimensaoRelatorio(id: 'placa', label: 'Veículo (Placa)', extrator: (r) => (r as ManutencaoBruto).placa ?? '—'),
-    DimensaoRelatorio(id: 'oficina', label: 'Oficina', extrator: (r) => (r as ManutencaoBruto).oficina ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período (por mês)',
+        extrator: (r) => mesRef((r as ManutencaoBruto).data)),
+    DimensaoRelatorio(
+        id: 'placa',
+        label: 'Veículo (Placa)',
+        extrator: (r) => (r as ManutencaoBruto).placa ?? '—'),
+    DimensaoRelatorio(
+        id: 'oficina',
+        label: 'Oficina',
+        extrator: (r) => (r as ManutencaoBruto).oficina ?? '—'),
     DimensaoRelatorio(
       id: 'origem',
       label: 'Origem',
-      extrator: (r) => (r as ManutencaoBruto).origem == 'api' ? 'Integração' : 'Manual',
+      extrator: (r) =>
+          (r as ManutencaoBruto).origem == 'api' ? 'Integração' : 'Manual',
     ),
-    DimensaoRelatorio(id: 'tecnico', label: 'Técnico', extrator: (r) => (r as ManutencaoBruto).tecnico ?? '—'),
-    DimensaoRelatorio(id: 'centro_custo', label: 'Centro de Custo', extrator: (r) => (r as ManutencaoBruto).centroCusto ?? '—'),
+    DimensaoRelatorio(
+        id: 'tecnico',
+        label: 'Técnico',
+        extrator: (r) => (r as ManutencaoBruto).tecnico ?? '—'),
+    DimensaoRelatorio(
+        id: 'centro_custo',
+        label: 'Centro de Custo',
+        extrator: (r) => (r as ManutencaoBruto).centroCusto ?? '—'),
   ],
   'custos_fixos': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período (competência)', extrator: (r) => mesRef((r as CustoFixoBruto).data)),
-    DimensaoRelatorio(id: 'periodo_lancamento', label: 'Período (lançamento)', extrator: (r) => mesRef((r as CustoFixoBruto).dataLancamento)),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período (competência)',
+        extrator: (r) => mesRef((r as CustoFixoBruto).data)),
+    DimensaoRelatorio(
+        id: 'periodo_lancamento',
+        label: 'Período (lançamento)',
+        extrator: (r) => mesRef((r as CustoFixoBruto).dataLancamento)),
     DimensaoRelatorio(
       id: 'tipo',
       label: 'Tipo de custo',
@@ -453,85 +563,189 @@ final Map<String, List<DimensaoRelatorio>> dimensoesPorFonte = {
         return (tipo != null ? tipoCustoFixoLabel[tipo] : null) ?? tipo ?? '—';
       },
     ),
-    DimensaoRelatorio(id: 'placa', label: 'Veículo (Placa)', extrator: (r) => (r as CustoFixoBruto).placa ?? '—'),
+    DimensaoRelatorio(
+        id: 'placa',
+        label: 'Veículo (Placa)',
+        extrator: (r) => (r as CustoFixoBruto).placa ?? '—'),
     DimensaoRelatorio(
       id: 'origem',
       label: 'Origem',
-      extrator: (r) => (r as CustoFixoBruto).origem == 'api' ? 'Integração' : 'Manual',
+      extrator: (r) =>
+          (r as CustoFixoBruto).origem == 'api' ? 'Integração' : 'Manual',
     ),
-    DimensaoRelatorio(id: 'centro_custo', label: 'Centro de Custo', extrator: (r) => (r as CustoFixoBruto).centroCusto ?? '—'),
-    DimensaoRelatorio(id: 'recorrente', label: 'Recorrente?', extrator: (r) => (r as CustoFixoBruto).recorrente == true ? 'Sim' : 'Não'),
+    DimensaoRelatorio(
+        id: 'centro_custo',
+        label: 'Centro de Custo',
+        extrator: (r) => (r as CustoFixoBruto).centroCusto ?? '—'),
+    DimensaoRelatorio(
+        id: 'recorrente',
+        label: 'Recorrente?',
+        extrator: (r) =>
+            (r as CustoFixoBruto).recorrente == true ? 'Sim' : 'Não'),
   ],
   'notas_fiscais': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período (emissão)', extrator: (r) => mesRef((r as NotaFiscalBruto).data)),
-    DimensaoRelatorio(id: 'produto', label: 'Produto (ANP)', extrator: (r) => (r as NotaFiscalBruto).produto ?? '—'),
-    DimensaoRelatorio(id: 'nome_posto', label: 'Posto Emitente', extrator: (r) => (r as NotaFiscalBruto).nomePosto ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período (emissão)',
+        extrator: (r) => mesRef((r as NotaFiscalBruto).data)),
+    DimensaoRelatorio(
+        id: 'produto',
+        label: 'Produto (ANP)',
+        extrator: (r) => (r as NotaFiscalBruto).produto ?? '—'),
+    DimensaoRelatorio(
+        id: 'nome_posto',
+        label: 'Posto Emitente',
+        extrator: (r) => (r as NotaFiscalBruto).nomePosto ?? '—'),
   ],
   'fretes': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período', extrator: (r) => mesRef((r as FreteBruto).data)),
-    DimensaoRelatorio(id: 'status', label: 'Status', extrator: (r) => (r as FreteBruto).status ?? '—'),
-    DimensaoRelatorio(id: 'tipo_carga', label: 'Tipo de Carga', extrator: (r) => (r as FreteBruto).tipoCarga ?? '—'),
-    DimensaoRelatorio(id: 'uf_origem', label: 'UF de Origem', extrator: (r) => (r as FreteBruto).ufOrigem ?? '—'),
-    DimensaoRelatorio(id: 'uf_destino', label: 'UF de Destino', extrator: (r) => (r as FreteBruto).ufDestino ?? '—'),
-    DimensaoRelatorio(id: 'motorista', label: 'Motorista', extrator: (r) => (r as FreteBruto).motorista ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período',
+        extrator: (r) => mesRef((r as FreteBruto).data)),
+    DimensaoRelatorio(
+        id: 'status',
+        label: 'Status',
+        extrator: (r) => (r as FreteBruto).status ?? '—'),
+    DimensaoRelatorio(
+        id: 'tipo_carga',
+        label: 'Tipo de Carga',
+        extrator: (r) => (r as FreteBruto).tipoCarga ?? '—'),
+    DimensaoRelatorio(
+        id: 'uf_origem',
+        label: 'UF de Origem',
+        extrator: (r) => (r as FreteBruto).ufOrigem ?? '—'),
+    DimensaoRelatorio(
+        id: 'uf_destino',
+        label: 'UF de Destino',
+        extrator: (r) => (r as FreteBruto).ufDestino ?? '—'),
+    DimensaoRelatorio(
+        id: 'motorista',
+        label: 'Motorista',
+        extrator: (r) => (r as FreteBruto).motorista ?? '—'),
   ],
   'financeiro': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período (vencimento)', extrator: (r) => mesRef((r as FinanceiroBruto).data)),
-    DimensaoRelatorio(id: 'movimento', label: 'Movimento (Receber/Pagar)', extrator: (r) => (r as FinanceiroBruto).movimento ?? '—'),
-    DimensaoRelatorio(id: 'status', label: 'Status', extrator: (r) => (r as FinanceiroBruto).status ?? '—'),
-    DimensaoRelatorio(id: 'contraparte', label: 'Cliente/Fornecedor', extrator: (r) => (r as FinanceiroBruto).contraparte ?? '—'),
-    DimensaoRelatorio(id: 'origem', label: 'Origem', extrator: (r) => (r as FinanceiroBruto).origem ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período (vencimento)',
+        extrator: (r) => mesRef((r as FinanceiroBruto).data)),
+    DimensaoRelatorio(
+        id: 'movimento',
+        label: 'Movimento (Receber/Pagar)',
+        extrator: (r) => (r as FinanceiroBruto).movimento ?? '—'),
+    DimensaoRelatorio(
+        id: 'status',
+        label: 'Status',
+        extrator: (r) => (r as FinanceiroBruto).status ?? '—'),
+    DimensaoRelatorio(
+        id: 'contraparte',
+        label: 'Cliente/Fornecedor',
+        extrator: (r) => (r as FinanceiroBruto).contraparte ?? '—'),
+    DimensaoRelatorio(
+        id: 'origem',
+        label: 'Origem',
+        extrator: (r) => (r as FinanceiroBruto).origem ?? '—'),
   ],
   'acoes_sugeridas': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período (detecção)', extrator: (r) => mesRef((r as AcaoSugeridaBruto).data)),
-    DimensaoRelatorio(id: 'tipo', label: 'Tipo', extrator: (r) => (r as AcaoSugeridaBruto).tipo ?? '—'),
-    DimensaoRelatorio(id: 'severidade', label: 'Severidade', extrator: (r) => (r as AcaoSugeridaBruto).severidade ?? '—'),
-    DimensaoRelatorio(id: 'status', label: 'Status', extrator: (r) => (r as AcaoSugeridaBruto).status ?? '—'),
-    DimensaoRelatorio(id: 'alvo', label: 'Alvo', extrator: (r) => (r as AcaoSugeridaBruto).alvoLabel ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período (detecção)',
+        extrator: (r) => mesRef((r as AcaoSugeridaBruto).data)),
+    DimensaoRelatorio(
+        id: 'tipo',
+        label: 'Tipo',
+        extrator: (r) => (r as AcaoSugeridaBruto).tipo ?? '—'),
+    DimensaoRelatorio(
+        id: 'severidade',
+        label: 'Severidade',
+        extrator: (r) => (r as AcaoSugeridaBruto).severidade ?? '—'),
+    DimensaoRelatorio(
+        id: 'status',
+        label: 'Status',
+        extrator: (r) => (r as AcaoSugeridaBruto).status ?? '—'),
+    DimensaoRelatorio(
+        id: 'alvo',
+        label: 'Alvo',
+        extrator: (r) => (r as AcaoSugeridaBruto).alvoLabel ?? '—'),
   ],
   'chamados': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período', extrator: (r) => mesRef((r as ChamadoBruto).data)),
-    DimensaoRelatorio(id: 'tipo', label: 'Tipo', extrator: (r) => (r as ChamadoBruto).tipo ?? '—'),
-    DimensaoRelatorio(id: 'prioridade', label: 'Prioridade', extrator: (r) => (r as ChamadoBruto).prioridade ?? '—'),
-    DimensaoRelatorio(id: 'status', label: 'Status', extrator: (r) => (r as ChamadoBruto).status ?? '—'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período',
+        extrator: (r) => mesRef((r as ChamadoBruto).data)),
+    DimensaoRelatorio(
+        id: 'tipo',
+        label: 'Tipo',
+        extrator: (r) => (r as ChamadoBruto).tipo ?? '—'),
+    DimensaoRelatorio(
+        id: 'prioridade',
+        label: 'Prioridade',
+        extrator: (r) => (r as ChamadoBruto).prioridade ?? '—'),
+    DimensaoRelatorio(
+        id: 'status',
+        label: 'Status',
+        extrator: (r) => (r as ChamadoBruto).status ?? '—'),
   ],
   'avaliacoes': [
-    DimensaoRelatorio(id: 'periodo_mes', label: 'Período', extrator: (r) => mesRef((r as AvaliacaoBruto).data)),
-    DimensaoRelatorio(id: 'estrelas', label: 'Estrelas', extrator: (r) => (r as AvaliacaoBruto).estrelas?.round().toString() ?? '—'),
-    DimensaoRelatorio(id: 'tem_comentario', label: 'Com comentário?', extrator: (r) => (r as AvaliacaoBruto).temComentario == true ? 'Sim' : 'Não'),
+    DimensaoRelatorio(
+        id: 'periodo_mes',
+        label: 'Período',
+        extrator: (r) => mesRef((r as AvaliacaoBruto).data)),
+    DimensaoRelatorio(
+        id: 'estrelas',
+        label: 'Estrelas',
+        extrator: (r) =>
+            (r as AvaliacaoBruto).estrelas?.round().toString() ?? '—'),
+    DimensaoRelatorio(
+        id: 'tem_comentario',
+        label: 'Com comentário?',
+        extrator: (r) =>
+            (r as AvaliacaoBruto).temComentario == true ? 'Sim' : 'Não'),
   ],
 };
 
 // Porta fiel de METRICAS (RelatoriosPersonalizados.tsx).
 final Map<String, List<MetricaRelatorio>> metricasPorFonte = {
   'abastecimentos': [
-    MetricaRelatorio(id: 'qtd', label: 'Nº de Abastecimentos', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'qtd',
+        label: 'Nº de Abastecimentos',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'volume',
       label: 'Volume Total (L)',
       formato: 'dec',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).litros ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).litros ?? 0)),
     ),
     MetricaRelatorio(
       id: 'valor',
       label: 'Valor Total (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).valor ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).valor ?? 0)),
     ),
     MetricaRelatorio(
       id: 'ticket_med',
       label: 'Ticket Médio (R\$)',
       formato: 'money',
-      calcular: (l) => l.isEmpty ? 0 : l.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).valor ?? 0)) / l.length,
+      calcular: (l) => l.isEmpty
+          ? 0
+          : l.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).valor ?? 0)) /
+              l.length,
     ),
     MetricaRelatorio(
       id: 'preco_med',
       label: 'Preço Médio (R\$/L)',
       formato: 'money3',
       calcular: (l) {
-        final validos = l.where((r) => ((r as AbastecimentoBruto).precoLitro ?? 0) > 0).toList();
+        final validos = l
+            .where((r) => ((r as AbastecimentoBruto).precoLitro ?? 0) > 0)
+            .toList();
         if (validos.isEmpty) return 0;
-        return validos.fold(0.0, (s, r) => s + ((r as AbastecimentoBruto).precoLitro ?? 0)) / validos.length;
+        return validos.fold(0.0,
+                (s, r) => s + ((r as AbastecimentoBruto).precoLitro ?? 0)) /
+            validos.length;
       },
     ),
   ],
@@ -540,14 +754,23 @@ final Map<String, List<MetricaRelatorio>> metricasPorFonte = {
       id: 'man_custo',
       label: 'Custo Total (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as ManutencaoBruto).custoTotal ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as ManutencaoBruto).custoTotal ?? 0)),
     ),
-    MetricaRelatorio(id: 'man_qtd', label: 'Nº de Registros', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'man_qtd',
+        label: 'Nº de Registros',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'man_custo_med',
       label: 'Custo Médio (R\$)',
       formato: 'money',
-      calcular: (l) => l.isEmpty ? 0 : l.fold(0.0, (s, r) => s + ((r as ManutencaoBruto).custoTotal ?? 0)) / l.length,
+      calcular: (l) => l.isEmpty
+          ? 0
+          : l.fold(
+                  0.0, (s, r) => s + ((r as ManutencaoBruto).custoTotal ?? 0)) /
+              l.length,
     ),
   ],
   'custos_fixos': [
@@ -555,14 +778,22 @@ final Map<String, List<MetricaRelatorio>> metricasPorFonte = {
       id: 'cf_valor',
       label: 'Valor Total (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as CustoFixoBruto).valor ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as CustoFixoBruto).valor ?? 0)),
     ),
-    MetricaRelatorio(id: 'cf_qtd', label: 'Nº de Lançamentos', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'cf_qtd',
+        label: 'Nº de Lançamentos',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'cf_valor_med',
       label: 'Valor Médio (R\$)',
       formato: 'money',
-      calcular: (l) => l.isEmpty ? 0 : l.fold(0.0, (s, r) => s + ((r as CustoFixoBruto).valor ?? 0)) / l.length,
+      calcular: (l) => l.isEmpty
+          ? 0
+          : l.fold(0.0, (s, r) => s + ((r as CustoFixoBruto).valor ?? 0)) /
+              l.length,
     ),
   ],
   // Fase relatorios-mais-dimensoes (porte 02/08/2026) — 6 fontes novas.
@@ -571,51 +802,71 @@ final Map<String, List<MetricaRelatorio>> metricasPorFonte = {
       id: 'nf_valor',
       label: 'Valor Total (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as NotaFiscalBruto).valorTotal ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as NotaFiscalBruto).valorTotal ?? 0)),
     ),
-    MetricaRelatorio(id: 'nf_qtd', label: 'Nº de Notas', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'nf_qtd',
+        label: 'Nº de Notas',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'nf_quantidade',
       label: 'Quantidade Total (L)',
       formato: 'dec',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as NotaFiscalBruto).quantidade ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as NotaFiscalBruto).quantidade ?? 0)),
     ),
     MetricaRelatorio(
       id: 'nf_valor_unit_med',
       label: 'Valor Unitário Médio (R\$/L)',
       formato: 'money3',
       calcular: (l) {
-        final validos = l.where((r) => ((r as NotaFiscalBruto).valorUnitario ?? 0) > 0).toList();
+        final validos = l
+            .where((r) => ((r as NotaFiscalBruto).valorUnitario ?? 0) > 0)
+            .toList();
         if (validos.isEmpty) return 0;
-        return validos.fold(0.0, (s, r) => s + ((r as NotaFiscalBruto).valorUnitario ?? 0)) / validos.length;
+        return validos.fold(0.0,
+                (s, r) => s + ((r as NotaFiscalBruto).valorUnitario ?? 0)) /
+            validos.length;
       },
     ),
   ],
   'fretes': [
-    MetricaRelatorio(id: 'fr_qtd', label: 'Nº de Fretes', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'fr_qtd',
+        label: 'Nº de Fretes',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'fr_valor',
       label: 'Valor Ofertado Total (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as FreteBruto).valorOferecido ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as FreteBruto).valorOferecido ?? 0)),
     ),
     MetricaRelatorio(
       id: 'fr_valor_med',
       label: 'Valor Ofertado Médio (R\$)',
       formato: 'money',
-      calcular: (l) => l.isEmpty ? 0 : l.fold(0.0, (s, r) => s + ((r as FreteBruto).valorOferecido ?? 0)) / l.length,
+      calcular: (l) => l.isEmpty
+          ? 0
+          : l.fold(0.0, (s, r) => s + ((r as FreteBruto).valorOferecido ?? 0)) /
+              l.length,
     ),
     MetricaRelatorio(
       id: 'fr_km',
       label: 'Km Estimado Total',
       formato: 'dec',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as FreteBruto).kmEstimado ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as FreteBruto).kmEstimado ?? 0)),
     ),
     MetricaRelatorio(
       id: 'fr_peso',
       label: 'Peso da Carga Total (kg)',
       formato: 'dec',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as FreteBruto).pesoCargaKg ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as FreteBruto).pesoCargaKg ?? 0)),
     ),
   ],
   'financeiro': [
@@ -623,35 +874,60 @@ final Map<String, List<MetricaRelatorio>> metricasPorFonte = {
       id: 'fin_valor_orig',
       label: 'Valor Original (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as FinanceiroBruto).valorOriginal ?? 0)),
+      calcular: (l) => l.fold(
+          0.0, (s, r) => s + ((r as FinanceiroBruto).valorOriginal ?? 0)),
     ),
     MetricaRelatorio(
       id: 'fin_valor_pago',
       label: 'Valor Pago (R\$)',
       formato: 'money',
-      calcular: (l) => l.fold(0.0, (s, r) => s + ((r as FinanceiroBruto).valorPago ?? 0)),
+      calcular: (l) =>
+          l.fold(0.0, (s, r) => s + ((r as FinanceiroBruto).valorPago ?? 0)),
     ),
-    MetricaRelatorio(id: 'fin_qtd', label: 'Nº de Lançamentos', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'fin_qtd',
+        label: 'Nº de Lançamentos',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'fin_valor_med',
       label: 'Valor Médio (R\$)',
       formato: 'money',
-      calcular: (l) => l.isEmpty ? 0 : l.fold(0.0, (s, r) => s + ((r as FinanceiroBruto).valorOriginal ?? 0)) / l.length,
+      calcular: (l) => l.isEmpty
+          ? 0
+          : l.fold(0.0,
+                  (s, r) => s + ((r as FinanceiroBruto).valorOriginal ?? 0)) /
+              l.length,
     ),
   ],
   'acoes_sugeridas': [
-    MetricaRelatorio(id: 'as_qtd', label: 'Nº de Ações', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'as_qtd',
+        label: 'Nº de Ações',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
   ],
   'chamados': [
-    MetricaRelatorio(id: 'ch_qtd', label: 'Nº de Chamados', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'ch_qtd',
+        label: 'Nº de Chamados',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
   ],
   'avaliacoes': [
-    MetricaRelatorio(id: 'av_qtd', label: 'Nº de Avaliações', formato: 'int', calcular: (l) => l.length.toDouble()),
+    MetricaRelatorio(
+        id: 'av_qtd',
+        label: 'Nº de Avaliações',
+        formato: 'int',
+        calcular: (l) => l.length.toDouble()),
     MetricaRelatorio(
       id: 'av_nota_media',
       label: 'Nota Média (estrelas)',
       formato: 'dec',
-      calcular: (l) => l.isEmpty ? 0 : l.fold(0.0, (s, r) => s + ((r as AvaliacaoBruto).estrelas ?? 0)) / l.length,
+      calcular: (l) => l.isEmpty
+          ? 0
+          : l.fold(0.0, (s, r) => s + ((r as AvaliacaoBruto).estrelas ?? 0)) /
+              l.length,
     ),
   ],
 };
@@ -660,13 +936,15 @@ class GrupoRelatorio {
   final String chave;
   final Map<String, double> valores;
   final int qtdLinhas;
-  const GrupoRelatorio({required this.chave, required this.valores, required this.qtdLinhas});
+  const GrupoRelatorio(
+      {required this.chave, required this.valores, required this.qtdLinhas});
 }
 
 // Porta fiel do `resultado` (useMemo em RelatoriosPersonalizados.tsx):
 // agrupa pela dimensão, calcula cada métrica selecionada por grupo, ordena
 // desc pela 1ª métrica.
-List<GrupoRelatorio> calcularResultado(List<Object> linhas, DimensaoRelatorio dimensao, List<MetricaRelatorio> metricas) {
+List<GrupoRelatorio> calcularResultado(List<Object> linhas,
+    DimensaoRelatorio dimensao, List<MetricaRelatorio> metricas) {
   final grupos = <String, List<Object>>{};
   for (final r in linhas) {
     final chave = dimensao.extrator(r);
@@ -677,12 +955,14 @@ List<GrupoRelatorio> calcularResultado(List<Object> linhas, DimensaoRelatorio di
     for (final m in metricas) {
       valores[m.id] = m.calcular(e.value);
     }
-    return GrupoRelatorio(chave: e.key, valores: valores, qtdLinhas: e.value.length);
+    return GrupoRelatorio(
+        chave: e.key, valores: valores, qtdLinhas: e.value.length);
   }).toList();
 
   if (metricas.isNotEmpty) {
     final ordenacaoId = metricas.first.id;
-    resultado.sort((a, b) => (b.valores[ordenacaoId] ?? 0).compareTo(a.valores[ordenacaoId] ?? 0));
+    resultado.sort((a, b) =>
+        (b.valores[ordenacaoId] ?? 0).compareTo(a.valores[ordenacaoId] ?? 0));
   }
   return resultado;
 }

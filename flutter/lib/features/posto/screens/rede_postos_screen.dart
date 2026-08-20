@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../providers/rede_posto_provider.dart';
 import '../services/rede_postos_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — porta de src/app/(dashboard)/rede-postos/page.tsx (lista,
 // aqui não se aplica — visão admin) + rede-postos/[id]/page.tsx (edição +
 // vínculos, que É o que o posto vê). Escopo reduzido: só mostra/gerencia a
@@ -62,7 +64,8 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
     }
     ref.invalidate(redePostoProvider);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rede atualizada.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Rede atualizada.')));
     }
   }
 
@@ -72,7 +75,8 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
       _vinculando = true;
       _erroVinculo = null;
     });
-    final erro = await RedePostosService().vincularPosto(redeId: redeId, empresaId: _postoParaVincular!);
+    final erro = await RedePostosService()
+        .vincularPosto(redeId: redeId, empresaId: _postoParaVincular!);
     if (!mounted) return;
     setState(() => _vinculando = false);
     if (erro != null) {
@@ -84,7 +88,8 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
   }
 
   Future<void> _desvincular(String vinculoId) async {
-    final erro = await RedePostosService().desvincularPosto(vinculoId: vinculoId);
+    final erro =
+        await RedePostosService().desvincularPosto(vinculoId: vinculoId);
     if (!mounted) return;
     if (erro != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
@@ -98,7 +103,14 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
     final redeAsync = ref.watch(redePostoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rede de Postos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Rede de Postos')),
       body: redeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
@@ -152,20 +164,31 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Dados da Rede', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text('Dados da Rede',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 12),
                 if (_erroEdicao != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(_erroEdicao!, style: const TextStyle(color: Colors.red)),
+                    child: Text(_erroEdicao!,
+                        style: const TextStyle(color: Colors.red)),
                   ),
-                const Text('Nome da Rede', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Nome da Rede',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 4),
-                TextField(controller: _nomeCtrl, decoration: const InputDecoration(border: OutlineInputBorder())),
+                TextField(
+                    controller: _nomeCtrl,
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                const Text('CNPJ da Matriz', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('CNPJ da Matriz',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 4),
-                TextField(controller: _cnpjCtrl, decoration: const InputDecoration(border: OutlineInputBorder())),
+                TextField(
+                    controller: _cnpjCtrl,
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -178,7 +201,8 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
                   alignment: Alignment.centerRight,
                   child: FilledButton(
                     onPressed: _salvando ? null : () => _salvarEdicao(rede.id),
-                    child: Text(_salvando ? 'Salvando...' : 'Salvar alterações'),
+                    child:
+                        Text(_salvando ? 'Salvando...' : 'Salvar alterações'),
                   ),
                 ),
               ],
@@ -193,12 +217,14 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Postos vinculados (${rede.vinculos.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 8),
                 if (rede.vinculos.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Nenhum posto vinculado ainda.', style: TextStyle(color: Colors.grey)),
+                    child: Text('Nenhum posto vinculado ainda.',
+                        style: TextStyle(color: Colors.grey)),
                   )
                 else
                   ...rede.vinculos.map((v) => ListTile(
@@ -206,12 +232,14 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
                         title: Text(v.nome),
                         trailing: TextButton(
                           onPressed: () => _desvincular(v.vinculoId),
-                          child: const Text('Remover', style: TextStyle(color: Colors.red)),
+                          child: const Text('Remover',
+                              style: TextStyle(color: Colors.red)),
                         ),
                       )),
                 const Divider(),
                 const SizedBox(height: 8),
-                const Text('Vincular novo posto', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Vincular novo posto',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 _buildSeletorVincular(rede),
               ],
@@ -226,10 +254,12 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
     final postosAsync = ref.watch(postosProprioProvider);
     return postosAsync.when(
       loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Erro: $e', style: const TextStyle(color: Colors.red)),
+      error: (e, _) =>
+          Text('Erro: $e', style: const TextStyle(color: Colors.red)),
       data: (todos) {
         final jaVinculados = rede.vinculos.map((v) => v.empresaId).toSet();
-        final disponiveis = todos.where((p) => !jaVinculados.contains(p.id)).toList();
+        final disponiveis =
+            todos.where((p) => !jaVinculados.contains(p.id)).toList();
         if (disponiveis.isEmpty) {
           return const Text(
             'Nenhum outro posto seu disponível para vincular.',
@@ -242,18 +272,24 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
             if (_erroVinculo != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(_erroVinculo!, style: const TextStyle(color: Colors.red)),
+                child: Text(_erroVinculo!,
+                    style: const TextStyle(color: Colors.red)),
               ),
             DropdownButtonFormField<String>(
               value: _postoParaVincular,
               hint: const Text('Selecione um posto para vincular...'),
-              items: disponiveis.map((p) => DropdownMenuItem(value: p.id, child: Text(p.nome))).toList(),
+              items: disponiveis
+                  .map(
+                      (p) => DropdownMenuItem(value: p.id, child: Text(p.nome)))
+                  .toList(),
               onChanged: (v) => setState(() => _postoParaVincular = v),
               decoration: const InputDecoration(border: OutlineInputBorder()),
             ),
             const SizedBox(height: 8),
             FilledButton(
-              onPressed: (_vinculando || _postoParaVincular == null) ? null : () => _vincular(rede.id),
+              onPressed: (_vinculando || _postoParaVincular == null)
+                  ? null
+                  : () => _vincular(rede.id),
               child: Text(_vinculando ? 'Vinculando...' : 'Vincular'),
             ),
           ],

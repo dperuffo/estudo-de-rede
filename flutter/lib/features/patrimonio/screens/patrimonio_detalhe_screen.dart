@@ -7,6 +7,8 @@ import '../../../core/services/supabase_service.dart';
 import '../providers/patrimonio_provider.dart';
 import '../services/patrimonio_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _dataBr = DateFormat('dd/MM/yyyy');
 
@@ -23,14 +25,17 @@ class PatrimonioDetalheScreen extends ConsumerStatefulWidget {
   const PatrimonioDetalheScreen({super.key, required this.placa});
 
   @override
-  ConsumerState<PatrimonioDetalheScreen> createState() => _PatrimonioDetalheScreenState();
+  ConsumerState<PatrimonioDetalheScreen> createState() =>
+      _PatrimonioDetalheScreenState();
 }
 
-class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScreen> {
+class _PatrimonioDetalheScreenState
+    extends ConsumerState<PatrimonioDetalheScreen> {
   bool _processando = false;
   String? _erro;
 
-  Future<void> _registrarAjuste(String empresaId, String veiculoId, String tipo, double valor, String dataAjuste, String? motivo) async {
+  Future<void> _registrarAjuste(String empresaId, String veiculoId, String tipo,
+      double valor, String dataAjuste, String? motivo) async {
     setState(() {
       _erro = null;
       _processando = true;
@@ -61,8 +66,12 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
         title: const Text('Excluir ajuste?'),
         content: const Text('Este ajuste do patrimônio será removido.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -83,10 +92,18 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
   Widget build(BuildContext context) {
     final detalheAsync = ref.watch(patrimonioVeiculoProvider(widget.placa));
     return Scaffold(
-      appBar: AppBar(title: Text(widget.placa)),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: Text(widget.placa)),
       body: detalheAsync.when(
         data: (v) {
-          if (v == null) return const Center(child: Text('Veículo não encontrado.'));
+          if (v == null)
+            return const Center(child: Text('Veículo não encontrado.'));
           return _conteudo(v);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -110,9 +127,14 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    [v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' ').isEmpty
+                    [v.marca, v.modelo]
+                            .where((s) => s != null && s.isNotEmpty)
+                            .join(' ')
+                            .isEmpty
                         ? 'Sem marca/modelo cadastrado'
-                        : [v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' '),
+                        : [v.marca, v.modelo]
+                            .where((s) => s != null && s.isNotEmpty)
+                            .join(' '),
                     style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   Text(
@@ -126,8 +148,11 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  v.valorContabilLiquido != null ? _moeda.format(v.valorContabilLiquido!) : '—',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  v.valorContabilLiquido != null
+                      ? _moeda.format(v.valorContabilLiquido!)
+                      : '—',
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800),
                 ),
                 Text(
                   v.baixado
@@ -142,54 +167,83 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
           ],
         ),
         const SizedBox(height: 16),
-
         if (!v.patrimonioCompleto)
           Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFFDE68A))),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE68A))),
             child: const Text(
               '⚠️ Este veículo não tem valor de aquisição cadastrado — não é possível calcular a depreciação '
               'contábil. Complete o cadastro em Veículos pra ver o patrimônio completo.',
               style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
             ),
           ),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Resumo', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('Resumo',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
-                _linhaDado('Valor de aquisição', v.valorAquisicao != null ? _moeda.format(v.valorAquisicao!) : '—'),
-                _linhaDado('Data de aquisição', v.dataAquisicao != null ? _dataBr.format(DateTime.parse(v.dataAquisicao!)) : '—'),
-                _linhaDado('Vida útil', '${v.vidaUtilAnos.toStringAsFixed(0)} ano(s) (${v.mesesVidaUtil} meses)'),
-                _linhaDado('Idade', v.mesesDecorridos != null ? '${v.mesesDecorridos} mês(es)' : '—'),
-                _linhaDado('Valor residual estimado', v.valorResidualEstimado != null ? _moeda.format(v.valorResidualEstimado!) : '—'),
-                _linhaDado('Melhorias capitalizadas', _moeda.format(v.valorMelhorias)),
-                _linhaDado('Reavaliações acumuladas', _moeda.format(v.valorReavaliacoes)),
-                _linhaDado('Depreciação acumulada', v.depreciacaoAcumulada != null ? _moeda.format(v.depreciacaoAcumulada!) : '—'),
+                _linhaDado(
+                    'Valor de aquisição',
+                    v.valorAquisicao != null
+                        ? _moeda.format(v.valorAquisicao!)
+                        : '—'),
+                _linhaDado(
+                    'Data de aquisição',
+                    v.dataAquisicao != null
+                        ? _dataBr.format(DateTime.parse(v.dataAquisicao!))
+                        : '—'),
+                _linhaDado('Vida útil',
+                    '${v.vidaUtilAnos.toStringAsFixed(0)} ano(s) (${v.mesesVidaUtil} meses)'),
+                _linhaDado(
+                    'Idade',
+                    v.mesesDecorridos != null
+                        ? '${v.mesesDecorridos} mês(es)'
+                        : '—'),
+                _linhaDado(
+                    'Valor residual estimado',
+                    v.valorResidualEstimado != null
+                        ? _moeda.format(v.valorResidualEstimado!)
+                        : '—'),
+                _linhaDado(
+                    'Melhorias capitalizadas', _moeda.format(v.valorMelhorias)),
+                _linhaDado('Reavaliações acumuladas',
+                    _moeda.format(v.valorReavaliacoes)),
+                _linhaDado(
+                    'Depreciação acumulada',
+                    v.depreciacaoAcumulada != null
+                        ? _moeda.format(v.depreciacaoAcumulada!)
+                        : '—'),
                 const SizedBox(height: 4),
                 TextButton(
                   onPressed: () => context.push('/veiculos'),
-                  child: const Text('Editar valor de aquisição, data e vida útil em Veículos →', style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                      'Editar valor de aquisição, data e vida útil em Veículos →',
+                      style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Correções do ativo', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('Correções do ativo',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 4),
                 const Text(
                   'Reavaliação (ajusta o valor contábil pra cima/baixo), melhoria (capitalização que aumenta a '
@@ -201,13 +255,16 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
                 if (_erro != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                    child: Text(_erro!,
+                        style: const TextStyle(
+                            color: Color(0xFFB91C1C), fontSize: 12)),
                   ),
                 sessaoAsync.when(
                   data: (sessao) => veiculoIdAsync.when(
                     data: (veiculoId) {
                       final empresaId = sessao.empresaId;
-                      if (empresaId == null || veiculoId == null) return const SizedBox();
+                      if (empresaId == null || veiculoId == null)
+                        return const SizedBox();
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -216,28 +273,52 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
                                   if (lista.isEmpty) {
                                     return const Padding(
                                       padding: EdgeInsets.only(bottom: 10),
-                                      child: Text('Nenhum ajuste registrado ainda.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      child: Text(
+                                          'Nenhum ajuste registrado ainda.',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey)),
                                     );
                                   }
-                                  return Column(children: lista.map((a) => _linhaAjuste(a, veiculoId)).toList());
+                                  return Column(
+                                      children: lista
+                                          .map(
+                                              (a) => _linhaAjuste(a, veiculoId))
+                                          .toList());
                                 },
-                                loading: () => const Padding(padding: EdgeInsets.all(8), child: Center(child: CircularProgressIndicator())),
-                                error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                                loading: () => const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Center(
+                                        child: CircularProgressIndicator())),
+                                error: (e, _) => Text('Erro: $e',
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.red)),
                               ),
                           const Divider(),
                           const SizedBox(height: 4),
                           _FormAjuste(
                             processando: _processando,
-                            onRegistrar: (tipo, valor, dataAjuste, motivo) => _registrarAjuste(empresaId, veiculoId, tipo, valor, dataAjuste, motivo),
+                            onRegistrar: (tipo, valor, dataAjuste, motivo) =>
+                                _registrarAjuste(empresaId, veiculoId, tipo,
+                                    valor, dataAjuste, motivo),
                           ),
                         ],
                       );
                     },
-                    loading: () => const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator())),
-                    error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                    loading: () => const Center(
+                        child: Padding(
+                            padding: EdgeInsets.all(8),
+                            child: CircularProgressIndicator())),
+                    error: (e, _) => Text('Erro: $e',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.red)),
                   ),
-                  loading: () => const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator())),
-                  error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                  loading: () => const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(8),
+                          child: CircularProgressIndicator())),
+                  error: (e, _) => Text('Erro: $e',
+                      style: const TextStyle(fontSize: 12, color: Colors.red)),
                 ),
               ],
             ),
@@ -253,8 +334,11 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          Text(valor, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(valor,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -264,7 +348,9 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -274,9 +360,11 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
               children: [
                 Text(
                   '${_tipoAjusteLabel[a.tipo] ?? a.tipo} · ${_moeda.format(a.valor)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 12),
                 ),
-                Text(_dataBr.format(DateTime.parse(a.dataAjuste)), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(_dataBr.format(DateTime.parse(a.dataAjuste)),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 if (a.motivo != null) ...[
                   const SizedBox(height: 4),
                   Text(a.motivo!, style: const TextStyle(fontSize: 11)),
@@ -285,9 +373,12 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
             ),
           ),
           TextButton(
-            onPressed: _processando ? null : () => _excluirAjuste(a.id, veiculoId),
-            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0)),
-            child: const Text('Excluir', style: TextStyle(fontSize: 11, color: Colors.red)),
+            onPressed:
+                _processando ? null : () => _excluirAjuste(a.id, veiculoId),
+            style: TextButton.styleFrom(
+                padding: EdgeInsets.zero, minimumSize: const Size(0, 0)),
+            child: const Text('Excluir',
+                style: TextStyle(fontSize: 11, color: Colors.red)),
           ),
         ],
       ),
@@ -297,7 +388,8 @@ class _PatrimonioDetalheScreenState extends ConsumerState<PatrimonioDetalheScree
 
 class _FormAjuste extends StatefulWidget {
   final bool processando;
-  final Future<void> Function(String tipo, double valor, String dataAjuste, String? motivo) onRegistrar;
+  final Future<void> Function(
+      String tipo, double valor, String dataAjuste, String? motivo) onRegistrar;
   const _FormAjuste({required this.processando, required this.onRegistrar});
 
   @override
@@ -320,7 +412,11 @@ class _FormAjusteState extends State<_FormAjuste> {
 
   Future<void> _selecionarData() async {
     final agora = DateTime.now();
-    final escolhida = await showDatePicker(context: context, initialDate: _data ?? agora, firstDate: DateTime(2000), lastDate: agora.add(const Duration(days: 1)));
+    final escolhida = await showDatePicker(
+        context: context,
+        initialDate: _data ?? agora,
+        firstDate: DateTime(2000),
+        lastDate: agora.add(const Duration(days: 1)));
     if (escolhida != null) setState(() => _data = escolhida);
   }
 
@@ -339,8 +435,10 @@ class _FormAjusteState extends State<_FormAjuste> {
       setState(() => _erroLocal = 'Informe a data do ajuste.');
       return;
     }
-    final dataIso = '${_data!.year.toString().padLeft(4, '0')}-${_data!.month.toString().padLeft(2, '0')}-${_data!.day.toString().padLeft(2, '0')}';
-    await widget.onRegistrar(_tipo!, valor, dataIso, _motivoCtrl.text.trim().isEmpty ? null : _motivoCtrl.text.trim());
+    final dataIso =
+        '${_data!.year.toString().padLeft(4, '0')}-${_data!.month.toString().padLeft(2, '0')}-${_data!.day.toString().padLeft(2, '0')}';
+    await widget.onRegistrar(_tipo!, valor, dataIso,
+        _motivoCtrl.text.trim().isEmpty ? null : _motivoCtrl.text.trim());
     _valorCtrl.clear();
     _motivoCtrl.clear();
     setState(() {
@@ -357,12 +455,16 @@ class _FormAjusteState extends State<_FormAjuste> {
         if (_erroLocal != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(_erroLocal!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            child: Text(_erroLocal!,
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
           ),
         DropdownButtonFormField<String>(
           value: _tipo,
-          decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder(), isDense: true),
-          items: _tipoAjusteLabel.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+          decoration: const InputDecoration(
+              labelText: 'Tipo', border: OutlineInputBorder(), isDense: true),
+          items: _tipoAjusteLabel.entries
+              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              .toList(),
           onChanged: (v) => setState(() => _tipo = v),
         ),
         const SizedBox(height: 10),
@@ -371,8 +473,12 @@ class _FormAjusteState extends State<_FormAjuste> {
             Expanded(
               child: TextField(
                 controller: _valorCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Valor (R\$)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Valor (R\$)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
             const SizedBox(width: 10),
@@ -380,8 +486,14 @@ class _FormAjusteState extends State<_FormAjuste> {
               child: InkWell(
                 onTap: _selecionarData,
                 child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Data', border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_today, size: 16)),
-                  child: Text(_data == null ? 'Selecionar' : _dataBr.format(_data!), style: const TextStyle(fontSize: 12)),
+                  decoration: const InputDecoration(
+                      labelText: 'Data',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                      suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                  child: Text(
+                      _data == null ? 'Selecionar' : _dataBr.format(_data!),
+                      style: const TextStyle(fontSize: 12)),
                 ),
               ),
             ),
@@ -391,12 +503,16 @@ class _FormAjusteState extends State<_FormAjuste> {
         TextField(
           controller: _motivoCtrl,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Motivo (opcional)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Motivo (opcional)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         FilledButton(
           onPressed: widget.processando ? null : _enviar,
-          child: Text(widget.processando ? 'Registrando...' : 'Registrar ajuste'),
+          child:
+              Text(widget.processando ? 'Registrando...' : 'Registrar ajuste'),
         ),
       ],
     );

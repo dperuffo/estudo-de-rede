@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../providers/rede_posto_provider.dart';
 import '../services/rede_postos_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — porta de src/app/(dashboard)/rede-postos/novo/page.tsx +
 // NovaRedeForm.tsx. Escopo reduzido: aqui só existe o caminho self-service
 // (posto criando a própria Rede) — o caminho admin (escolher qualquer posto
@@ -66,7 +68,14 @@ class _NovaRedeScreenState extends ConsumerState<NovaRedeScreen> {
     final postosAsync = ref.watch(postosProprioProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova Rede de Postos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Nova Rede de Postos')),
       body: postosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
@@ -96,17 +105,21 @@ class _NovaRedeScreenState extends ConsumerState<NovaRedeScreen> {
                       color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C))),
+                    child: Text(_erro!,
+                        style: const TextStyle(color: Color(0xFFB91C1C))),
                   ),
-                const Text('Posto fundador *', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Posto fundador *',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _empresaFundadoraId,
                   items: postos
-                      .map((p) => DropdownMenuItem(value: p.id, child: Text(p.nome)))
+                      .map((p) =>
+                          DropdownMenuItem(value: p.id, child: Text(p.nome)))
                       .toList(),
                   onChanged: (v) => setState(() => _empresaFundadoraId = v),
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  decoration:
+                      const InputDecoration(border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 4),
                 const Text(
@@ -114,19 +127,24 @@ class _NovaRedeScreenState extends ConsumerState<NovaRedeScreen> {
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
-                const Text('Nome da Rede *', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Nome da Rede *',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _nomeCtrl,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  decoration:
+                      const InputDecoration(border: OutlineInputBorder()),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                 ),
                 const SizedBox(height: 16),
-                const Text('CNPJ da Matriz (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('CNPJ da Matriz (opcional)',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _cnpjCtrl,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  decoration:
+                      const InputDecoration(border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(

@@ -18,7 +18,11 @@ class SinistrosService {
     String? descricao,
     String? criadoPor,
   }) async {
-    final veiculo = await _supabase.from('cadastro_veiculos').select('cnpj_frota').eq('placa', placa).maybeSingle();
+    final veiculo = await _supabase
+        .from('cadastro_veiculos')
+        .select('cnpj_frota')
+        .eq('placa', placa)
+        .maybeSingle();
     await _supabase.from('sinistros_veiculos').insert({
       'empresa_id': empresaId,
       'cnpj_frota': veiculo?['cnpj_frota'] ?? '',

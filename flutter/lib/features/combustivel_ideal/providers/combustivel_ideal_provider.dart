@@ -60,12 +60,15 @@ class ItemComparadorCombustivel {
   }
 }
 
-final combustivelIdealProvider = FutureProvider.autoDispose<List<ItemComparadorCombustivel>>((ref) async {
+final combustivelIdealProvider =
+    FutureProvider.autoDispose<List<ItemComparadorCombustivel>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
 
-  final rows = await SupabaseService.client
-      .rpc('comparador_combustivel_ideal', params: {'p_empresa_id': empresaId}) as List;
-  return rows.map((r) => ItemComparadorCombustivel.fromMap(r as Map<String, dynamic>)).toList();
+  final rows = await SupabaseService.client.rpc('comparador_combustivel_ideal',
+      params: {'p_empresa_id': empresaId}) as List;
+  return rows
+      .map((r) => ItemComparadorCombustivel.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

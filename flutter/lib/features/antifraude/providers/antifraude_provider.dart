@@ -66,25 +66,29 @@ class RegraAntifraudeRow {
   }
 }
 
-final regrasAntifraudeProvider =
-    FutureProvider.autoDispose.family<List<RegraAntifraudeRow>, String>((ref, tipo) async {
+final regrasAntifraudeProvider = FutureProvider.autoDispose
+    .family<List<RegraAntifraudeRow>, String>((ref, tipo) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
 
   final rows = await SupabaseService.client
       .from('regras_antifraude')
-      .select('id, nome, tipo, escopo, escopo_referencia, condicoes, vigencia_inicio, vigencia_fim, status')
+      .select(
+          'id, nome, tipo, escopo, escopo_referencia, condicoes, vigencia_inicio, vigencia_fim, status')
       .eq('empresa_id', empresaId)
       .eq('tipo', tipo)
       .order('criado_em', ascending: false) as List;
 
-  return rows.map((r) => RegraAntifraudeRow.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => RegraAntifraudeRow.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Contagem de falhas de verificação (fail-open) ainda não lidas — mesma
 // tabela usada pro badge no menu da web (antifraude_verificacoes_falhas).
-final falhasVerificacaoAntifraudeCountProvider = FutureProvider.autoDispose<int>((ref) async {
+final falhasVerificacaoAntifraudeCountProvider =
+    FutureProvider.autoDispose<int>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   if (sessao.empresaId == null) return 0;
   final resp = await SupabaseService.client

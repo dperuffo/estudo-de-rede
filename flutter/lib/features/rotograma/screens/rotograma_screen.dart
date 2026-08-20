@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/rotograma_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Rotograma de Segurança (cliente): lista, porta de
 // rotograma/page.tsx. Ver escopo em rotograma_provider.dart.
 class RotogramaScreen extends ConsumerWidget {
@@ -12,7 +14,14 @@ class RotogramaScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listaAsync = ref.watch(rotogramasListaProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Rotograma de Segurança')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Rotograma de Segurança')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/rotograma/novo'),
         icon: const Icon(Icons.add),
@@ -38,7 +47,8 @@ class RotogramaScreen extends ConsumerWidget {
         if (lista.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text('Nenhum Rotograma cadastrado ainda.', style: TextStyle(color: Colors.grey.shade500)),
+            child: Text('Nenhum Rotograma cadastrado ainda.',
+                style: TextStyle(color: Colors.grey.shade500)),
           )
         else
           ...lista.map((r) => Card(
@@ -47,9 +57,15 @@ class RotogramaScreen extends ConsumerWidget {
                   onTap: () => context.push('/rotograma/${r.id}'),
                   leading: CircleAvatar(
                     backgroundColor: const Color(0xFFEFF6FF),
-                    child: Text('#${r.numero}', style: const TextStyle(fontSize: 10, color: Color(0xFF1D4ED8), fontWeight: FontWeight.w700)),
+                    child: Text('#${r.numero}',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF1D4ED8),
+                            fontWeight: FontWeight.w700)),
                   ),
-                  title: Text('${r.origem ?? '—'} → ${r.destino ?? '—'}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  title: Text('${r.origem ?? '—'} → ${r.destino ?? '—'}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
                   subtitle: Text(
                     '${r.motorista ?? '—'} · ${r.placa ?? '—'}${r.dataViagem != null ? ' · ${r.dataViagem}' : ''}',
                     style: const TextStyle(fontSize: 11),

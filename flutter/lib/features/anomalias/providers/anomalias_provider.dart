@@ -76,35 +76,43 @@ class FiltrosAnomalias {
   int get hashCode => Object.hash(tipo, status);
 }
 
-final anomaliasProvider =
-    FutureProvider.autoDispose.family<List<Anomalia>, FiltrosAnomalias>((ref, filtros) async {
+final anomaliasProvider = FutureProvider.autoDispose
+    .family<List<Anomalia>, FiltrosAnomalias>((ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
 
   var query = SupabaseService.client
       .from('anomalias_abastecimento')
-      .select('id, tipo, severidade, placa, motorista_nome, data_abastecimento, descricao, revisado_em, revisado_por, criado_em')
+      .select(
+          'id, tipo, severidade, placa, motorista_nome, data_abastecimento, descricao, revisado_em, revisado_por, criado_em')
       .eq('empresa_id', empresaId);
 
   if (filtros.tipo != null) query = query.eq('tipo', filtros.tipo!);
-  if (filtros.status == 'pendentes') query = query.isFilter('revisado_em', null);
-  if (filtros.status == 'revisadas') query = query.not('revisado_em', 'is', null);
+  if (filtros.status == 'pendentes')
+    query = query.isFilter('revisado_em', null);
+  if (filtros.status == 'revisadas')
+    query = query.not('revisado_em', 'is', null);
 
   final rows = await query.order('criado_em', ascending: false).limit(100);
-  return (rows as List).map((m) => Anomalia.fromMap(m as Map<String, dynamic>)).toList();
+  return (rows as List)
+      .map((m) => Anomalia.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 class KpisAnomalias {
   final int naoRevisadas;
   final int criticasNaoRevisadas;
-  const KpisAnomalias({required this.naoRevisadas, required this.criticasNaoRevisadas});
+  const KpisAnomalias(
+      {required this.naoRevisadas, required this.criticasNaoRevisadas});
 }
 
-final kpisAnomaliasProvider = FutureProvider.autoDispose<KpisAnomalias>((ref) async {
+final kpisAnomaliasProvider =
+    FutureProvider.autoDispose<KpisAnomalias>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
-  if (empresaId == null) return const KpisAnomalias(naoRevisadas: 0, criticasNaoRevisadas: 0);
+  if (empresaId == null)
+    return const KpisAnomalias(naoRevisadas: 0, criticasNaoRevisadas: 0);
 
   final rows = await SupabaseService.client
       .from('anomalias_abastecimento')
@@ -112,6 +120,9 @@ final kpisAnomaliasProvider = FutureProvider.autoDispose<KpisAnomalias>((ref) as
       .eq('empresa_id', empresaId)
       .isFilter('revisado_em', null) as List;
 
-  final criticas = rows.where((r) => (r as Map<String, dynamic>)['severidade'] == 'critica').length;
-  return KpisAnomalias(naoRevisadas: rows.length, criticasNaoRevisadas: criticas);
+  final criticas = rows
+      .where((r) => (r as Map<String, dynamic>)['severidade'] == 'critica')
+      .length;
+  return KpisAnomalias(
+      naoRevisadas: rows.length, criticasNaoRevisadas: criticas);
 });

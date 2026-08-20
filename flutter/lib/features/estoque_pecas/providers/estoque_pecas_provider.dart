@@ -12,8 +12,14 @@ import '../../../core/services/supabase_service.dart';
 
 const tipoMovimentoLabel = {'entrada': 'Entrada', 'saida': 'Saída'};
 
-const tipoMovimentoCorFundo = {'entrada': Color(0xFFDCFCE7), 'saida': Color(0xFFFEE2E2)};
-const tipoMovimentoCorTexto = {'entrada': Color(0xFF166534), 'saida': Color(0xFF991B1B)};
+const tipoMovimentoCorFundo = {
+  'entrada': Color(0xFFDCFCE7),
+  'saida': Color(0xFFFEE2E2)
+};
+const tipoMovimentoCorTexto = {
+  'entrada': Color(0xFF166534),
+  'saida': Color(0xFF991B1B)
+};
 
 class PecaEstoque {
   final String id;
@@ -53,22 +59,28 @@ class PecaEstoque {
       );
 }
 
-final pecasEstoqueListProvider = FutureProvider.autoDispose<List<PecaEstoque>>((ref) async {
+final pecasEstoqueListProvider =
+    FutureProvider.autoDispose<List<PecaEstoque>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
       .from('pecas_estoque')
-      .select('id, empresa_id, nome, codigo, unidade_medida, quantidade_atual, quantidade_minima, custo_unitario_medio, ativa')
+      .select(
+          'id, empresa_id, nome, codigo, unidade_medida, quantidade_atual, quantidade_minima, custo_unitario_medio, ativa')
       .eq('empresa_id', empresaId)
       .order('nome') as List;
-  return rows.map((r) => PecaEstoque.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => PecaEstoque.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final pecaEstoqueDetalheProvider = FutureProvider.autoDispose.family<PecaEstoque?, String>((ref, id) async {
+final pecaEstoqueDetalheProvider =
+    FutureProvider.autoDispose.family<PecaEstoque?, String>((ref, id) async {
   final row = await SupabaseService.client
       .from('pecas_estoque')
-      .select('id, empresa_id, nome, codigo, unidade_medida, quantidade_atual, quantidade_minima, custo_unitario_medio, ativa')
+      .select(
+          'id, empresa_id, nome, codigo, unidade_medida, quantidade_atual, quantidade_minima, custo_unitario_medio, ativa')
       .eq('id', id)
       .maybeSingle();
   if (row == null) return null;
@@ -111,14 +123,18 @@ class MovimentoEstoque {
       );
 }
 
-final movimentosEstoqueProvider = FutureProvider.autoDispose.family<List<MovimentoEstoque>, String>((ref, pecaId) async {
+final movimentosEstoqueProvider = FutureProvider.autoDispose
+    .family<List<MovimentoEstoque>, String>((ref, pecaId) async {
   final rows = await SupabaseService.client
       .from('pecas_estoque_movimentos')
-      .select('id, tipo_movimento, quantidade, custo_unitario, placa, manutencao_id, motivo, criado_por, criado_em')
+      .select(
+          'id, tipo_movimento, quantidade, custo_unitario, placa, manutencao_id, motivo, criado_por, criado_em')
       .eq('peca_id', pecaId)
       .order('criado_em', ascending: false)
       .limit(100) as List;
-  return rows.map((r) => MovimentoEstoque.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => MovimentoEstoque.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Manutenções recentes da empresa — usadas no form de saída pra vincular o
@@ -129,7 +145,11 @@ class ManutencaoResumo {
   final String placa;
   final String dataManutencao;
   final String? tipo;
-  const ManutencaoResumo({required this.id, required this.placa, required this.dataManutencao, this.tipo});
+  const ManutencaoResumo(
+      {required this.id,
+      required this.placa,
+      required this.dataManutencao,
+      this.tipo});
   factory ManutencaoResumo.fromMap(Map<String, dynamic> m) => ManutencaoResumo(
         id: (m['id'] as num).toInt(),
         placa: m['placa'] as String,
@@ -138,7 +158,8 @@ class ManutencaoResumo {
       );
 }
 
-final manutencoesRecentesProvider = FutureProvider.autoDispose<List<ManutencaoResumo>>((ref) async {
+final manutencoesRecentesProvider =
+    FutureProvider.autoDispose<List<ManutencaoResumo>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -148,5 +169,7 @@ final manutencoesRecentesProvider = FutureProvider.autoDispose<List<ManutencaoRe
       .eq('empresa_id', empresaId)
       .order('data_manutencao', ascending: false)
       .limit(50) as List;
-  return rows.map((r) => ManutencaoResumo.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => ManutencaoResumo.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

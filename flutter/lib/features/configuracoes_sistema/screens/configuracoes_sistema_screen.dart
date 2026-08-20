@@ -4,6 +4,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/configuracoes_sistema_provider.dart';
 import '../services/configuracoes_sistema_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-4 — Configurações do Sistema (admin): tela exclusiva do time
 // interno, porta de configuracoes/page.tsx. Ver escopo em
 // configuracoes_sistema_provider.dart.
@@ -11,10 +13,12 @@ class ConfiguracoesSistemaScreen extends ConsumerStatefulWidget {
   const ConfiguracoesSistemaScreen({super.key});
 
   @override
-  ConsumerState<ConfiguracoesSistemaScreen> createState() => _ConfiguracoesSistemaScreenState();
+  ConsumerState<ConfiguracoesSistemaScreen> createState() =>
+      _ConfiguracoesSistemaScreenState();
 }
 
-class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistemaScreen> {
+class _ConfiguracoesSistemaScreenState
+    extends ConsumerState<ConfiguracoesSistemaScreen> {
   final _ctrl = TextEditingController();
   bool _inicializado = false;
   bool _salvando = false;
@@ -45,7 +49,8 @@ class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistem
     final sessao = await ref.read(sessaoProvider.future);
     setState(() => _salvando = true);
     try {
-      await ConfiguracoesSistemaService().atualizarLogoutInatividade(minutos: minutos, atualizadoPor: sessao.email);
+      await ConfiguracoesSistemaService().atualizarLogoutInatividade(
+          minutos: minutos, atualizadoPor: sessao.email);
       ref.invalidate(configuracoesSistemaProvider);
       if (mounted) setState(() => _ok = true);
     } catch (e) {
@@ -61,7 +66,14 @@ class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistem
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurações do Sistema')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Configurações do Sistema')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -75,7 +87,8 @@ class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistem
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso restrito', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('Acesso restrito',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(height: 8),
               Text(
                 'Esta tela é exclusiva do time interno (perfil administrador). Fale com um '
@@ -111,7 +124,9 @@ class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistem
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Logout automático por inatividade', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    const Text('Logout automático por inatividade',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(height: 8),
                     const Text(
                       'Se um usuário ficar sem interagir com o sistema por esse tempo, ele é desconectado '
@@ -124,8 +139,12 @@ class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistem
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                        child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Text(_erro!,
+                            style: const TextStyle(
+                                color: Color(0xFFB91C1C), fontSize: 12)),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -153,12 +172,17 @@ class _ConfiguracoesSistemaScreenState extends ConsumerState<ConfiguracoesSistem
                     ),
                     if (_ok) ...[
                       const SizedBox(height: 8),
-                      const Text('Salvo.', style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w600)),
+                      const Text('Salvo.',
+                          style: TextStyle(
+                              color: Color(0xFF15803D),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
                     ],
                     const SizedBox(height: 12),
                     Text(
                       'Entre $logoutInatividadeMinutosMin e $logoutInatividadeMinutosMax minutos.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade500),
                     ),
                   ],
                 ),

@@ -58,7 +58,8 @@ class Motorista {
   }
 }
 
-final motoristasClienteProvider = FutureProvider.autoDispose<List<Motorista>>((ref) async {
+final motoristasClienteProvider =
+    FutureProvider.autoDispose<List<Motorista>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -72,7 +73,8 @@ final motoristasClienteProvider = FutureProvider.autoDispose<List<Motorista>>((r
   return rows.map((m) => Motorista.fromMap(m as Map<String, dynamic>)).toList();
 });
 
-final motoristaDetalheProvider = FutureProvider.autoDispose.family<Motorista?, String>((ref, id) async {
+final motoristaDetalheProvider =
+    FutureProvider.autoDispose.family<Motorista?, String>((ref, id) async {
   final lista = await ref.watch(motoristasClienteProvider.future);
   for (final m in lista) {
     if (m.id == id) return m;
@@ -80,7 +82,8 @@ final motoristaDetalheProvider = FutureProvider.autoDispose.family<Motorista?, S
   return null;
 });
 
-final centrosCustoOpcoesProvider = FutureProvider.autoDispose<List<({String id, String nome})>>((ref) async {
+final centrosCustoOpcoesProvider =
+    FutureProvider.autoDispose<List<({String id, String nome})>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];

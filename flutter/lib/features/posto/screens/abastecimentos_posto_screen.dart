@@ -25,10 +25,12 @@ class AbastecimentosPostoScreen extends ConsumerStatefulWidget {
   const AbastecimentosPostoScreen({super.key});
 
   @override
-  ConsumerState<AbastecimentosPostoScreen> createState() => _AbastecimentosPostoScreenState();
+  ConsumerState<AbastecimentosPostoScreen> createState() =>
+      _AbastecimentosPostoScreenState();
 }
 
-class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoScreen> {
+class _AbastecimentosPostoScreenState
+    extends ConsumerState<AbastecimentosPostoScreen> {
   final _service = AbastecimentosPostoService();
   final _buscaCtrl = TextEditingController();
   final _deCtrl = TextEditingController();
@@ -56,7 +58,8 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
   void _carregar() {
     final empresaId = ref.read(sessaoProvider).valueOrNull?.empresaId;
     if (empresaId == null) {
-      setState(() => _futuro = Future.value(ResultadoAbastecimentosPosto.vazio));
+      setState(
+          () => _futuro = Future.value(ResultadoAbastecimentosPosto.vazio));
       return;
     }
     setState(() {
@@ -107,29 +110,37 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
       child: FutureBuilder<ResultadoAbastecimentosPosto>(
         future: _futuro,
         builder: (context, snap) {
-          if (!snap.hasData && snap.connectionState == ConnectionState.waiting) {
+          if (!snap.hasData &&
+              snap.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: Padding(padding: EdgeInsets.only(top: 80), child: CircularProgressIndicator()),
+              child: Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: CircularProgressIndicator()),
             );
           }
           if (snap.hasError) {
             return ListView(
               padding: const EdgeInsets.all(24),
-              children: [Text('Não deu pra carregar: ${snap.error}', textAlign: TextAlign.center)],
+              children: [
+                Text('Não deu pra carregar: ${snap.error}',
+                    textAlign: TextAlign.center)
+              ],
             );
           }
           final dados = snap.data ?? ResultadoAbastecimentosPosto.vazio;
-          final precoMedio = dados.volumeTotal > 0 ? dados.receitaTotal / dados.volumeTotal : 0.0;
+          final precoMedio = dados.volumeTotal > 0
+              ? dados.receitaTotal / dados.volumeTotal
+              : 0.0;
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
-              const Text('Abastecimentos Fornecidos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Abastecimentos Fornecidos',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               const Text('Combustível que você forneceu aos seus clientes.',
                   style: TextStyle(color: Colors.grey, fontSize: 13)),
               const SizedBox(height: 16),
-
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -139,12 +150,12 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
                 mainAxisSpacing: 8,
                 children: [
                   _indicador('Abastecimentos', _numero.format(dados.total)),
-                  _indicador('Volume', '${_numero.format(dados.volumeTotal.round())} L'),
+                  _indicador('Volume',
+                      '${_numero.format(dados.volumeTotal.round())} L'),
                   _indicador('Receita', _moeda.format(dados.receitaTotal)),
                   _indicador('Preço médio/L', _moeda.format(precoMedio)),
                 ],
               ),
-
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
@@ -161,7 +172,6 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
                     }),
                 ],
               ),
-
               if (dados.provedoresOpcoes.length > 1) ...[
                 const SizedBox(height: 12),
                 Wrap(
@@ -180,18 +190,21 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
                   ],
                 ),
               ],
-
               const SizedBox(height: 16),
               if (dados.clientesOpcoes.length > 1)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: DropdownButtonFormField<String>(
                     value: _clienteId,
-                    decoration:
-                        const InputDecoration(labelText: 'Cliente', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Cliente',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Todos os clientes')),
-                      for (final c in dados.clientesOpcoes) DropdownMenuItem(value: c.id, child: Text(c.nome)),
+                      const DropdownMenuItem(
+                          value: null, child: Text('Todos os clientes')),
+                      for (final c in dados.clientesOpcoes)
+                        DropdownMenuItem(value: c.id, child: Text(c.nome)),
                     ],
                     onChanged: (v) {
                       _clienteId = v;
@@ -216,8 +229,10 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
                       controller: _deCtrl,
                       readOnly: true,
                       onTap: () => _selecionarData(_deCtrl),
-                      decoration:
-                          const InputDecoration(labelText: 'De', border: OutlineInputBorder(), isDense: true),
+                      decoration: const InputDecoration(
+                          labelText: 'De',
+                          border: OutlineInputBorder(),
+                          isDense: true),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -226,8 +241,10 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
                       controller: _ateCtrl,
                       readOnly: true,
                       onTap: () => _selecionarData(_ateCtrl),
-                      decoration:
-                          const InputDecoration(labelText: 'Até', border: OutlineInputBorder(), isDense: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Até',
+                          border: OutlineInputBorder(),
+                          isDense: true),
                     ),
                   ),
                 ],
@@ -235,9 +252,9 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(onPressed: _carregar, child: const Text('Filtrar')),
+                child: OutlinedButton(
+                    onPressed: _carregar, child: const Text('Filtrar')),
               ),
-
               const SizedBox(height: 16),
               if (dados.registros.isEmpty)
                 Card(
@@ -251,7 +268,6 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
                 )
               else
                 ...dados.registros.map((r) => _linhaRegistro(r, dados)),
-
               if (dados.total > dados.registros.length) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -268,7 +284,8 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
     );
   }
 
-  Widget _linhaRegistro(RegistroAbastecimentoPosto r, ResultadoAbastecimentosPosto dados) {
+  Widget _linhaRegistro(
+      RegistroAbastecimentoPosto r, ResultadoAbastecimentosPosto dados) {
     String? nomeCliente;
     if (r.empresaId != null) {
       for (final c in dados.clientesOpcoes) {
@@ -288,48 +305,58 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
       child: InkWell(
         onTap: () => context.push('/posto/abastecimentos/${r.chave}'),
         child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (ajustePendente)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 6),
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (ajustePendente)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: const BoxDecoration(
+                          color: Colors.red, shape: BoxShape.circle),
+                    ),
+                  Expanded(
+                    child: Text(
+                      r.codigoAbastecimento ?? '—',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
                   ),
-                Expanded(
-                  child: Text(
-                    r.codigoAbastecimento ?? '—',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ),
-                _badgeProvedor(r.provedor),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(_fmtDataHora(r.dataAbastecimento), style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(nomeCliente ?? '—', style: const TextStyle(fontSize: 13)),
-            Text(
-              '${r.placa ?? '—'} · ${r.motoristaNome ?? '—'}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 6),
-            Text('${r.produto ?? '—'} · ${_numero.format(r.litros ?? 0)} L · ${_moeda.format(r.valorTotal ?? 0)}'),
-            const SizedBox(height: 6),
-            if (temNota)
-              _badgeTexto('Emitida${numeroNf != null ? ' · Nº $numeroNf' : ''}', const Color(0xFFDCFCE7), const Color(0xFF15803D))
-            else if (motivoPendencia != null) ...[
-              _badgeTexto('Rejeitada', const Color(0xFFFEE2E2), const Color(0xFFB91C1C)),
+                  _badgeProvedor(r.provedor),
+                ],
+              ),
               const SizedBox(height: 4),
-              Text(motivoPendencia, style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C))),
-            ] else
-              _badgeTexto('Pendente', const Color(0xFFFEF3C7), const Color(0xFF92400E)),
-          ],
-        ),
+              Text(_fmtDataHora(r.dataAbastecimento),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(nomeCliente ?? '—', style: const TextStyle(fontSize: 13)),
+              Text(
+                '${r.placa ?? '—'} · ${r.motoristaNome ?? '—'}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                  '${r.produto ?? '—'} · ${_numero.format(r.litros ?? 0)} L · ${_moeda.format(r.valorTotal ?? 0)}'),
+              const SizedBox(height: 6),
+              if (temNota)
+                _badgeTexto(
+                    'Emitida${numeroNf != null ? ' · Nº $numeroNf' : ''}',
+                    const Color(0xFFDCFCE7),
+                    const Color(0xFF15803D))
+              else if (motivoPendencia != null) ...[
+                _badgeTexto('Rejeitada', const Color(0xFFFEE2E2),
+                    const Color(0xFFB91C1C)),
+                const SizedBox(height: 4),
+                Text(motivoPendencia,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFFB91C1C))),
+              ] else
+                _badgeTexto('Pendente', const Color(0xFFFEF3C7),
+                    const Color(0xFF92400E)),
+            ],
+          ),
         ),
       ),
     );
@@ -349,8 +376,11 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
 
   Widget _badgeTexto(String texto, Color fundo, Color corTexto) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(12)),
-        child: Text(texto, style: TextStyle(fontSize: 11, color: corTexto, fontWeight: FontWeight.w600)),
+        decoration: BoxDecoration(
+            color: fundo, borderRadius: BorderRadius.circular(12)),
+        child: Text(texto,
+            style: TextStyle(
+                fontSize: 11, color: corTexto, fontWeight: FontWeight.w600)),
       );
 
   Widget _indicador(String label, String valor) => Card(
@@ -360,15 +390,23 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(label,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
-              Text(valor, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(valor,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
       );
 
-  Widget _chip(String label, bool selecionado, VoidCallback onTap) => ChoiceChip(
+  Widget _chip(String label, bool selecionado, VoidCallback onTap) =>
+      ChoiceChip(
         label: Text(label, style: const TextStyle(fontSize: 12)),
         selected: selecionado,
         onSelected: (_) => onTap(),

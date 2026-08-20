@@ -23,12 +23,17 @@ const tipoLabelAcaoSugerida = {
 // (bloqueia motorista, remove posto, cadastra regra) e não reversível com
 // um simples toque.
 const confirmacaoPorTipoAcaoSugerida = {
-  'cnh_vencida': 'Bloquear este motorista agora? O status dele vai para Inativo até você reverter manualmente.',
-  'posto_acima_media': 'Remover este posto da rede negociada agora? Ele deixa de contar como posto ativo da empresa.',
-  'hodometro_fora_padrao': 'Cadastrar esse limite de variação de hodômetro para a placa agora?',
+  'cnh_vencida':
+      'Bloquear este motorista agora? O status dele vai para Inativo até você reverter manualmente.',
+  'posto_acima_media':
+      'Remover este posto da rede negociada agora? Ele deixa de contar como posto ativo da empresa.',
+  'hodometro_fora_padrao':
+      'Cadastrar esse limite de variação de hodômetro para a placa agora?',
   'volume_tanque': 'Cadastrar esse limite de volume diário para a placa agora?',
-  'geo_distancia': 'Cadastrar esse intervalo mínimo entre abastecimentos para a placa agora?',
-  'preco_regiao': 'Marcar todos os abastecimentos com preço fora da média desta placa como revisados?',
+  'geo_distancia':
+      'Cadastrar esse intervalo mínimo entre abastecimentos para a placa agora?',
+  'preco_regiao':
+      'Marcar todos os abastecimentos com preço fora da média desta placa como revisados?',
   'posto_nao_autorizado':
       'Confirmar esta ação agora? Se a restrição automática estiver ligada, o veículo fica bloqueado até você liberar manualmente.',
 };
@@ -89,17 +94,21 @@ class FiltrosAcoesSugeridas {
   // alvo (posto, placa ou motorista, dependendo do tipo da ação). Mesmo
   // campo usado na web (acoes-sugeridas/page.tsx).
   final String? busca;
-  const FiltrosAcoesSugeridas({this.tipo, this.status = 'pendentes', this.busca});
+  const FiltrosAcoesSugeridas(
+      {this.tipo, this.status = 'pendentes', this.busca});
 
   @override
   bool operator ==(Object other) =>
-      other is FiltrosAcoesSugeridas && other.tipo == tipo && other.status == status && other.busca == busca;
+      other is FiltrosAcoesSugeridas &&
+      other.tipo == tipo &&
+      other.status == status &&
+      other.busca == busca;
   @override
   int get hashCode => Object.hash(tipo, status, busca);
 }
 
-final acoesSugeridasProvider =
-    FutureProvider.autoDispose.family<List<AcaoSugerida>, FiltrosAcoesSugeridas>((ref, filtros) async {
+final acoesSugeridasProvider = FutureProvider.autoDispose
+    .family<List<AcaoSugerida>, FiltrosAcoesSugeridas>((ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -114,22 +123,31 @@ final acoesSugeridasProvider =
   if (filtros.status == 'pendentes') query = query.eq('status', 'pendente');
   if (filtros.status == 'decididas') query = query.neq('status', 'pendente');
   final busca = filtros.busca?.trim();
-  if (busca != null && busca.isNotEmpty) query = query.ilike('alvo_label', '%$busca%');
+  if (busca != null && busca.isNotEmpty)
+    query = query.ilike('alvo_label', '%$busca%');
 
-  final rows = await query.order('severidade', ascending: true).order('criado_em', ascending: false).limit(100);
-  return (rows as List).map((m) => AcaoSugerida.fromMap(m as Map<String, dynamic>)).toList();
+  final rows = await query
+      .order('severidade', ascending: true)
+      .order('criado_em', ascending: false)
+      .limit(100);
+  return (rows as List)
+      .map((m) => AcaoSugerida.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 class KpisAcoesSugeridas {
   final int pendentes;
   final int criticasPendentes;
-  const KpisAcoesSugeridas({required this.pendentes, required this.criticasPendentes});
+  const KpisAcoesSugeridas(
+      {required this.pendentes, required this.criticasPendentes});
 }
 
-final kpisAcoesSugeridasProvider = FutureProvider.autoDispose<KpisAcoesSugeridas>((ref) async {
+final kpisAcoesSugeridasProvider =
+    FutureProvider.autoDispose<KpisAcoesSugeridas>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
-  if (empresaId == null) return const KpisAcoesSugeridas(pendentes: 0, criticasPendentes: 0);
+  if (empresaId == null)
+    return const KpisAcoesSugeridas(pendentes: 0, criticasPendentes: 0);
 
   final rows = await SupabaseService.client
       .from('acoes_sugeridas')
@@ -137,6 +155,9 @@ final kpisAcoesSugeridasProvider = FutureProvider.autoDispose<KpisAcoesSugeridas
       .eq('empresa_id', empresaId)
       .eq('status', 'pendente') as List;
 
-  final criticas = rows.where((r) => (r as Map<String, dynamic>)['severidade'] == 'critica').length;
-  return KpisAcoesSugeridas(pendentes: rows.length, criticasPendentes: criticas);
+  final criticas = rows
+      .where((r) => (r as Map<String, dynamic>)['severidade'] == 'critica')
+      .length;
+  return KpisAcoesSugeridas(
+      pendentes: rows.length, criticasPendentes: criticas);
 });

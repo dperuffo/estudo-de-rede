@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/grupo_economico_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Grupo Econômico (cliente): ver escopo (por que é só
 // leitura) no comentário de grupo_economico_provider.dart.
 class GrupoEconomicoScreen extends ConsumerWidget {
@@ -12,7 +14,14 @@ class GrupoEconomicoScreen extends ConsumerWidget {
     final async = ref.watch(grupoEconomicoClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Grupo Econômico')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Grupo Econômico')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
@@ -52,25 +61,33 @@ class GrupoEconomicoScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(g.nome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      child: Text(g.nome,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (g.ativo ? const Color(0xFF15803D) : Colors.grey).withOpacity(0.1),
+                        color: (g.ativo ? const Color(0xFF15803D) : Colors.grey)
+                            .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(g.ativo ? 'Ativo' : 'Inativo',
                           style: TextStyle(
                               fontSize: 11,
-                              color: g.ativo ? const Color(0xFF15803D) : Colors.grey.shade700,
+                              color: g.ativo
+                                  ? const Color(0xFF15803D)
+                                  : Colors.grey.shade700,
                               fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
                 if (g.cnpjMatriz != null && g.cnpjMatriz!.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text('CNPJ matriz: ${g.cnpjMatriz}', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                  Text('CNPJ matriz: ${g.cnpjMatriz}',
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade700)),
                 ],
               ],
             ),
@@ -84,7 +101,8 @@ class GrupoEconomicoScreen extends ConsumerWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Nenhuma empresa vinculada.', style: TextStyle(color: Colors.grey.shade600)),
+              child: Text('Nenhuma empresa vinculada.',
+                  style: TextStyle(color: Colors.grey.shade600)),
             ),
           )
         else
@@ -92,7 +110,9 @@ class GrupoEconomicoScreen extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: const Icon(Icons.business_outlined),
-                  title: Text(v.nome, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  title: Text(v.nome,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
               )),
         const SizedBox(height: 12),

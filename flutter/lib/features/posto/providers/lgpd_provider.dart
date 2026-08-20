@@ -69,9 +69,11 @@ class ConsentimentoLgpd {
   final String? ip;
   final String timestamp;
 
-  const ConsentimentoLgpd({required this.id, required this.tipo, this.ip, required this.timestamp});
+  const ConsentimentoLgpd(
+      {required this.id, required this.tipo, this.ip, required this.timestamp});
 
-  factory ConsentimentoLgpd.fromMap(Map<String, dynamic> m) => ConsentimentoLgpd(
+  factory ConsentimentoLgpd.fromMap(Map<String, dynamic> m) =>
+      ConsentimentoLgpd(
         id: m['id'].toString(),
         tipo: m['tipo'] as String? ?? '',
         ip: m['ip'] as String?,
@@ -124,7 +126,8 @@ final lgpdProvider = FutureProvider.autoDispose<LgpdDetalhe>((ref) async {
 
   final dadosRaw = await supabase
       .from('usuarios_app')
-      .select('nome, email, cpf, telefone, empresa_nome, perfil, mfa_habilitado, created_at')
+      .select(
+          'nome, email, cpf, telefone, empresa_nome, perfil, mfa_habilitado, created_at')
       .eq('email', email)
       .maybeSingle();
   final dados = dadosRaw == null ? null : DadosCadastrais.fromMap(dadosRaw);
@@ -134,15 +137,18 @@ final lgpdProvider = FutureProvider.autoDispose<LgpdDetalhe>((ref) async {
       .select('id, tipo, ip, timestamp')
       .eq('email', email)
       .order('timestamp', ascending: false) as List;
-  final consentimentos =
-      consentimentosRaw.map((m) => ConsentimentoLgpd.fromMap(m as Map<String, dynamic>)).toList();
+  final consentimentos = consentimentosRaw
+      .map((m) => ConsentimentoLgpd.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   final exclusoesRaw = await supabase
       .from('lgpd_exclusoes')
       .select('id, empresa_id, status, solicitado_em, executado_em')
       .eq('email', email)
       .order('solicitado_em', ascending: false) as List;
-  final exclusoes = exclusoesRaw.map((m) => ExclusaoLgpd.fromMap(m as Map<String, dynamic>)).toList();
+  final exclusoes = exclusoesRaw
+      .map((m) => ExclusaoLgpd.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   var empresasVinculadas = <({String id, String nome})>[];
   if (sessao.empresasIds.isNotEmpty) {

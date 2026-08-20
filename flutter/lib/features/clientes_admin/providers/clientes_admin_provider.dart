@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../clientes/providers/cliente_cadastro_provider.dart' show ClienteCadastro;
+import '../../clientes/providers/cliente_cadastro_provider.dart'
+    show ClienteCadastro;
 
 // Fase FLT-4 — Clientes (admin, consolidado — menu "Cadastros" da web),
 // porta de clientes/page.tsx. Achado ao ler o Next.js: igual a
@@ -29,10 +30,12 @@ class KpisClientesAdmin {
   final int total;
   final int ativos;
   final int outros;
-  const KpisClientesAdmin({required this.total, required this.ativos, required this.outros});
+  const KpisClientesAdmin(
+      {required this.total, required this.ativos, required this.outros});
 }
 
-final clientesAdminListaProvider = FutureProvider.autoDispose.family<List<ClienteCadastro>, String>((ref, busca) async {
+final clientesAdminListaProvider = FutureProvider.autoDispose
+    .family<List<ClienteCadastro>, String>((ref, busca) async {
   var query = SupabaseService.client
       .from('empresas')
       .select(
@@ -45,18 +48,24 @@ final clientesAdminListaProvider = FutureProvider.autoDispose.family<List<Client
   }
 
   final rows = await query.order('nome') as List;
-  return rows.map((m) => ClienteCadastro.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => ClienteCadastro.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
-final kpisClientesAdminProvider = FutureProvider.autoDispose<KpisClientesAdmin>((ref) async {
+final kpisClientesAdminProvider =
+    FutureProvider.autoDispose<KpisClientesAdmin>((ref) async {
   final supabase = SupabaseService.client;
-  final totalResp = await supabase.from('empresas').select('id').eq('segmento', 'Frota').count(CountOption.exact);
+  final totalResp = await supabase
+      .from('empresas')
+      .select('id')
+      .eq('segmento', 'Frota')
+      .count(CountOption.exact);
   final ativosResp = await supabase
       .from('empresas')
       .select('id')
       .eq('segmento', 'Frota')
-      .inFilter('status', ['ativo', 'trial'])
-      .count(CountOption.exact);
+      .inFilter('status', ['ativo', 'trial']).count(CountOption.exact);
   return KpisClientesAdmin(
     total: totalResp.count,
     ativos: ativosResp.count,

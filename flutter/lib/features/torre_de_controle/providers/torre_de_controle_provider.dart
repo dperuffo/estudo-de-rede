@@ -50,14 +50,19 @@ class FreteAndamento {
         nomeMotorista: m['nome_motorista'] as String?,
         telefoneMotorista: m['telefone_motorista'] as String?,
         criadoEm: DateTime.parse(m['criado_em'] as String),
-        prazoLimite: m['prazo_limite'] != null ? DateTime.parse(m['prazo_limite'] as String) : null,
+        prazoLimite: m['prazo_limite'] != null
+            ? DateTime.parse(m['prazo_limite'] as String)
+            : null,
         ultimoEventoTipo: m['ultimo_evento_tipo'] as String?,
-        ultimoEventoEm: m['ultimo_evento_em'] != null ? DateTime.parse(m['ultimo_evento_em'] as String) : null,
+        ultimoEventoEm: m['ultimo_evento_em'] != null
+            ? DateTime.parse(m['ultimo_evento_em'] as String)
+            : null,
         ultimoEventoObservacao: m['ultimo_evento_observacao'] as String?,
         tevePanico: (m['teve_panico'] as bool?) ?? false,
       );
 
-  bool get atrasado => prazoLimite != null && prazoLimite!.isBefore(DateTime.now());
+  bool get atrasado =>
+      prazoLimite != null && prazoLimite!.isBefore(DateTime.now());
 
   bool get vencendoEmBreve {
     if (atrasado || prazoLimite == null) return false;
@@ -65,14 +70,18 @@ class FreteAndamento {
   }
 }
 
-final torreDeControleProvider = FutureProvider.autoDispose<List<FreteAndamento>>((ref) async {
+final torreDeControleProvider =
+    FutureProvider.autoDispose<List<FreteAndamento>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('fretes_em_andamento_empresa', params: {
+  final rows =
+      await SupabaseService.client.rpc('fretes_em_andamento_empresa', params: {
     'p_empresa_id': empresaId,
   }) as List;
-  return rows.map((r) => FreteAndamento.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => FreteAndamento.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Fase Grupo 2 (Rodopar/Datapar, item 4, 03/08/2026) — mapa ao vivo,
@@ -107,7 +116,8 @@ class PosicaoVeiculo {
       );
 }
 
-final posicoesVeiculosProvider = FutureProvider.autoDispose<List<PosicaoVeiculo>>((ref) async {
+final posicoesVeiculosProvider =
+    FutureProvider.autoDispose<List<PosicaoVeiculo>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];

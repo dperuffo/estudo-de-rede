@@ -38,7 +38,9 @@ class AbaVisaoGeral extends ConsumerWidget {
       onRefresh: () async => ref.invalidate(dashboardClienteProvider),
       child: dadosAsync.when(
         loading: () => const Center(
-          child: Padding(padding: EdgeInsets.only(top: 80), child: CircularProgressIndicator()),
+          child: Padding(
+              padding: EdgeInsets.only(top: 80),
+              child: CircularProgressIndicator()),
         ),
         error: (e, _) => ListView(
           padding: const EdgeInsets.all(24),
@@ -46,34 +48,40 @@ class AbaVisaoGeral extends ConsumerWidget {
             const SizedBox(height: 40),
             const Icon(Icons.error_outline, size: 40, color: Colors.red),
             const SizedBox(height: 12),
-            Text('Não deu pra carregar o painel.\n$e', textAlign: TextAlign.center),
+            Text('Não deu pra carregar o painel.\n$e',
+                textAlign: TextAlign.center),
           ],
         ),
         data: (dados) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             Text(
-              sessao?.nomeEmpresa != null ? 'Dashboard — ${sessao!.nomeEmpresa}' : 'Dashboard',
+              sessao?.nomeEmpresa != null
+                  ? 'Dashboard — ${sessao!.nomeEmpresa}'
+                  : 'Dashboard',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
-            const Text('Visão geral da frota.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const Text('Visão geral da frota.',
+                style: TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 20),
-
             if (dados.mostrarPrimeirosPassos) ...[
               _cardPrimeirosPassos(context, dados),
               const SizedBox(height: 20),
             ],
-
             _gradeIndicadores([
-              _Indicador('Clientes ativos', '${dados.clientesAtivos}', 'de ${dados.totalClientes}'),
-              _Indicador('Motoristas ativos', '${dados.motoristasAtivos}', 'de ${dados.totalMotoristas}'),
-              _Indicador('Veículos ativos', '${dados.veiculosAtivos}', 'de ${dados.totalVeiculos}'),
-              _Indicador('Litros no mês', _numero.format(dados.litrosMes.round()), null),
+              _Indicador('Clientes ativos', '${dados.clientesAtivos}',
+                  'de ${dados.totalClientes}'),
+              _Indicador('Motoristas ativos', '${dados.motoristasAtivos}',
+                  'de ${dados.totalMotoristas}'),
+              _Indicador('Veículos ativos', '${dados.veiculosAtivos}',
+                  'de ${dados.totalVeiculos}'),
+              _Indicador('Litros no mês',
+                  _numero.format(dados.litrosMes.round()), null),
               _Indicador('Valor no mês', _moeda.format(dados.valorMes), null),
-              _Indicador('Custo médio/litro', _moeda.format(dados.custoMedioLitroMes), null),
+              _Indicador('Custo médio/litro',
+                  _moeda.format(dados.custoMedioLitroMes), null),
             ]),
-
             if (dados.provedoresMes.isNotEmpty) ...[
               const SizedBox(height: 20),
               _tituloSecao('Meios de pagamento no mês'),
@@ -81,20 +89,21 @@ class AbaVisaoGeral extends ConsumerWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: dados.provedoresMes
-                    .map((p) => Chip(label: Text('${p.provedor} · ${_moeda.format(p.valor)}')))
+                    .map((p) => Chip(
+                        label:
+                            Text('${p.provedor} · ${_moeda.format(p.valor)}')))
                     .toList(),
               ),
             ],
-
             if (dados.resumoAjustes != null) ...[
               const SizedBox(height: 20),
               _secaoAjustes(context, dados.resumoAjustes!),
             ],
-
             const SizedBox(height: 20),
             _tituloSecao('Consumo e gasto — últimos 6 meses'),
             if (dados.serieConsumo.every((p) => p.litros == 0))
-              _cardVazio('Ainda não há abastecimentos suficientes para o gráfico.')
+              _cardVazio(
+                  'Ainda não há abastecimentos suficientes para o gráfico.')
             else
               Card(
                 child: Padding(
@@ -102,7 +111,6 @@ class AbaVisaoGeral extends ConsumerWidget {
                   child: _graficoConsumo(dados.serieConsumo),
                 ),
               ),
-
             const SizedBox(height: 20),
             _tituloSecao('CNH vencendo em 30 dias'),
             if (dados.cnhVencendo.isEmpty)
@@ -115,19 +123,22 @@ class AbaVisaoGeral extends ConsumerWidget {
                             dense: true,
                             title: Text(m.nome),
                             trailing: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFB45309).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(_formatarData(m.vencimento),
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFFB45309), fontWeight: FontWeight.w600)),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFFB45309),
+                                      fontWeight: FontWeight.w600)),
                             ),
                           ))
                       .toList(),
                 ),
               ),
-
             const SizedBox(height: 20),
             _tituloSecao('Top 5 clientes por gasto (últimos 6 meses)'),
             if (dados.topClientes.isEmpty)
@@ -139,17 +150,17 @@ class AbaVisaoGeral extends ConsumerWidget {
                       .map((c) => ListTile(
                             dense: true,
                             title: Text(c.nome),
-                            trailing: Text(_moeda.format(c.valor), style: const TextStyle(fontWeight: FontWeight.w600)),
+                            trailing: Text(_moeda.format(c.valor),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
                           ))
                       .toList(),
                 ),
               ),
-
             if (dados.centroCusto != null) ...[
               const SizedBox(height: 20),
               _secaoCentroCusto(dados.centroCusto!),
             ],
-
             if (dados.manutencao != null) ...[
               const SizedBox(height: 20),
               _secaoManutencao(context, dados.manutencao!),
@@ -162,7 +173,8 @@ class AbaVisaoGeral extends ConsumerWidget {
 
   // Primeiros passos — porta PrimeirosPassos.tsx. Some sozinho quando
   // veículos e motoristas já estão cadastrados (dados.mostrarPrimeirosPassos).
-  Widget _cardPrimeirosPassos(BuildContext context, DashboardClienteDados dados) {
+  Widget _cardPrimeirosPassos(
+      BuildContext context, DashboardClienteDados dados) {
     final veiculosOk = dados.totalVeiculos > 0;
     final motoristasOk = dados.totalMotoristas > 0;
     final postosOk = dados.totalPostosProprios > 0;
@@ -178,24 +190,35 @@ class AbaVisaoGeral extends ConsumerWidget {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(8)),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 2, right: 8),
-              child: Opacity(opacity: feito ? 1 : 0.4, child: Text(feito ? '✅' : '⬜', style: const TextStyle(fontSize: 16))),
+              child: Opacity(
+                  opacity: feito ? 1 : 0.4,
+                  child: Text(feito ? '✅' : '⬜',
+                      style: const TextStyle(fontSize: 16))),
             ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text.rich(TextSpan(children: [
-                    TextSpan(text: titulo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    if (opcional) const TextSpan(text: '  (opcional)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    TextSpan(
+                        text: titulo,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    if (opcional)
+                      const TextSpan(
+                          text: '  (opcional)',
+                          style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ])),
                   const SizedBox(height: 2),
-                  Text(descricao, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Text(descricao,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
               ),
             ),
@@ -203,7 +226,11 @@ class AbaVisaoGeral extends ConsumerWidget {
               const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: () => context.push(href),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                style: OutlinedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                 child: Text(textoAcao, style: const TextStyle(fontSize: 11)),
               ),
             ],
@@ -219,7 +246,8 @@ class AbaVisaoGeral extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('🚀 Primeiros passos na plataforma', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            const Text('🚀 Primeiros passos na plataforma',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             const Text(
               'O essencial pra começar a operar. Você já pode consultar rotas e preços de combustível agora mesmo — não precisa esperar terminar esta lista.',
@@ -274,9 +302,18 @@ class AbaVisaoGeral extends ConsumerWidget {
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           children: [
-            CartaoIndicador(label: 'Pendentes de resposta', valor: '${resumo.pendentes}', mini: true),
-            CartaoIndicador(label: 'Aceitos no período', valor: '${resumo.aceitosNoPeriodo}', mini: true),
-            CartaoIndicador(label: 'Impacto financeiro', valor: _moeda.format(resumo.impactoFinanceiro), mini: true),
+            CartaoIndicador(
+                label: 'Pendentes de resposta',
+                valor: '${resumo.pendentes}',
+                mini: true),
+            CartaoIndicador(
+                label: 'Aceitos no período',
+                valor: '${resumo.aceitosNoPeriodo}',
+                mini: true),
+            CartaoIndicador(
+                label: 'Impacto financeiro',
+                valor: _moeda.format(resumo.impactoFinanceiro),
+                mini: true),
           ],
         ),
         const SizedBox(height: 10),
@@ -285,23 +322,32 @@ class AbaVisaoGeral extends ConsumerWidget {
             children: [
               const Padding(
                 padding: EdgeInsets.fromLTRB(12, 10, 12, 6),
-                child: Align(alignment: Alignment.centerLeft, child: Text('Últimos ajustes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+                child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Últimos ajustes',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700))),
               ),
               if (resumo.ultimos.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(20),
-                  child: Text('Nenhum ajuste registrado ainda.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  child: Text('Nenhum ajuste registrado ainda.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
                 )
               else
                 ...resumo.ultimos.map((a) => ListTile(
                       dense: true,
-                      title: Text('#${a.abastecimentoId} · ${a.origem == 'cliente' ? 'Cliente' : 'Posto'}'),
-                      subtitle: Text('${statusAjusteLabel[a.status] ?? a.status} · ${_formatarData(a.atualizadoEm)}',
+                      title: Text(
+                          '#${a.abastecimentoId} · ${a.origem == 'cliente' ? 'Cliente' : 'Posto'}'),
+                      subtitle: Text(
+                          '${statusAjusteLabel[a.status] ?? a.status} · ${_formatarData(a.atualizadoEm)}',
                           style: const TextStyle(fontSize: 11)),
                       trailing: a.chaveRota != null
                           ? TextButton(
-                              onPressed: () => context.push('/abastecimentos/${a.chaveRota}'),
-                              child: const Text('Ver', style: TextStyle(fontSize: 12)),
+                              onPressed: () => context
+                                  .push('/abastecimentos/${a.chaveRota}'),
+                              child: const Text('Ver',
+                                  style: TextStyle(fontSize: 12)),
                             )
                           : null,
                     )),
@@ -330,9 +376,18 @@ class AbaVisaoGeral extends ConsumerWidget {
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
             children: [
-              CartaoIndicador(label: 'Veículos alocados', valor: '${centro.totalVeiculos}', mini: true),
-              CartaoIndicador(label: 'Custo abastecimento', valor: _moeda.format(centro.totalAbastecimento), mini: true),
-              CartaoIndicador(label: 'Custo manutenção', valor: _moeda.format(centro.totalManutencao), mini: true),
+              CartaoIndicador(
+                  label: 'Veículos alocados',
+                  valor: '${centro.totalVeiculos}',
+                  mini: true),
+              CartaoIndicador(
+                  label: 'Custo abastecimento',
+                  valor: _moeda.format(centro.totalAbastecimento),
+                  mini: true),
+              CartaoIndicador(
+                  label: 'Custo manutenção',
+                  valor: _moeda.format(centro.totalManutencao),
+                  mini: true),
             ],
           ),
           const SizedBox(height: 10),
@@ -340,7 +395,14 @@ class AbaVisaoGeral extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: TabelaSimples(
-                colunas: const ['Centro de custo', 'Veíc.', 'Abastec.', 'Manut.', 'R\$/km', 'km/l'],
+                colunas: const [
+                  'Centro de custo',
+                  'Veíc.',
+                  'Abastec.',
+                  'Manut.',
+                  'R\$/km',
+                  'km/l'
+                ],
                 flexColunas: const [3, 1, 2, 2, 2, 2],
                 linhas: centro.linhas
                     .map((c) => [
@@ -348,8 +410,12 @@ class AbaVisaoGeral extends ConsumerWidget {
                           '${c.qtdVeiculos}',
                           _moeda.format(c.custoAbastecimento),
                           _moeda.format(c.custoManutencao),
-                          c.custoPorKm != null ? 'R\$ ${c.custoPorKm!.toStringAsFixed(3)}' : '—',
-                          c.consumoMedio != null ? c.consumoMedio!.toStringAsFixed(2) : '—',
+                          c.custoPorKm != null
+                              ? 'R\$ ${c.custoPorKm!.toStringAsFixed(3)}'
+                              : '—',
+                          c.consumoMedio != null
+                              ? c.consumoMedio!.toStringAsFixed(2)
+                              : '—',
                         ])
                     .toList(),
                 maxHeight: 260,
@@ -373,7 +439,8 @@ class AbaVisaoGeral extends ConsumerWidget {
             _tituloSecao('Manutenção preditiva'),
             TextButton(
               onPressed: () => context.push('/manutencao-preditiva'),
-              child: const Text('Ver frota completa →', style: TextStyle(fontSize: 12)),
+              child: const Text('Ver frota completa →',
+                  style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
@@ -400,10 +467,18 @@ class AbaVisaoGeral extends ConsumerWidget {
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           children: [
-            CartaoIndicador(label: 'Veículos analisados', valor: '${m.totalVeiculos}', mini: true),
-            CartaoIndicador(label: '🔴 Críticos', valor: '${m.totalCriticos}', mini: true),
-            CartaoIndicador(label: '🟡 Em alerta', valor: '${m.totalAlertas}', mini: true),
-            CartaoIndicador(label: 'Score médio', valor: '${m.scoreMedio.round()}/100', mini: true),
+            CartaoIndicador(
+                label: 'Veículos analisados',
+                valor: '${m.totalVeiculos}',
+                mini: true),
+            CartaoIndicador(
+                label: '🔴 Críticos', valor: '${m.totalCriticos}', mini: true),
+            CartaoIndicador(
+                label: '🟡 Em alerta', valor: '${m.totalAlertas}', mini: true),
+            CartaoIndicador(
+                label: 'Score médio',
+                valor: '${m.scoreMedio.round()}/100',
+                mini: true),
           ],
         ),
       ],
@@ -414,7 +489,8 @@ class AbaVisaoGeral extends ConsumerWidget {
   // (litros à esquerda, valor à direita). Simplificado aqui pra 1 eixo
   // (litros, o principal) + valor exposto no tooltip e no total abaixo.
   Widget _graficoConsumo(List<PontoConsumoMensal> pontos) {
-    final maxLitros = pontos.map((p) => p.litros).fold<double>(0, (a, b) => a > b ? a : b);
+    final maxLitros =
+        pontos.map((p) => p.litros).fold<double>(0, (a, b) => a > b ? a : b);
     final valorTotal = pontos.fold<double>(0, (s, p) => s + p.valor);
     // Achado real (Daniel, print do Dashboard): sem `interval` explícito, o
     // fl_chart às vezes escolhe um intervalo de grade que cai muito perto do
@@ -440,24 +516,29 @@ class AbaVisaoGeral extends ConsumerWidget {
                   end: Alignment.topCenter,
                 ),
                 width: 18,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(4)),
               ),
             ]);
           }).toList(),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(
+            leftTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 44,
               interval: intervaloY,
-              getTitlesWidget: (v, _) => Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)),
+              getTitlesWidget: (v, _) => Text(_numero.format(v.round()),
+                  style: const TextStyle(fontSize: 9)),
             )),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(
+            bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
               getTitlesWidget: (v, _) {
                 final idx = v.toInt();
                 if (idx < 0 || idx >= pontos.length) return const SizedBox();
-                return Text(pontos[idx].mesLabel, style: const TextStyle(fontSize: 10));
+                return Text(pontos[idx].mesLabel,
+                    style: const TextStyle(fontSize: 10));
               },
             )),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -467,7 +548,8 @@ class AbaVisaoGeral extends ConsumerWidget {
           gridData: FlGridData(
             drawVerticalLine: false,
             horizontalInterval: intervaloY,
-            getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
@@ -476,7 +558,10 @@ class AbaVisaoGeral extends ConsumerWidget {
                 final p = pontos[group.x];
                 return BarTooltipItem(
                   '${_numero.format(p.litros.round())} L\n${_moeda.format(p.valor)}',
-                  const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
                 );
               },
             ),
@@ -493,14 +578,16 @@ class AbaVisaoGeral extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(
           texto.toUpperCase(),
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
         ),
       );
 
   Widget _cardVazio(String texto) => Card(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Center(child: Text(texto, style: const TextStyle(color: Colors.grey))),
+          child: Center(
+              child: Text(texto, style: const TextStyle(color: Colors.grey))),
         ),
       );
 
@@ -520,17 +607,20 @@ class AbaVisaoGeral extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(i.label,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
                         Text(i.valor,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         if (i.sub != null)
                           Text(i.sub!,
-                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              style: const TextStyle(
+                                  fontSize: 10, color: Colors.grey),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis),
                       ],

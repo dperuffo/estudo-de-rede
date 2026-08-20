@@ -11,12 +11,20 @@ import '../../../core/services/supabase_service.dart';
 const documentosBucket = 'documentos-empresas';
 const documentosTamanhoMaxBytes = 5 * 1024 * 1024;
 
-const tiposDocumentoEmpresa = <String>['contrato_social', 'comprovante_endereco_empresa'];
-const tiposDocumentoSocio = <String>['socio_cpf', 'socio_identidade', 'socio_comprovante_endereco'];
+const tiposDocumentoEmpresa = <String>[
+  'contrato_social',
+  'comprovante_endereco_empresa'
+];
+const tiposDocumentoSocio = <String>[
+  'socio_cpf',
+  'socio_identidade',
+  'socio_comprovante_endereco'
+];
 
 const labelTipoDocumento = <String, String>{
   'contrato_social': 'Contrato Social ou Estatuto (com quadro societário)',
-  'comprovante_endereco_empresa': 'Comprovante de endereço da empresa (IPTU, conta de consumo...)',
+  'comprovante_endereco_empresa':
+      'Comprovante de endereço da empresa (IPTU, conta de consumo...)',
   'socio_cpf': 'CPF',
   'socio_identidade': 'RG ou CNH',
   'socio_comprovante_endereco': 'Comprovante de endereço',
@@ -38,7 +46,8 @@ String formatarTamanhoArquivo(int? bytes) {
 
 // Espelha caminhoStorage (empresasDocumentos.ts): {empresa_id}/{tipo}.{ext}
 // pra doc de empresa, {empresa_id}/{tipo}-{socio_id}.{ext} pra doc de sócio.
-String caminhoStorage(String empresaId, String tipo, String? socioId, String nomeOriginal) {
+String caminhoStorage(
+    String empresaId, String tipo, String? socioId, String nomeOriginal) {
   final partes = nomeOriginal.split('.');
   final ext = partes.length > 1 ? partes.last.toLowerCase() : 'bin';
   final sufixo = socioId != null ? '$tipo-$socioId' : tipo;
@@ -114,7 +123,8 @@ class SituacaoDocumentacao {
   }
 }
 
-final documentosProvider = FutureProvider.autoDispose<SituacaoDocumentacao?>((ref) async {
+final documentosProvider =
+    FutureProvider.autoDispose<SituacaoDocumentacao?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -125,19 +135,25 @@ final documentosProvider = FutureProvider.autoDispose<SituacaoDocumentacao?>((re
       .select('id, nome, cpf')
       .eq('empresa_id', empresaId)
       .order('criado_em') as List;
-  final socios = sociosRaw.map((m) => SocioEmpresa.fromMap(m as Map<String, dynamic>)).toList();
+  final socios = sociosRaw
+      .map((m) => SocioEmpresa.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   final documentosRaw = await supabase
       .from('empresas_documentos')
       .select('id, tipo, socio_id, nome_arquivo, storage_path, enviado_em')
       .eq('empresa_id', empresaId) as List;
-  final documentos = documentosRaw.map((m) => DocumentoEmpresa.fromMap(m as Map<String, dynamic>)).toList();
+  final documentos = documentosRaw
+      .map((m) => DocumentoEmpresa.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // URLs assinadas (1h) pra abrir/baixar cada documento — best-effort,
   // mesmo padrão de chamados_provider.dart (anexo de ticket).
   for (final d in documentos) {
     try {
-      d.urlAssinada = await supabase.storage.from(documentosBucket).createSignedUrl(d.storagePath, 3600);
+      d.urlAssinada = await supabase.storage
+          .from(documentosBucket)
+          .createSignedUrl(d.storagePath, 3600);
     } catch (_) {
       d.urlAssinada = null;
     }
@@ -145,7 +161,8 @@ final documentosProvider = FutureProvider.autoDispose<SituacaoDocumentacao?>((re
 
   final empresa = await supabase
       .from('empresas')
-      .select('documentacao_status, documentacao_motivo_rejeicao, documentacao_enviada_em, documentacao_revisado_em')
+      .select(
+          'documentacao_status, documentacao_motivo_rejeicao, documentacao_enviada_em, documentacao_revisado_em')
       .eq('id', empresaId)
       .maybeSingle();
 

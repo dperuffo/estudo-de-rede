@@ -19,10 +19,13 @@ class MeusDadosService {
     return t.length > max ? t.substring(0, max) : t;
   }
 
-  Future<String?> atualizarPixChave({required String empresaId, required String pixChave}) async {
+  Future<String?> atualizarPixChave(
+      {required String empresaId, required String pixChave}) async {
     final valor = _limpar(pixChave, 140);
     try {
-      await _supabase.from('empresas').update({'pix_chave': valor}).eq('id', empresaId);
+      await _supabase
+          .from('empresas')
+          .update({'pix_chave': valor}).eq('id', empresaId);
       return null;
     } catch (e) {
       return 'Não foi possível salvar a chave PIX: $e';
@@ -41,7 +44,9 @@ class MeusDadosService {
     required String titularNome,
     required String titularDocumento,
   }) async {
-    if (tipoConta.isNotEmpty && tipoConta != 'corrente' && tipoConta != 'poupanca') {
+    if (tipoConta.isNotEmpty &&
+        tipoConta != 'corrente' &&
+        tipoConta != 'poupanca') {
       return 'Tipo de conta inválido.';
     }
     try {

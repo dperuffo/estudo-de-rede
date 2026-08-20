@@ -24,7 +24,8 @@ class EmpresaVinculadaGrupo {
   final String vinculoId;
   final String empresaId;
   final String nome;
-  const EmpresaVinculadaGrupo({required this.vinculoId, required this.empresaId, required this.nome});
+  const EmpresaVinculadaGrupo(
+      {required this.vinculoId, required this.empresaId, required this.nome});
 }
 
 class GrupoEconomicoDetalhe {
@@ -42,7 +43,8 @@ class GrupoEconomicoDetalhe {
   });
 }
 
-final grupoEconomicoClienteProvider = FutureProvider.autoDispose<GrupoEconomicoDetalhe?>((ref) async {
+final grupoEconomicoClienteProvider =
+    FutureProvider.autoDispose<GrupoEconomicoDetalhe?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;

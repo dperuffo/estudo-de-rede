@@ -52,7 +52,10 @@ class OficinasService {
   // Registra o retorno da oficina (valor, prazo) que o gestor recebeu por
   // fora da plataforma — não é um "aceite" automático, só documenta a
   // cotação recebida (não existe portal pra oficina responder na v1).
-  Future<void> registrarResposta(String id, {required double valorOrcado, String? prazoExecucao, String? observacoes}) async {
+  Future<void> registrarResposta(String id,
+      {required double valorOrcado,
+      String? prazoExecucao,
+      String? observacoes}) async {
     await _supabase.from('propostas_orcamento_oficina').update({
       'valor_orcado': valorOrcado,
       'prazo_execucao': prazoExecucao,
@@ -79,7 +82,8 @@ class OficinasService {
       try {
         final proposta = await _supabase
             .from('propostas_orcamento_oficina')
-            .select('pedido_id, oficina_id, empresa_id, placa, descricao_servico, valor_orcado, oficinas_credenciadas(nome, cnpj)')
+            .select(
+                'pedido_id, oficina_id, empresa_id, placa, descricao_servico, valor_orcado, oficinas_credenciadas(nome, cnpj)')
             .eq('id', id)
             .maybeSingle();
         if (proposta == null) return;
@@ -94,7 +98,10 @@ class OficinasService {
 
           await _supabase
               .from('propostas_orcamento_oficina')
-              .update({'status': 'recusado', 'atualizado_em': DateTime.now().toIso8601String()})
+              .update({
+                'status': 'recusado',
+                'atualizado_em': DateTime.now().toIso8601String()
+              })
               .eq('pedido_id', pedidoId)
               .neq('id', id)
               .inFilter('status', ['solicitado', 'respondido']);
@@ -102,7 +109,8 @@ class OficinasService {
 
         final valorOrcado = (proposta['valor_orcado'] as num?)?.toDouble();
         if (valorOrcado == null || valorOrcado <= 0) return;
-        final oficina = proposta['oficinas_credenciadas'] as Map<String, dynamic>?;
+        final oficina =
+            proposta['oficinas_credenciadas'] as Map<String, dynamic>?;
         final placa = proposta['placa'] as String?;
         await _supabase.from('contas_pagar').insert({
           'empresa_id': proposta['empresa_id'],
@@ -110,7 +118,8 @@ class OficinasService {
           'referencia_id': id,
           'credor_nome': oficina?['nome'] as String? ?? 'Oficina credenciada',
           'credor_cnpj': oficina?['cnpj'] as String?,
-          'descricao': '${proposta['descricao_servico']}${placa != null ? ' — $placa' : ''}',
+          'descricao':
+              '${proposta['descricao_servico']}${placa != null ? ' — $placa' : ''}',
           'valor_original': valorOrcado,
           'vencimento': DateTime.now().toIso8601String().substring(0, 10),
           'criado_por': criadoPor,

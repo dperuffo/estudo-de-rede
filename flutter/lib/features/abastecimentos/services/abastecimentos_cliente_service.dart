@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../posto/services/abastecimentos_posto_service.dart' show RegistroAbastecimentoPosto, nomeProvedor;
+import '../../posto/services/abastecimentos_posto_service.dart'
+    show RegistroAbastecimentoPosto, nomeProvedor;
 
 // Fase FLT-3 — Abastecimentos (cliente), porta de abastecimentos/page.tsx
 // (lado cliente — a web desvia pro AbastecimentosPosto quando a empresa é
@@ -93,7 +94,8 @@ class AbastecimentosClienteService {
   }) async {
     try {
       final seq = await _supabase.rpc('nextval_identificador_manual');
-      if (seq == null) return 'Não foi possível gerar o identificador do lançamento manual.';
+      if (seq == null)
+        return 'Não foi possível gerar o identificador do lançamento manual.';
       final identificador = (seq as num).toInt();
 
       await _supabase.from('profrotas_abastecimentos').insert({
@@ -143,7 +145,8 @@ class AbastecimentosClienteService {
       };
       idsComAjusteAbertoExterno = {
         for (final a in ajustesAbertos)
-          if (a['abastecimento_externo_id'] != null) a['abastecimento_externo_id'] as int,
+          if (a['abastecimento_externo_id'] != null)
+            a['abastecimento_externo_id'] as int,
       };
     }
 
@@ -157,20 +160,23 @@ class AbastecimentosClienteService {
     // (indicadores_financeiros_por_provedor, já usada em Financeiro) —
     // sem limite de data, só pra descobrir todo provedor já usado por
     // este cliente.
-    final provedoresRaw = await _supabase.rpc('indicadores_financeiros_por_provedor', params: {
+    final provedoresRaw =
+        await _supabase.rpc('indicadores_financeiros_por_provedor', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': '2000-01-01',
       'p_data_fim': DateTime.now().toIso8601String().substring(0, 10),
     }) as List;
     final provedoresOpcoes = <String>{
       for (final m in provedoresRaw)
-        if ((m as Map<String, dynamic>)['provedor'] != null) m['provedor'] as String,
+        if ((m as Map<String, dynamic>)['provedor'] != null)
+          m['provedor'] as String,
     }.toList()
       ..sort((a, b) => nomeProvedor(a).compareTo(nomeProvedor(b)));
 
     PostgrestFilterBuilder<T> aplicar<T>(PostgrestFilterBuilder<T> query) {
       var q = query.eq('empresa_id', empresaId);
-      if (filtros.combustivel != null) q = q.eq('produto', filtros.combustivel!);
+      if (filtros.combustivel != null)
+        q = q.eq('produto', filtros.combustivel!);
       if (filtros.provedor != null) q = q.eq('provedor', filtros.provedor!);
       final termo = filtros.q?.trim();
       if (termo != null && termo.isNotEmpty) {
@@ -178,7 +184,8 @@ class AbastecimentosClienteService {
           'placa.ilike.%$termo%,motorista_nome.ilike.%$termo%,posto_nome.ilike.%$termo%,codigo_abastecimento.ilike.%$termo%',
         );
       }
-      if (filtros.de != null && filtros.de!.isNotEmpty) q = q.gte('data_abastecimento', filtros.de!);
+      if (filtros.de != null && filtros.de!.isNotEmpty)
+        q = q.gte('data_abastecimento', filtros.de!);
       if (filtros.ate != null && filtros.ate!.isNotEmpty) {
         q = q.lte('data_abastecimento', '${filtros.ate}T23:59:59');
       }
@@ -186,8 +193,9 @@ class AbastecimentosClienteService {
         final profrotasIds = (idsComAjusteAbertoProfrotas?.isNotEmpty ?? false)
             ? idsComAjusteAbertoProfrotas!.join(',')
             : '-1';
-        final externoIds =
-            (idsComAjusteAbertoExterno?.isNotEmpty ?? false) ? idsComAjusteAbertoExterno!.join(',') : '-1';
+        final externoIds = (idsComAjusteAbertoExterno?.isNotEmpty ?? false)
+            ? idsComAjusteAbertoExterno!.join(',')
+            : '-1';
         q = q.or(
           'and(provedor.eq.profrotas,id.in.($profrotasIds)),and(provedor.neq.profrotas,id.in.($externoIds))',
         );
@@ -196,7 +204,8 @@ class AbastecimentosClienteService {
     }
 
     final contagemResp =
-        await aplicar(_supabase.from('abastecimentos_unificado').select('id')).count(CountOption.exact);
+        await aplicar(_supabase.from('abastecimentos_unificado').select('id'))
+            .count(CountOption.exact);
     final total = contagemResp.count;
 
     // Fase FLT-3 — mesmo bug do corte de 1.000 linhas do PostgREST: Volume
@@ -207,7 +216,8 @@ class AbastecimentosClienteService {
     // pra RPC que soma direto no Postgres (abastecimentos_totais_filtrados,
     // criada no banco pra este fix), replicando os mesmos filtros desta
     // busca (combustível, provedor, texto livre, data, ajuste pendente).
-    final totaisRaw = await _supabase.rpc('abastecimentos_totais_filtrados', params: {
+    final totaisRaw =
+        await _supabase.rpc('abastecimentos_totais_filtrados', params: {
       'p_empresa_id': empresaId,
       'p_q': (filtros.q?.trim().isEmpty ?? true) ? null : filtros.q!.trim(),
       'p_de': (filtros.de?.isEmpty ?? true) ? null : filtros.de,
@@ -216,16 +226,17 @@ class AbastecimentosClienteService {
       'p_apenas_ajuste_pendente': filtros.somenteAjustePendente,
       'p_produto': filtros.combustivel,
     }) as List;
-    final totaisLinha = totaisRaw.isNotEmpty ? totaisRaw.first as Map<String, dynamic> : null;
+    final totaisLinha =
+        totaisRaw.isNotEmpty ? totaisRaw.first as Map<String, dynamic> : null;
     final volumeTotal = (totaisLinha?['litros'] as num?)?.toDouble() ?? 0;
     final receitaTotal = (totaisLinha?['valor_total'] as num?)?.toDouble() ?? 0;
 
-    final paginaRaw = await aplicar(_supabase.from('abastecimentos_unificado').select(
-          'id, provedor, codigo_abastecimento, data_abastecimento, empresa_id, placa, motorista_nome, produto, litros, valor_total, posto_nome',
-        ))
-        .order('data_abastecimento', ascending: false)
-        .limit(limite);
-    final registros = paginaRaw.map((m) => RegistroAbastecimentoPosto.fromMap(m)).toList();
+    final paginaRaw =
+        await aplicar(_supabase.from('abastecimentos_unificado').select(
+              'id, provedor, codigo_abastecimento, data_abastecimento, empresa_id, placa, motorista_nome, produto, litros, valor_total, posto_nome',
+            )).order('data_abastecimento', ascending: false).limit(limite);
+    final registros =
+        paginaRaw.map((m) => RegistroAbastecimentoPosto.fromMap(m)).toList();
 
     final notaPorAbastecimento = <String, String?>{};
     final comAjustePendente = <String>{};
@@ -244,9 +255,14 @@ class AbastecimentosClienteService {
         final idProfrotas = n['abastecimento_id'];
         final idExterno = n['abastecimento_externo_id'];
         final numero = n['numero_nf']?.toString();
-        if (idProfrotas != null) notaPorAbastecimento.putIfAbsent('profrotas:$idProfrotas', () => numero);
-        final registroExterno = idExterno != null ? registroPorIdExterno[idExterno.toString()] : null;
-        if (registroExterno != null) notaPorAbastecimento.putIfAbsent(registroExterno.chave, () => numero);
+        if (idProfrotas != null)
+          notaPorAbastecimento.putIfAbsent(
+              'profrotas:$idProfrotas', () => numero);
+        final registroExterno = idExterno != null
+            ? registroPorIdExterno[idExterno.toString()]
+            : null;
+        if (registroExterno != null)
+          notaPorAbastecimento.putIfAbsent(registroExterno.chave, () => numero);
       }
 
       final ajustesRaw = await _supabase
@@ -257,9 +273,13 @@ class AbastecimentosClienteService {
       for (final a in ajustesRaw) {
         final idProfrotas = a['abastecimento_id'];
         final idExterno = a['abastecimento_externo_id'];
-        if (idProfrotas != null) comAjustePendente.add('profrotas:$idProfrotas');
-        final registroExterno = idExterno != null ? registroPorIdExterno[idExterno.toString()] : null;
-        if (registroExterno != null) comAjustePendente.add(registroExterno.chave);
+        if (idProfrotas != null)
+          comAjustePendente.add('profrotas:$idProfrotas');
+        final registroExterno = idExterno != null
+            ? registroPorIdExterno[idExterno.toString()]
+            : null;
+        if (registroExterno != null)
+          comAjustePendente.add(registroExterno.chave);
       }
     }
 

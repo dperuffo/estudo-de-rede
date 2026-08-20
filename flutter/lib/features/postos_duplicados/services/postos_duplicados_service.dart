@@ -6,7 +6,10 @@ import '../../../core/services/supabase_service.dart';
 class PostosDuplicadosService {
   final _supabase = SupabaseService.client;
 
-  Future<String?> _resolver({required String id, required String status, required String revisadoPor}) async {
+  Future<String?> _resolver(
+      {required String id,
+      required String status,
+      required String revisadoPor}) async {
     try {
       await _supabase.from('postos_gf_possiveis_duplicados').update({
         'status': status,
@@ -19,9 +22,12 @@ class PostosDuplicadosService {
     }
   }
 
-  Future<String?> descartar({required String id, required String revisadoPor}) =>
+  Future<String?> descartar(
+          {required String id, required String revisadoPor}) =>
       _resolver(id: id, status: 'descartado', revisadoPor: revisadoPor);
 
-  Future<String?> confirmar({required String id, required String revisadoPor}) =>
-      _resolver(id: id, status: 'confirmado_duplicata', revisadoPor: revisadoPor);
+  Future<String?> confirmar(
+          {required String id, required String revisadoPor}) =>
+      _resolver(
+          id: id, status: 'confirmado_duplicata', revisadoPor: revisadoPor);
 }

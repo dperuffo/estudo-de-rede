@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show Motorista, motoristasClienteProvider;
-import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show Motorista, motoristasClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show Veiculo, veiculosClienteProvider;
 import '../providers/rotograma_provider.dart';
 import '../services/rotograma_service.dart';
 
@@ -68,17 +70,26 @@ class _LinhaParada {
 }
 
 class _RotogramaFormState extends ConsumerState<RotogramaForm> {
-  late final _origemCtrl = TextEditingController(text: widget.existente?.origem ?? '');
-  late final _destinoCtrl = TextEditingController(text: widget.existente?.destino ?? '');
-  late final _veiculoCtrl = TextEditingController(text: widget.existente?.veiculo ?? '');
-  late final _cargaCtrl = TextEditingController(text: widget.existente?.carga ?? '');
-  late final _observacoesCtrl = TextEditingController(text: widget.existente?.observacoes ?? '');
+  late final _origemCtrl =
+      TextEditingController(text: widget.existente?.origem ?? '');
+  late final _destinoCtrl =
+      TextEditingController(text: widget.existente?.destino ?? '');
+  late final _veiculoCtrl =
+      TextEditingController(text: widget.existente?.veiculo ?? '');
+  late final _cargaCtrl =
+      TextEditingController(text: widget.existente?.carga ?? '');
+  late final _observacoesCtrl =
+      TextEditingController(text: widget.existente?.observacoes ?? '');
   late String? _motorista = widget.existente?.motorista;
   late String? _placa = widget.existente?.placa;
   late String? _dataViagem = widget.existente?.dataViagem;
 
-  late List<_LinhaRisco> _riscos = (widget.existente?.riscos ?? []).map((r) => _LinhaRisco.deRisco(r)).toList();
-  late List<_LinhaParada> _paradas = (widget.existente?.paradas ?? []).map((p) => _LinhaParada.deParada(p)).toList();
+  late List<_LinhaRisco> _riscos = (widget.existente?.riscos ?? [])
+      .map((r) => _LinhaRisco.deRisco(r))
+      .toList();
+  late List<_LinhaParada> _paradas = (widget.existente?.paradas ?? [])
+      .map((p) => _LinhaParada.deParada(p))
+      .toList();
 
   bool _salvando = false;
   String? _erro;
@@ -108,7 +119,8 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
       lastDate: DateTime(2100),
     );
     if (escolhida != null) {
-      setState(() => _dataViagem = escolhida.toIso8601String().substring(0, 10));
+      setState(
+          () => _dataViagem = escolhida.toIso8601String().substring(0, 10));
     }
   }
 
@@ -127,8 +139,14 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
 
     setState(() => _salvando = true);
     try {
-      final riscos = _riscos.map((r) => r.toRisco()).where((r) => r.local.isNotEmpty || r.descricao.isNotEmpty).toList();
-      final paradas = _paradas.map((p) => p.toParada()).where((p) => p.local.isNotEmpty || p.descricao.isNotEmpty).toList();
+      final riscos = _riscos
+          .map((r) => r.toRisco())
+          .where((r) => r.local.isNotEmpty || r.descricao.isNotEmpty)
+          .toList();
+      final paradas = _paradas
+          .map((p) => p.toParada())
+          .where((p) => p.local.isNotEmpty || p.descricao.isNotEmpty)
+          .toList();
 
       if (widget.existente == null) {
         final id = await RotogramaService().criar(
@@ -186,22 +204,33 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-            child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(_erro!,
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
           ),
           const SizedBox(height: 12),
         ],
-
-        const Text('Dados da viagem', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Dados da viagem',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         TextField(
           controller: _origemCtrl,
-          decoration: const InputDecoration(labelText: 'Origem *', hintText: 'Ex.: São Paulo/SP', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Origem *',
+              hintText: 'Ex.: São Paulo/SP',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _destinoCtrl,
-          decoration: const InputDecoration(labelText: 'Destino *', hintText: 'Ex.: Belo Horizonte/MG', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Destino *',
+              hintText: 'Ex.: Belo Horizonte/MG',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         motoristasAsync.when(
@@ -209,12 +238,19 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
             final ativos = lista.where((m) => m.ativo).toList();
             return DropdownButtonFormField<String?>(
               value: _motorista,
-              decoration: const InputDecoration(labelText: 'Motorista', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Motorista',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Selecione...')),
-                if (_motorista != null && !ativos.any((m) => m.nomeCompleto == _motorista))
+                const DropdownMenuItem(
+                    value: null, child: Text('Selecione...')),
+                if (_motorista != null &&
+                    !ativos.any((m) => m.nomeCompleto == _motorista))
                   DropdownMenuItem(value: _motorista, child: Text(_motorista!)),
-                for (final m in ativos) DropdownMenuItem(value: m.nomeCompleto, child: Text(m.nomeCompleto)),
+                for (final m in ativos)
+                  DropdownMenuItem(
+                      value: m.nomeCompleto, child: Text(m.nomeCompleto)),
               ],
               onChanged: (v) => setState(() => _motorista = v),
             );
@@ -225,7 +261,11 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
         const SizedBox(height: 10),
         TextField(
           controller: _veiculoCtrl,
-          decoration: const InputDecoration(labelText: 'Veículo', hintText: 'Ex.: Caminhão baú', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Veículo',
+              hintText: 'Ex.: Caminhão baú',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         veiculosAsync.when(
@@ -233,14 +273,25 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
             final ativos = lista.where((v) => v.ativo).toList();
             return DropdownButtonFormField<String?>(
               value: _placa,
-              decoration: const InputDecoration(labelText: 'Placa', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Placa',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Selecione...')),
-                if (_placa != null && !ativos.any((v) => v.placa == _placa)) DropdownMenuItem(value: _placa, child: Text(_placa!)),
+                const DropdownMenuItem(
+                    value: null, child: Text('Selecione...')),
+                if (_placa != null && !ativos.any((v) => v.placa == _placa))
+                  DropdownMenuItem(value: _placa, child: Text(_placa!)),
                 for (final v in ativos)
                   DropdownMenuItem(
                     value: v.placa,
-                    child: Text('${v.placa}${[v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).isNotEmpty ? ' — ${[v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' ')}' : ''}'),
+                    child: Text('${v.placa}${[
+                      v.marca,
+                      v.modelo
+                    ].where((s) => s != null && s.isNotEmpty).isNotEmpty ? ' — ${[
+                        v.marca,
+                        v.modelo
+                      ].where((s) => s != null && s.isNotEmpty).join(' ')}' : ''}'),
                   ),
               ],
               onChanged: (v) => setState(() => _placa = v),
@@ -254,31 +305,39 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
           readOnly: true,
           onTap: _selecionarData,
           controller: TextEditingController(text: _dataViagem ?? ''),
-          decoration: const InputDecoration(labelText: 'Data da viagem', border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_today, size: 16)),
+          decoration: const InputDecoration(
+              labelText: 'Data da viagem',
+              border: OutlineInputBorder(),
+              isDense: true,
+              suffixIcon: Icon(Icons.calendar_today, size: 16)),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _cargaCtrl,
-          decoration: const InputDecoration(labelText: 'Carga', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Carga', border: OutlineInputBorder(), isDense: true),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _observacoesCtrl,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Observações', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Observações', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 20),
-
         _secaoRiscos(),
         const SizedBox(height: 20),
         _secaoParadas(),
         const SizedBox(height: 20),
-
         SizedBox(
           width: double.infinity,
           child: FilledButton(
             onPressed: _salvando ? null : _salvar,
-            child: Text(_salvando ? 'Salvando...' : (widget.existente != null ? 'Salvar alterações' : 'Criar Rotograma')),
+            child: Text(_salvando
+                ? 'Salvando...'
+                : (widget.existente != null
+                    ? 'Salvar alterações'
+                    : 'Criar Rotograma')),
           ),
         ),
       ],
@@ -293,24 +352,33 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Expanded(
-              child: Text('⚠️ Pontos de risco', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              child: Text('⚠️ Pontos de risco',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
             OutlinedButton(
-              onPressed: () => setState(() => _riscos = [..._riscos, _LinhaRisco()]),
+              onPressed: () =>
+                  setState(() => _riscos = [..._riscos, _LinhaRisco()]),
               child: const Text('+ Adicionar', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
-        const Text('Trechos perigosos, zonas de crime, radares e lombadas na rota.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+            'Trechos perigosos, zonas de crime, radares e lombadas na rota.',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
         const SizedBox(height: 8),
-        if (_riscos.isEmpty) const Text('Nenhum ponto de risco adicionado.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        if (_riscos.isEmpty)
+          const Text('Nenhum ponto de risco adicionado.',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
         ..._riscos.asMap().entries.map((e) => _linhaEditavel(
               km: e.value.controllerKm,
               local: e.value.controllerLocal,
               descricao: e.value.controllerDescricao,
               categoriaAtual: e.value.categoria,
-              opcoesCategoria: categoriasRisco.map((c) => (valor: c.valor, label: '${c.icone} ${c.label}')).toList(),
-              onCategoria: (v) => setState(() => e.value.categoria = v ?? e.value.categoria),
+              opcoesCategoria: categoriasRisco
+                  .map((c) => (valor: c.valor, label: '${c.icone} ${c.label}'))
+                  .toList(),
+              onCategoria: (v) =>
+                  setState(() => e.value.categoria = v ?? e.value.categoria),
               onRemover: () => setState(() {
                 e.value.dispose();
                 _riscos = List.of(_riscos)..removeAt(e.key);
@@ -330,24 +398,33 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Expanded(
-              child: Text('📍 Pontos de parada', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              child: Text('📍 Pontos de parada',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
             OutlinedButton(
-              onPressed: () => setState(() => _paradas = [..._paradas, _LinhaParada()]),
+              onPressed: () =>
+                  setState(() => _paradas = [..._paradas, _LinhaParada()]),
               child: const Text('+ Adicionar', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
-        const Text('Postos, restaurantes e locais seguros para pernoite na rota.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+            'Postos, restaurantes e locais seguros para pernoite na rota.',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
         const SizedBox(height: 8),
-        if (_paradas.isEmpty) const Text('Nenhuma parada adicionada.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        if (_paradas.isEmpty)
+          const Text('Nenhuma parada adicionada.',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
         ..._paradas.asMap().entries.map((e) => _linhaEditavel(
               km: e.value.controllerKm,
               local: e.value.controllerLocal,
               descricao: e.value.controllerDescricao,
               categoriaAtual: e.value.categoria,
-              opcoesCategoria: categoriasParada.map((c) => (valor: c.valor, label: '${c.icone} ${c.label}')).toList(),
-              onCategoria: (v) => setState(() => e.value.categoria = v ?? e.value.categoria),
+              opcoesCategoria: categoriasParada
+                  .map((c) => (valor: c.valor, label: '${c.icone} ${c.label}'))
+                  .toList(),
+              onCategoria: (v) =>
+                  setState(() => e.value.categoria = v ?? e.value.categoria),
               onRemover: () => setState(() {
                 e.value.dispose();
                 _paradas = List.of(_paradas)..removeAt(e.key);
@@ -373,7 +450,9 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -383,16 +462,28 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
                 width: 80,
                 child: TextField(
                   controller: km,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Km', border: OutlineInputBorder(), isDense: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Km',
+                      border: OutlineInputBorder(),
+                      isDense: true),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: categoriaAtual,
-                  decoration: const InputDecoration(labelText: 'Categoria', border: OutlineInputBorder(), isDense: true),
-                  items: opcoesCategoria.map((o) => DropdownMenuItem(value: o.valor, child: Text(o.label, style: const TextStyle(fontSize: 12)))).toList(),
+                  decoration: const InputDecoration(
+                      labelText: 'Categoria',
+                      border: OutlineInputBorder(),
+                      isDense: true),
+                  items: opcoesCategoria
+                      .map((o) => DropdownMenuItem(
+                          value: o.valor,
+                          child: Text(o.label,
+                              style: const TextStyle(fontSize: 12))))
+                      .toList(),
                   onChanged: onCategoria,
                 ),
               ),
@@ -401,17 +492,28 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
           const SizedBox(height: 8),
           TextField(
             controller: local,
-            decoration: InputDecoration(labelText: 'Local', hintText: hintLocal, border: const OutlineInputBorder(), isDense: true),
+            decoration: InputDecoration(
+                labelText: 'Local',
+                hintText: hintLocal,
+                border: const OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: descricao,
-            decoration: InputDecoration(labelText: 'Descrição', hintText: hintDescricao, border: const OutlineInputBorder(), isDense: true),
+            decoration: InputDecoration(
+                labelText: 'Descrição',
+                hintText: hintDescricao,
+                border: const OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(onPressed: onRemover, child: const Text('Remover', style: TextStyle(color: Colors.red, fontSize: 12))),
+            child: TextButton(
+                onPressed: onRemover,
+                child: const Text('Remover',
+                    style: TextStyle(color: Colors.red, fontSize: 12))),
           ),
         ],
       ),

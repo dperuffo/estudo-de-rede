@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/notas_fiscais_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _dataBr = DateFormat('dd/MM/yyyy');
 
@@ -70,19 +72,30 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
     final ciclosAsync = ref.watch(ciclosNfeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notas Fiscais')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Notas Fiscais')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(ciclosNfeProvider);
         },
         child: ciclosAsync.when(
-          loading: () => const Center(child: Padding(padding: EdgeInsets.only(top: 80), child: CircularProgressIndicator())),
+          loading: () => const Center(
+              child: Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: CircularProgressIndicator())),
           error: (e, _) => ListView(
             padding: const EdgeInsets.all(16),
             children: [Text('Erro ao carregar ciclos: $e')],
           ),
           data: (ciclos) {
-            final cicloAtivo = _cicloEscolhido ?? (ciclos.isNotEmpty ? ciclos.first : null);
+            final cicloAtivo =
+                _cicloEscolhido ?? (ciclos.isNotEmpty ? ciclos.first : null);
             final filtros = cicloAtivo == null
                 ? null
                 : FiltrosNotasFiscais(
@@ -95,18 +108,23 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text('Recolha de notas fiscais por ciclo', style: Theme.of(context).textTheme.titleSmall),
+                Text('Recolha de notas fiscais por ciclo',
+                    style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 if (ciclos.isEmpty)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text('Nenhum ciclo de faturamento encontrado ainda.',
+                      child: Text(
+                          'Nenhum ciclo de faturamento encontrado ainda.',
                           style: TextStyle(color: Colors.grey.shade600)),
                     ),
                   )
                 else
-                  ...ciclos.map((c) => _cardCiclo(c, selecionado: cicloAtivo?.negociacaoId == c.negociacaoId && cicloAtivo?.periodoInicio == c.periodoInicio && cicloAtivo?.periodoFim == c.periodoFim)),
+                  ...ciclos.map((c) => _cardCiclo(c,
+                      selecionado: cicloAtivo?.negociacaoId == c.negociacaoId &&
+                          cicloAtivo?.periodoInicio == c.periodoInicio &&
+                          cicloAtivo?.periodoFim == c.periodoFim)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _buscaCtrl,
@@ -146,7 +164,8 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                       ChoiceChip(
                         label: Text('Rejeitada (${cicloAtivo.rejeitadas})'),
                         selected: _status == 'rejeitada',
-                        onSelected: (_) => setState(() => _status = 'rejeitada'),
+                        onSelected: (_) =>
+                            setState(() => _status = 'rejeitada'),
                       ),
                       ChoiceChip(
                         label: Text('Pendente (${cicloAtivo.pendentes})'),
@@ -166,7 +185,8 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                   const SizedBox.shrink()
                 else
                   Consumer(builder: (context, ref, _) {
-                    final linhasAsync = ref.watch(linhasNotasFiscaisProvider(filtros));
+                    final linhasAsync =
+                        ref.watch(linhasNotasFiscaisProvider(filtros));
                     return linhasAsync.when(
                       loading: () => const Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
@@ -178,12 +198,15 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                           return Card(
                             child: Padding(
                               padding: const EdgeInsets.all(16),
-                              child: Text('Nenhum abastecimento encontrado neste ciclo.',
-                                  style: TextStyle(color: Colors.grey.shade600)),
+                              child: Text(
+                                  'Nenhum abastecimento encontrado neste ciclo.',
+                                  style:
+                                      TextStyle(color: Colors.grey.shade600)),
                             ),
                           );
                         }
-                        return Column(children: linhas.map(_cardLinha).toList());
+                        return Column(
+                            children: linhas.map(_cardLinha).toList());
                       },
                     );
                   }),
@@ -202,7 +225,9 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: selecionado
-          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(4), side: const BorderSide(color: Color(0xFF0EA5E9), width: 2))
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+              side: const BorderSide(color: Color(0xFF0EA5E9), width: 2))
           : null,
       child: InkWell(
         onTap: () => setState(() {
@@ -221,13 +246,20 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                 children: [
                   Expanded(
                     child: Text(c.clienteNome ?? c.postoNome ?? '—',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: statusCor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: statusCor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12)),
                     child: Text(_statusLabel[c.status] ?? c.status,
-                        style: TextStyle(fontSize: 11, color: statusCor, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: statusCor,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -238,7 +270,8 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
               ),
               const SizedBox(height: 10),
               if (c.total == 0)
-                Text('Sem abastecimentos neste ciclo ainda.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                Text('Sem abastecimentos neste ciclo ainda.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
               else ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -247,11 +280,15 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                       child: Text(
                         '${c.comNota} de ${c.total} com NF-e'
                         '${c.rejeitadas > 0 ? ' · ${c.rejeitadas} rejeitada${c.rejeitadas == 1 ? '' : 's'}' : ''}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ),
                     Text('${percentual.toStringAsFixed(1)}%',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: cor)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: cor)),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -276,7 +313,9 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        onTap: l.notaId != null ? () => context.push('/notas-fiscais/${l.notaId}') : null,
+        onTap: l.notaId != null
+            ? () => context.push('/notas-fiscais/${l.notaId}')
+            : null,
         title: Text(
           [
             if (l.codigoAbastecimento != null) '#${l.codigoAbastecimento}',
@@ -301,22 +340,28 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
           ],
         ),
         isThreeLine: true,
-        trailing: l.notaId != null ? const Icon(Icons.chevron_right, size: 18) : null,
+        trailing:
+            l.notaId != null ? const Icon(Icons.chevron_right, size: 18) : null,
       ),
     );
   }
 
   Widget _badgeStatus(LinhaNotaFiscal l) {
     if (l.notaId != null) {
-      return _chip('Emitida${l.notaNumero != null ? ' · Nº ${l.notaNumero}' : ''}', const Color(0xFF16A34A));
+      return _chip(
+          'Emitida${l.notaNumero != null ? ' · Nº ${l.notaNumero}' : ''}',
+          const Color(0xFF16A34A));
     }
     if (l.pendenciaMotivo != null) {
-      final detalhe = l.pendenciaMotivo == 'erro_leitura_xml' && l.pendenciaDetalheTexto != null
+      final detalhe = l.pendenciaMotivo == 'erro_leitura_xml' &&
+              l.pendenciaDetalheTexto != null
           ? l.pendenciaDetalheTexto!
           : mensagemMotivoPendencia(l.pendenciaMotivo);
       final extra = [
-        if (l.pendenciaNomeArquivo != null) 'Arquivo: ${l.pendenciaNomeArquivo}',
-        if (l.pendenciaCnpjEmitente != null) 'CNPJ emitente ${l.pendenciaCnpjEmitente}',
+        if (l.pendenciaNomeArquivo != null)
+          'Arquivo: ${l.pendenciaNomeArquivo}',
+        if (l.pendenciaCnpjEmitente != null)
+          'CNPJ emitente ${l.pendenciaCnpjEmitente}',
         if (l.pendenciaProdutoNomeXml != null) l.pendenciaProdutoNomeXml!,
       ].join(' · ');
       return Column(
@@ -324,8 +369,11 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
         children: [
           _chip('Rejeitada', const Color(0xFFDC2626)),
           const SizedBox(height: 3),
-          Text(detalhe, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
-          if (extra.isNotEmpty) Text(extra, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          Text(detalhe,
+              style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+          if (extra.isNotEmpty)
+            Text(extra,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
         ],
       );
     }
@@ -335,8 +383,11 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
   Widget _chip(String texto, Color cor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text(texto, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+          color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      child: Text(texto,
+          style:
+              TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
     );
   }
 }

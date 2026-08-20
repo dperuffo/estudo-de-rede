@@ -30,8 +30,8 @@ class DestinoUf {
   final String cnpjDestino;
   const DestinoUf({required this.uf, required this.cnpjDestino});
 
-  factory DestinoUf.fromMap(Map<String, dynamic> m) =>
-      DestinoUf(uf: m['uf'] as String, cnpjDestino: m['cnpj_destino'] as String);
+  factory DestinoUf.fromMap(Map<String, dynamic> m) => DestinoUf(
+      uf: m['uf'] as String, cnpjDestino: m['cnpj_destino'] as String);
 }
 
 class ParametroNF {
@@ -67,9 +67,12 @@ class ParametroNF {
         id: m['id'] as String,
         cnpjFrota: m['cnpj_frota'] as String?,
         exigeNotaFiscal: m['exige_nota_fiscal'] as String? ?? 'Sem preferência',
-        separarNfCombustivel: m['separar_nf_combustivel'] as String? ?? 'Sem preferência',
-        formaEmissao: m['forma_emissao'] as String? ?? 'Nota no ato do abastecimento',
-        localDestino: m['local_destino'] as String? ?? 'Empresa em que o veículo está cadastrado',
+        separarNfCombustivel:
+            m['separar_nf_combustivel'] as String? ?? 'Sem preferência',
+        formaEmissao:
+            m['forma_emissao'] as String? ?? 'Nota no ato do abastecimento',
+        localDestino: m['local_destino'] as String? ??
+            'Empresa em que o veículo está cadastrado',
         cnpjDestinoPersonalizado: m['cnpj_destino_personalizado'] as String?,
         dadosAdicionais: m['dados_adicionais'] as String?,
         status: m['status'] as String? ?? 'Ativo',
@@ -94,7 +97,8 @@ class PlanoDestinoEstado {
   const PlanoDestinoEstado({required this.cnpjPadrao, required this.grupos});
 }
 
-final parametrosNFProvider = FutureProvider.autoDispose<List<ParametroNF>>((ref) async {
+final parametrosNFProvider =
+    FutureProvider.autoDispose<List<ParametroNF>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -104,7 +108,9 @@ final parametrosNFProvider = FutureProvider.autoDispose<List<ParametroNF>>((ref)
           'id, cnpj_frota, exige_nota_fiscal, separar_nf_combustivel, forma_emissao, local_destino, cnpj_destino_personalizado, dados_adicionais, status, observacao, parametros_nota_fiscal_destino_uf(uf, cnpj_destino)')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => ParametroNF.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => ParametroNF.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // Lista de CNPJs distintos da frota do cliente (mesma fonte que a web usa

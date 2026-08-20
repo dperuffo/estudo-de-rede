@@ -4,6 +4,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/checklist_veiculos_provider.dart';
 import '../services/checklist_veiculos_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Indicadores-da-Frota C (30/07/2026) — porta de checklist-veiculos/
 // [placa]/page.tsx: formulário de nova inspeção + histórico com pendências
 // abertas (itens não conformes ainda sem resolvido_em).
@@ -12,15 +14,20 @@ class ChecklistVeiculoDetalheScreen extends ConsumerStatefulWidget {
   const ChecklistVeiculoDetalheScreen({super.key, required this.placa});
 
   @override
-  ConsumerState<ChecklistVeiculoDetalheScreen> createState() => _ChecklistVeiculoDetalheScreenState();
+  ConsumerState<ChecklistVeiculoDetalheScreen> createState() =>
+      _ChecklistVeiculoDetalheScreenState();
 }
 
-class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculoDetalheScreen> {
-  final _dataCtrl = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
+class _ChecklistVeiculoDetalheScreenState
+    extends ConsumerState<ChecklistVeiculoDetalheScreen> {
+  final _dataCtrl = TextEditingController(
+      text: DateTime.now().toIso8601String().substring(0, 10));
   final _hodometroCtrl = TextEditingController();
   final _responsavelCtrl = TextEditingController();
   final Map<String, bool> _conforme = {for (final i in itensInspecao) i: true};
-  final Map<String, TextEditingController> _obsCtrls = {for (final i in itensInspecao) i: TextEditingController()};
+  final Map<String, TextEditingController> _obsCtrls = {
+    for (final i in itensInspecao) i: TextEditingController()
+  };
   bool _salvando = false;
   String? _erro;
 
@@ -37,8 +44,13 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
 
   Future<void> _selecionarData() async {
     final atual = DateTime.tryParse(_dataCtrl.text) ?? DateTime.now();
-    final escolhida = await showDatePicker(context: context, initialDate: atual, firstDate: DateTime(2015), lastDate: DateTime.now());
-    if (escolhida != null) _dataCtrl.text = escolhida.toIso8601String().substring(0, 10);
+    final escolhida = await showDatePicker(
+        context: context,
+        initialDate: atual,
+        firstDate: DateTime(2015),
+        lastDate: DateTime.now());
+    if (escolhida != null)
+      _dataCtrl.text = escolhida.toIso8601String().substring(0, 10);
   }
 
   Future<void> _salvar() async {
@@ -60,9 +72,14 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
         placa: widget.placa,
         dataInspecao: _dataCtrl.text.trim(),
         hodometro: double.tryParse(_hodometroCtrl.text.replaceAll(',', '.')),
-        responsavel: _responsavelCtrl.text.trim().isEmpty ? null : _responsavelCtrl.text.trim(),
+        responsavel: _responsavelCtrl.text.trim().isEmpty
+            ? null
+            : _responsavelCtrl.text.trim(),
         itensConforme: _conforme,
-        itensObservacao: {for (final e in _obsCtrls.entries) e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim()},
+        itensObservacao: {
+          for (final e in _obsCtrls.entries)
+            e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim()
+        },
         criadoPor: sessao.email,
       );
       if (!mounted) return;
@@ -76,7 +93,8 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
         }
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inspeção registrada com sucesso.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inspeção registrada com sucesso.')));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -94,7 +112,8 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
       ref.invalidate(checklistVeiculosListProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao marcar como resolvida: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao marcar como resolvida: $e')));
     }
   }
 
@@ -109,19 +128,31 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
     final inspecoesAsync = ref.watch(inspecoesVeiculoProvider(widget.placa));
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.placa)),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: Text(widget.placa)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Registrar Nova Inspeção', style: Theme.of(context).textTheme.titleMedium),
+          Text('Registrar Nova Inspeção',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 10),
           if (_erro != null)
             Container(
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
             ),
           Row(
             children: [
@@ -130,23 +161,37 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
                   controller: _dataCtrl,
                   readOnly: true,
                   onTap: _selecionarData,
-                  decoration: const InputDecoration(labelText: 'Data *', border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                  decoration: const InputDecoration(
+                      labelText: 'Data *',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                      suffixIcon: Icon(Icons.calendar_today, size: 16)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: _hodometroCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Hodômetro (km)', border: OutlineInputBorder(), isDense: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Hodômetro (km)',
+                      border: OutlineInputBorder(),
+                      isDense: true),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          TextField(controller: _responsavelCtrl, decoration: const InputDecoration(labelText: 'Responsável', border: OutlineInputBorder(), isDense: true)),
+          TextField(
+              controller: _responsavelCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Responsável',
+                  border: OutlineInputBorder(),
+                  isDense: true)),
           const SizedBox(height: 14),
-          const Text('Itens verificados', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          const Text('Itens verificados',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           ...itensInspecao.map((item) => Card(
                 margin: const EdgeInsets.only(bottom: 6),
@@ -160,29 +205,47 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
                           Expanded(
                             child: Row(
                               children: [
-                                Flexible(child: Text(item, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                                Flexible(
+                                    child: Text(item,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600))),
                                 if (itensCriticos.contains(item))
                                   Container(
                                     margin: const EdgeInsets.only(left: 6),
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                    decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(8)),
-                                    child: const Text('crítico', style: TextStyle(fontSize: 9, color: Color(0xFF92400E))),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius: BorderRadius.circular(8)),
+                                    child: const Text('crítico',
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            color: Color(0xFF92400E))),
                                   ),
                               ],
                             ),
                           ),
                           Switch(
                             value: _conforme[item] ?? true,
-                            onChanged: (v) => setState(() => _conforme[item] = v),
+                            onChanged: (v) =>
+                                setState(() => _conforme[item] = v),
                             activeColor: Colors.green,
                           ),
-                          Text(_conforme[item] == true ? 'Conforme' : 'Não conforme', style: const TextStyle(fontSize: 11)),
+                          Text(
+                              _conforme[item] == true
+                                  ? 'Conforme'
+                                  : 'Não conforme',
+                              style: const TextStyle(fontSize: 11)),
                         ],
                       ),
                       TextField(
                         controller: _obsCtrls[item],
                         style: const TextStyle(fontSize: 12),
-                        decoration: const InputDecoration(hintText: 'Observação (opcional)', isDense: true, border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            hintText: 'Observação (opcional)',
+                            isDense: true,
+                            border: OutlineInputBorder()),
                       ),
                     ],
                   ),
@@ -199,14 +262,17 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 8),
-          Text('Histórico de Inspeções', style: Theme.of(context).textTheme.titleMedium),
+          Text('Histórico de Inspeções',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 10),
           inspecoesAsync.when(
             data: (inspecoes) {
               if (inspecoes.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: Text('Nenhuma inspeção registrada ainda.', style: TextStyle(color: Colors.grey))),
+                  child: Center(
+                      child: Text('Nenhuma inspeção registrada ainda.',
+                          style: TextStyle(color: Colors.grey))),
                 );
               }
               final pendencias = inspecoes
@@ -218,32 +284,49 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (pendencias.isNotEmpty) ...[
-                    Text('⚠️ Pendências abertas (${pendencias.length})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFB91C1C))),
+                    Text('⚠️ Pendências abertas (${pendencias.length})',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB91C1C))),
                     const SizedBox(height: 6),
                     ...pendencias.map((p) => Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(8)),
                           child: Row(
                             children: [
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('${p.item.item} · desde ${_fmtData(p.dataInspecao)}', style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B))),
+                                    Text(
+                                        '${p.item.item} · desde ${_fmtData(p.dataInspecao)}',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF991B1B))),
                                     if (p.item.observacao != null)
-                                      Text(p.item.observacao!, style: const TextStyle(fontSize: 11, color: Color(0xFF991B1B))),
+                                      Text(p.item.observacao!,
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF991B1B))),
                                   ],
                                 ),
                               ),
-                              TextButton(onPressed: () => _resolver(p.item.id), child: const Text('Resolver', style: TextStyle(fontSize: 11))),
+                              TextButton(
+                                  onPressed: () => _resolver(p.item.id),
+                                  child: const Text('Resolver',
+                                      style: TextStyle(fontSize: 11))),
                             ],
                           ),
                         )),
                     const SizedBox(height: 12),
                   ],
                   ...inspecoes.map((insp) {
-                    final naoConformes = insp.itens.where((it) => !it.conforme).length;
+                    final naoConformes =
+                        insp.itens.where((it) => !it.conforme).length;
                     // Fase Inspeção-pelo-Motorista (30/07/2026) — pedido do
                     // Daniel: "manutenção do histórico na visao do cliente"
                     // mostrando se a inspeção veio do motorista (app Estrada
@@ -258,17 +341,36 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
                         ehMotorista
                             ? 'Motorista${insp.motoristaNome != null ? ' · ${insp.motoristaNome}' : ''}'
                             : 'Gestor${insp.responsavel != null ? ' · ${insp.responsavel}' : ''}',
-                        style: TextStyle(fontSize: 11, color: ehMotorista ? const Color(0xFF1D4ED8) : const Color(0xFF64748B)),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: ehMotorista
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFF64748B)),
                       ),
                       trailing: naoConformes > 0
-                          ? Text('$naoConformes não conforme(s)', style: const TextStyle(fontSize: 10, color: Color(0xFF991B1B)))
-                          : const Text('Tudo conforme', style: TextStyle(fontSize: 10, color: Color(0xFF166534))),
+                          ? Text('$naoConformes não conforme(s)',
+                              style: const TextStyle(
+                                  fontSize: 10, color: Color(0xFF991B1B)))
+                          : const Text('Tudo conforme',
+                              style: TextStyle(
+                                  fontSize: 10, color: Color(0xFF166534))),
                       children: insp.itens
                           .map((it) => ListTile(
                                 dense: true,
-                                leading: Icon(it.conforme ? Icons.check_circle : Icons.cancel, size: 18, color: it.conforme ? Colors.green : Colors.red),
-                                title: Text(it.item, style: const TextStyle(fontSize: 12)),
-                                subtitle: it.observacao != null ? Text(it.observacao!, style: const TextStyle(fontSize: 11)) : null,
+                                leading: Icon(
+                                    it.conforme
+                                        ? Icons.check_circle
+                                        : Icons.cancel,
+                                    size: 18,
+                                    color: it.conforme
+                                        ? Colors.green
+                                        : Colors.red),
+                                title: Text(it.item,
+                                    style: const TextStyle(fontSize: 12)),
+                                subtitle: it.observacao != null
+                                    ? Text(it.observacao!,
+                                        style: const TextStyle(fontSize: 11))
+                                    : null,
                               ))
                           .toList(),
                     );
@@ -276,8 +378,11 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
                 ],
               );
             },
-            loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Center(child: CircularProgressIndicator())),
-            error: (e, _) => Text('Erro ao carregar histórico: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+            loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator())),
+            error: (e, _) => Text('Erro ao carregar histórico: $e',
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
           ),
         ],
       ),

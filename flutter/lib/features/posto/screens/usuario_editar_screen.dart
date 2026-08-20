@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../providers/usuarios_provider.dart';
 import '../services/usuarios_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — editar usuário existente + ativar/inativar, porta de
 // usuarios/[email]/page.tsx (UsuarioForm.tsx em modo edição). Sem edição
 // de perfil/segmento (fixos como 'posto'/'Revenda' desde o convite — ver
@@ -15,7 +17,8 @@ class UsuarioEditarScreen extends ConsumerStatefulWidget {
   const UsuarioEditarScreen({super.key, required this.email});
 
   @override
-  ConsumerState<UsuarioEditarScreen> createState() => _UsuarioEditarScreenState();
+  ConsumerState<UsuarioEditarScreen> createState() =>
+      _UsuarioEditarScreenState();
 }
 
 class _UsuarioEditarScreenState extends ConsumerState<UsuarioEditarScreen> {
@@ -75,7 +78,8 @@ class _UsuarioEditarScreenState extends ConsumerState<UsuarioEditarScreen> {
       _salvando = true;
       _erro = null;
     });
-    final erro = await UsuariosService().alternarAtivo(email: widget.email, ativo: novoValor);
+    final erro = await UsuariosService()
+        .alternarAtivo(email: widget.email, ativo: novoValor);
     if (!mounted) return;
     setState(() {
       _salvando = false;
@@ -93,31 +97,43 @@ class _UsuarioEditarScreenState extends ConsumerState<UsuarioEditarScreen> {
     final async = ref.watch(usuarioDetalheProvider(widget.email));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar usuário')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Editar usuário')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (u) {
-          if (u == null) return const Center(child: Text('Usuário não encontrado.'));
+          if (u == null)
+            return const Center(child: Text('Usuário não encontrado.'));
           _inicializar(u);
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(u.email, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(u.email,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
               const SizedBox(height: 16),
               TextField(
                 controller: _nomeCtrl,
-                decoration: const InputDecoration(labelText: 'Nome', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Nome', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _cpfCtrl,
-                decoration: const InputDecoration(labelText: 'CPF', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'CPF', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _telefoneCtrl,
-                decoration: const InputDecoration(labelText: 'Telefone', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Telefone', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               SwitchListTile(
@@ -128,12 +144,15 @@ class _UsuarioEditarScreenState extends ConsumerState<UsuarioEditarScreen> {
               ),
               Row(
                 children: [
-                  const Text('MFA: ', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  const Text('MFA: ',
+                      style: TextStyle(fontSize: 13, color: Colors.grey)),
                   Text(u.mfaHabilitado ? 'Habilitado' : 'Pendente',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: u.mfaHabilitado ? const Color(0xFF16A34A) : const Color(0xFFB45309),
+                        color: u.mfaHabilitado
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFB45309),
                       )),
                 ],
               ),
@@ -145,16 +164,24 @@ class _UsuarioEditarScreenState extends ConsumerState<UsuarioEditarScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_erro!,
+                      style: const TextStyle(
+                          color: Color(0xFFB91C1C), fontSize: 13)),
                 ),
               ],
               if (_sucesso != null) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_sucesso!, style: const TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_sucesso!,
+                      style: const TextStyle(
+                          color: Color(0xFF15803D), fontSize: 13)),
                 ),
               ],
               const SizedBox(height: 16),

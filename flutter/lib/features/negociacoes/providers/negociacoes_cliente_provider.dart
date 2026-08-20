@@ -12,7 +12,8 @@ import '../../posto/providers/negociacoes_provider.dart' show NegociacaoResumo;
 // `empresa_cliente_id` — CRUD direto, sem RPC, igual à web. Reaproveita as
 // constantes (status/labels/produtos) direto de negociacoes_provider.dart
 // (lado posto) — são as mesmas, só o lado que muda.
-final negociacoesClienteProvider = FutureProvider.autoDispose<List<NegociacaoResumo>>((ref) async {
+final negociacoesClienteProvider =
+    FutureProvider.autoDispose<List<NegociacaoResumo>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -26,7 +27,10 @@ final negociacoesClienteProvider = FutureProvider.autoDispose<List<NegociacaoRes
       .order('atualizado_em', ascending: false)
       .limit(500);
 
-  return rows.map((m) => NegociacaoResumo.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => NegociacaoResumo.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
-String hojeIsoUtcCliente() => DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
+String hojeIsoUtcCliente() =>
+    DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());

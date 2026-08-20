@@ -31,16 +31,20 @@ class PisoAntt {
         id: m['id'] as String,
         tipoCarga: m['tipo_carga'] as String,
         numeroEixos: (m['numero_eixos'] as num).toInt(),
-        coeficienteDeslocamento: (m['coeficiente_deslocamento'] as num).toDouble(),
-        coeficienteCargaDescarga: (m['coeficiente_carga_descarga'] as num).toDouble(),
+        coeficienteDeslocamento:
+            (m['coeficiente_deslocamento'] as num).toDouble(),
+        coeficienteCargaDescarga:
+            (m['coeficiente_carga_descarga'] as num).toDouble(),
         vigenciaInicio: m['vigencia_inicio'] as String,
       );
 }
 
-final pisosAnttProvider = FutureProvider.autoDispose<List<PisoAntt>>((ref) async {
+final pisosAnttProvider =
+    FutureProvider.autoDispose<List<PisoAntt>>((ref) async {
   final rows = await SupabaseService.client
       .from('pisos_antt')
-      .select('id, tipo_carga, numero_eixos, coeficiente_deslocamento, coeficiente_carga_descarga, vigencia_inicio')
+      .select(
+          'id, tipo_carga, numero_eixos, coeficiente_deslocamento, coeficiente_carga_descarga, vigencia_inicio')
       .order('tipo_carga', ascending: true)
       .order('numero_eixos', ascending: true) as List;
   return rows.map((m) => PisoAntt.fromMap(m as Map<String, dynamic>)).toList();

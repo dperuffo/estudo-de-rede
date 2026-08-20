@@ -9,7 +9,8 @@ class PostosService {
 
   // Copia os dados básicos do universo ANP pra rede negociada do cliente
   // (postos_gf) — mesma lógica da web, campos operacionais ficam em branco.
-  Future<String?> ativarPosto({required String cnpjAnp, required String empresaId}) async {
+  Future<String?> ativarPosto(
+      {required String cnpjAnp, required String empresaId}) async {
     try {
       final anp = await _supabase
           .from('anp_postos')
@@ -36,9 +37,12 @@ class PostosService {
 
   // Bloqueio do gestor: não remove o posto da rede, só marca como não
   // liberado pra abastecimento.
-  Future<String?> alternarAtivo({required String cnpj, required bool ativo}) async {
+  Future<String?> alternarAtivo(
+      {required String cnpj, required bool ativo}) async {
     try {
-      await _supabase.from('postos_gf').update({'ativo': ativo}).eq('cnpj', cnpj);
+      await _supabase
+          .from('postos_gf')
+          .update({'ativo': ativo}).eq('cnpj', cnpj);
       return null;
     } catch (e) {
       return 'Não foi possível atualizar: $e';

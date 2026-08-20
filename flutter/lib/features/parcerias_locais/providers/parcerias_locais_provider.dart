@@ -103,21 +103,30 @@ class ResgateBeneficio {
       );
 }
 
-final itensParceriaProvider = FutureProvider.autoDispose<List<ItemParceria>>((ref) async {
+final itensParceriaProvider =
+    FutureProvider.autoDispose<List<ItemParceria>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
 
   final rows = await SupabaseService.client
       .from('fidelidade_catalogo_itens')
-      .select('id, categoria, titulo, descricao, parceiro_nome, pontos_necessarios, ativo, imagem_url, validade_dias')
+      .select(
+          'id, categoria, titulo, descricao, parceiro_nome, pontos_necessarios, ativo, imagem_url, validade_dias')
       .eq('criador_empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((r) => ItemParceria.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => ItemParceria.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final itemParceriaDetalheProvider = FutureProvider.autoDispose.family<ItemParceria?, String>((ref, id) async {
-  final row = await SupabaseService.client.from('fidelidade_catalogo_itens').select('*').eq('id', id).maybeSingle();
+final itemParceriaDetalheProvider =
+    FutureProvider.autoDispose.family<ItemParceria?, String>((ref, id) async {
+  final row = await SupabaseService.client
+      .from('fidelidade_catalogo_itens')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
   if (row == null) return null;
   return ItemParceria.fromMap(row);
 });
@@ -126,14 +135,17 @@ final itemParceriaDetalheProvider = FutureProvider.autoDispose.family<ItemParcer
 // motorista, que a RLS de `motoristas` não libera pra empresa dona do
 // BENEFÍCIO (só pra empresa dona do motorista), mesmo motivo documentado
 // na web (parcerias-locais/page.tsx).
-final resgatesBeneficiosProvider = FutureProvider.autoDispose<List<ResgateBeneficio>>((ref) async {
+final resgatesBeneficiosProvider =
+    FutureProvider.autoDispose<List<ResgateBeneficio>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
 
-  final rows = await SupabaseService.client
-      .rpc('resgates_beneficios_empresa', params: {'p_empresa_id': empresaId}) as List;
-  return rows.map((r) => ResgateBeneficio.fromMap(r as Map<String, dynamic>)).toList();
+  final rows = await SupabaseService.client.rpc('resgates_beneficios_empresa',
+      params: {'p_empresa_id': empresaId}) as List;
+  return rows
+      .map((r) => ResgateBeneficio.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 class KpisParceriasLocais {
@@ -149,8 +161,11 @@ class KpisParceriasLocais {
   });
 }
 
-KpisParceriasLocais calcularKpisParceriasLocais(List<ResgateBeneficio> resgates) {
-  final pendentes = resgates.where((r) => r.status == 'solicitado' || r.status == 'em_andamento').toList();
+KpisParceriasLocais calcularKpisParceriasLocais(
+    List<ResgateBeneficio> resgates) {
+  final pendentes = resgates
+      .where((r) => r.status == 'solicitado' || r.status == 'em_andamento')
+      .toList();
   final queimados = resgates.where((r) => r.status == 'concluido').toList();
   final cancelados = resgates.where((r) => r.status == 'cancelado').toList();
   final pontosQueimados = queimados.fold<int>(0, (s, r) => s + r.pontosGastos);

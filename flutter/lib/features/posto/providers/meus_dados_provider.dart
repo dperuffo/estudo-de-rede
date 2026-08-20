@@ -8,7 +8,8 @@ import '../../../core/services/supabase_service.dart';
 // pra inicializar os controllers uma vez) — provider próprio (em vez de
 // reaproveitar meuPostoProvider) pra manter a invalidação de cada tela
 // independente.
-final meusDadosProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+final meusDadosProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;

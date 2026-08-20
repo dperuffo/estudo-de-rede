@@ -69,10 +69,12 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
       _erro = null;
     });
     try {
-      await AuthService().verificarCodigoMfa(factorId: status!.factorId!, code: codigo);
+      await AuthService()
+          .verificarCodigoMfa(factorId: status!.factorId!, code: codigo);
       if (mounted) context.go('/');
     } catch (_) {
-      if (mounted) setState(() => _erro = 'Código inválido ou expirado. Tente novamente.');
+      if (mounted)
+        setState(() => _erro = 'Código inválido ou expirado. Tente novamente.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -94,14 +96,16 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.shield_outlined, size: 56, color: Color(0xFF0D2D6B)),
+                const Icon(Icons.shield_outlined,
+                    size: 56, color: Color(0xFF0D2D6B)),
                 const SizedBox(height: 20),
                 Text(
                   precisaCadastrar
                       ? 'Verificação em duas etapas necessária'
                       : 'Digite o código do seu app autenticador',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -123,13 +127,16 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
                     maxLength: 6,
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 24, letterSpacing: 8),
-                    decoration: const InputDecoration(counterText: '', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        counterText: '', border: OutlineInputBorder()),
                     onSubmitted: (_) => _verificarCodigo(),
                   ),
                   if (_erro != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                      child: Text(_erro!,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 13)),
                     ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -138,7 +145,9 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
                       onPressed: _enviando ? null : _verificarCodigo,
                       child: _enviando
                           ? const SizedBox(
-                              width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('Verificar'),
                     ),
                   ),
@@ -146,7 +155,9 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
                   if (_erro != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                      child: Text(_erro!,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 13)),
                     ),
                   SizedBox(
                     width: double.infinity,

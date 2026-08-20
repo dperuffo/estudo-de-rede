@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show motoristasClienteProvider;
-import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show motoristasClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show veiculosClienteProvider;
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 class VinculoNovoScreen extends ConsumerStatefulWidget {
   const VinculoNovoScreen({super.key});
@@ -33,7 +37,8 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
     final sessao = await ref.read(sessaoProvider.future);
     final empresaId = sessao.empresaId;
     if (empresaId == null) {
-      setState(() => _erro = 'Não foi possível identificar sua empresa na sessão atual.');
+      setState(() =>
+          _erro = 'Não foi possível identificar sua empresa na sessão atual.');
       return;
     }
     setState(() {
@@ -62,7 +67,14 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
     final motoristasAsync = ref.watch(motoristasClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Vínculo')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Novo Vínculo')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -77,9 +89,14 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
             if (_erro != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Text(_erro!,
+                    style: const TextStyle(
+                        color: Color(0xFFB91C1C), fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
@@ -88,8 +105,13 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
               error: (e, _) => Text('Erro ao carregar veículos: $e'),
               data: (veiculos) => DropdownButtonFormField<String>(
                 value: _placa,
-                decoration: const InputDecoration(labelText: 'Veículo (placa) *', border: OutlineInputBorder()),
-                items: [for (final v in veiculos) DropdownMenuItem(value: v.placa, child: Text(v.placa))],
+                decoration: const InputDecoration(
+                    labelText: 'Veículo (placa) *',
+                    border: OutlineInputBorder()),
+                items: [
+                  for (final v in veiculos)
+                    DropdownMenuItem(value: v.placa, child: Text(v.placa))
+                ],
                 onChanged: (v) => setState(() => _placa = v),
                 validator: (v) => v == null ? 'Selecione um veículo' : null,
               ),
@@ -100,8 +122,12 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
               error: (e, _) => Text('Erro ao carregar motoristas: $e'),
               data: (motoristas) => DropdownButtonFormField<String>(
                 value: _motoristaId,
-                decoration: const InputDecoration(labelText: 'Motorista *', border: OutlineInputBorder()),
-                items: [for (final m in motoristas) DropdownMenuItem(value: m.id, child: Text(m.nomeCompleto))],
+                decoration: const InputDecoration(
+                    labelText: 'Motorista *', border: OutlineInputBorder()),
+                items: [
+                  for (final m in motoristas)
+                    DropdownMenuItem(value: m.id, child: Text(m.nomeCompleto))
+                ],
                 onChanged: (v) => setState(() => _motoristaId = v),
                 validator: (v) => v == null ? 'Selecione um motorista' : null,
               ),
@@ -110,13 +136,17 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
             TextFormField(
               controller: _observacaoCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Observação', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Observação', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _salvando ? null : _salvar,
               child: _salvando
-                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Salvar Vínculo'),
             ),
           ],

@@ -6,19 +6,28 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/fretes_provider.dart';
 import '../services/fretes_service.dart';
 
-final _formatoMoedaFrete = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+import '../../../core/theme/app_theme.dart';
+
+final _formatoMoedaFrete =
+    NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 // Fase Fretes-Cliente-3-Abas (19/07) — pedido do Daniel: mesma divisão em 3
 // abas já feita no painel web (fretes/page.tsx) e no PWA Motorista
 // (fretes_screen.dart do estrada-que-cuida) — Em Negociação (mercado
 // aberto + aguardando confirmação do motorista), Aceitos/Em Andamento e
 // Concluídos (mantém cancelado/recusado no histórico, não some da lista).
-List<FreteRow> _emNegociacao(List<FreteRow> fretes) =>
-    fretes.where((f) => f.status == 'disponivel' || f.status == 'aguardando_confirmacao').toList();
-List<FreteRow> _emAndamento(List<FreteRow> fretes) =>
-    fretes.where((f) => f.status == 'aceito' || f.status == 'em_andamento').toList();
+List<FreteRow> _emNegociacao(List<FreteRow> fretes) => fretes
+    .where(
+        (f) => f.status == 'disponivel' || f.status == 'aguardando_confirmacao')
+    .toList();
+List<FreteRow> _emAndamento(List<FreteRow> fretes) => fretes
+    .where((f) => f.status == 'aceito' || f.status == 'em_andamento')
+    .toList();
 List<FreteRow> _concluidos(List<FreteRow> fretes) => fretes
-    .where((f) => f.status == 'concluido' || f.status == 'cancelado' || f.status == 'recusado')
+    .where((f) =>
+        f.status == 'concluido' ||
+        f.status == 'cancelado' ||
+        f.status == 'recusado')
     .toList();
 
 // Fase PWA-Fretes — porta de fretes/page.tsx: lista de fretes da empresa,
@@ -35,17 +44,28 @@ class FretesScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Fretes'),
           bottom: fretesAsync.maybeWhen(
             data: (fretes) => TabBar(
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
+              labelColor: AppTheme.glassTextoAtivo,
+              unselectedLabelColor: AppTheme.glassTextoMuted,
               indicatorColor: Colors.white,
-              labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+              labelStyle:
+                  const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
               unselectedLabelStyle: const TextStyle(fontSize: 12.5),
               tabs: [
-                Tab(text: 'Em Negociação${_negText(_emNegociacao(fretes).length)}'),
-                Tab(text: 'Aceitos/Em Andamento${_negText(_emAndamento(fretes).length)}'),
+                Tab(
+                    text:
+                        'Em Negociação${_negText(_emNegociacao(fretes).length)}'),
+                Tab(
+                    text:
+                        'Aceitos/Em Andamento${_negText(_emAndamento(fretes).length)}'),
                 Tab(text: 'Concluídos${_negText(_concluidos(fretes).length)}'),
               ],
             ),
@@ -63,7 +83,10 @@ class FretesScreen extends ConsumerWidget {
             ? const Center(child: Text('Selecione uma empresa primeiro.'))
             : fretesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => ListView(children: [const SizedBox(height: 80), Center(child: Text('Erro: $e'))]),
+                error: (e, _) => ListView(children: [
+                  const SizedBox(height: 80),
+                  Center(child: Text('Erro: $e'))
+                ]),
                 data: (fretes) {
                   if (fretes.isEmpty) {
                     return ListView(
@@ -89,7 +112,8 @@ class FretesScreen extends ConsumerWidget {
                       ),
                       _ListaFretes(
                         fretes: _emAndamento(fretes),
-                        mensagemVazia: 'Nenhum frete aceito ou em andamento agora.',
+                        mensagemVazia:
+                            'Nenhum frete aceito ou em andamento agora.',
                       ),
                       _ListaFretes(
                         fretes: _concluidos(fretes),
@@ -119,7 +143,9 @@ class _ListaFretes extends ConsumerWidget {
           ? ListView(
               children: [
                 const SizedBox(height: 80),
-                Center(child: Text(mensagemVazia, style: const TextStyle(color: Colors.black45))),
+                Center(
+                    child: Text(mensagemVazia,
+                        style: const TextStyle(color: Colors.black45))),
               ],
             )
           : ListView.builder(
@@ -146,36 +172,52 @@ class _CardFrete extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(frete.titulo, style: const TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    child: Text(frete.titulo,
+                        style: const TextStyle(fontWeight: FontWeight.bold))),
                 _ChipStatusFrete(status: frete.status),
               ],
             ),
             const SizedBox(height: 6),
-            Text('${frete.origemLabel} → ${frete.destinoLabel}', style: const TextStyle(fontSize: 13)),
+            Text('${frete.origemLabel} → ${frete.destinoLabel}',
+                style: const TextStyle(fontSize: 13)),
             const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_formatoMoedaFrete.format(frete.valorOferecido), style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (frete.kmEstimado != null) Text('${frete.kmEstimado!.toStringAsFixed(0)} km', style: const TextStyle(fontSize: 12)),
+                Text(_formatoMoedaFrete.format(frete.valorOferecido),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (frete.kmEstimado != null)
+                  Text('${frete.kmEstimado!.toStringAsFixed(0)} km',
+                      style: const TextStyle(fontSize: 12)),
               ],
             ),
             if (frete.nomeMotorista != null) ...[
               const SizedBox(height: 4),
-              Text('Motorista: ${frete.nomeMotorista}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              Text('Motorista: ${frete.nomeMotorista}',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
             ],
             const Divider(height: 20),
             Row(
               children: [
-                if (frete.status == 'disponivel' || frete.status == 'aguardando_confirmacao')
+                if (frete.status == 'disponivel' ||
+                    frete.status == 'aguardando_confirmacao')
                   TextButton(
                     onPressed: () => context.push('/fretes/${frete.id}'),
-                    child: Text(frete.status == 'disponivel' ? 'Ver propostas' : 'Ver detalhes'),
+                    child: Text(frete.status == 'disponivel'
+                        ? 'Ver propostas'
+                        : 'Ver detalhes'),
                   ),
-                if (frete.status == 'aceito' || frete.status == 'em_andamento' || frete.status == 'concluido')
-                  TextButton(onPressed: () => context.push('/fretes/${frete.id}'), child: const Text('Ver detalhes')),
+                if (frete.status == 'aceito' ||
+                    frete.status == 'em_andamento' ||
+                    frete.status == 'concluido')
+                  TextButton(
+                      onPressed: () => context.push('/fretes/${frete.id}'),
+                      child: const Text('Ver detalhes')),
                 const Spacer(),
-                if (frete.status == 'disponivel' || frete.status == 'aguardando_confirmacao' || frete.status == 'aceito')
+                if (frete.status == 'disponivel' ||
+                    frete.status == 'aguardando_confirmacao' ||
+                    frete.status == 'aceito')
                   TextButton(
                     onPressed: () async {
                       final confirmar = await showDialog<bool>(
@@ -183,8 +225,12 @@ class _CardFrete extends ConsumerWidget {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Cancelar este frete?'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
-                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cancelar frete')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Voltar')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Cancelar frete')),
                           ],
                         ),
                       );
@@ -231,10 +277,13 @@ class _ChipStatusFrete extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: cor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: cor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12)),
       child: Text(
         labelStatusFrete[status] ?? status,
-        style: TextStyle(color: cor, fontSize: 10.5, fontWeight: FontWeight.bold),
+        style:
+            TextStyle(color: cor, fontSize: 10.5, fontWeight: FontWeight.bold),
       ),
     );
   }

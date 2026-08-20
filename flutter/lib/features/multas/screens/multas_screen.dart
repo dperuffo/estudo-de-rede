@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/multas_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas (cliente):
 // lista + KPIs + filtro de status, porta de multas/page.tsx.
 class MultasScreen extends ConsumerStatefulWidget {
@@ -39,7 +41,14 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
     final multasAsync = ref.watch(multasListProvider((status: _status)));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestão de Multas')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Gestão de Multas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/multas/nova'),
         icon: const Icon(Icons.add),
@@ -59,7 +68,8 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
                   .toList();
 
           final hoje = DateTime.now().toIso8601String().substring(0, 10);
-          final pendentesIndicacao = lista.where((m) => m.status == 'pendente_indicacao').length;
+          final pendentesIndicacao =
+              lista.where((m) => m.status == 'pendente_indicacao').length;
           final vencendoEmBreve = lista
               .where((m) =>
                   m.status == 'pendente_indicacao' &&
@@ -77,7 +87,8 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
                 children: [
                   _kpi('Pendentes', '$pendentesIndicacao'),
                   const SizedBox(width: 8),
-                  _kpi('Vencendo (7d)', '$vencendoEmBreve', destaque: vencendoEmBreve > 0),
+                  _kpi('Vencendo (7d)', '$vencendoEmBreve',
+                      destaque: vencendoEmBreve > 0),
                   const SizedBox(width: 8),
                   _kpi('Em aberto', _fmtMoeda(valorEmAberto)),
                 ],
@@ -97,10 +108,14 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
               const SizedBox(height: 10),
               DropdownButtonFormField<String?>(
                 value: _status,
-                decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                    isDense: true),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Todos')),
-                  for (final s in statusMultaLabel.entries) DropdownMenuItem(value: s.key, child: Text(s.value)),
+                  for (final s in statusMultaLabel.entries)
+                    DropdownMenuItem(value: s.key, child: Text(s.value)),
                 ],
                 onChanged: (v) => setState(() => _status = v),
               ),
@@ -108,7 +123,9 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
               if (filtradas.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('Nenhuma multa encontrada para esse filtro.', style: TextStyle(color: Colors.grey))),
+                  child: Center(
+                      child: Text('Nenhuma multa encontrada para esse filtro.',
+                          style: TextStyle(color: Colors.grey))),
                 )
               else
                 ...filtradas.map(_card),
@@ -128,15 +145,23 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
         decoration: BoxDecoration(
           color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+          border: Border.all(
+              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -151,8 +176,13 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
         onTap: () => context.push('/multas/${m.id}'),
         title: Row(
           children: [
-            Expanded(child: Text(m.placa, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
-            if (m.numeroAit != null) Text('AIT ${m.numeroAit}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Expanded(
+                child: Text(m.placa,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14))),
+            if (m.numeroAit != null)
+              Text('AIT ${m.numeroAit}',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
         subtitle: Padding(
@@ -173,12 +203,17 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: statusMultaCorFundo[m.status] ?? const Color(0xFFF1F5F9),
+                  color:
+                      statusMultaCorFundo[m.status] ?? const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   statusMultaLabel[m.status] ?? m.status,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusMultaCorTexto[m.status] ?? Colors.grey.shade700),
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: statusMultaCorTexto[m.status] ??
+                          Colors.grey.shade700),
                 ),
               ),
             ],

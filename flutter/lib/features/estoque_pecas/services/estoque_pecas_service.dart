@@ -45,7 +45,8 @@ class EstoquePecasService {
           'criado_por': criadoPor,
         });
       } catch (e) {
-        throw Exception('Peça cadastrada, mas não foi possível lançar o estoque inicial: $e');
+        throw Exception(
+            'Peça cadastrada, mas não foi possível lançar o estoque inicial: $e');
       }
     }
 
@@ -86,6 +87,9 @@ class EstoquePecasService {
   }
 
   Future<void> alterarAtiva(String pecaId, bool ativa) async {
-    await _supabase.from('pecas_estoque').update({'ativa': ativa, 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', pecaId);
+    await _supabase.from('pecas_estoque').update({
+      'ativa': ativa,
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', pecaId);
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/relatorios_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 const _cores = [
   Color(0xFF1565C0),
   Color(0xFFE65100),
@@ -48,7 +50,14 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
   Widget build(BuildContext context) {
     final brutosAsync = ref.watch(relatoriosBrutosProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Relatórios Personalizados')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Relatórios Personalizados')),
       body: brutosAsync.when(
         data: (brutos) => _conteudo(brutos),
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -78,11 +87,17 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
   Widget _conteudo(RelatoriosBrutos brutos) {
     final dimensoesDisponiveis = dimensoesPorFonte[_fonte]!;
     final metricasDisponiveis = metricasPorFonte[_fonte]!;
-    final dimensaoAtual = dimensoesDisponiveis.firstWhere((d) => d.id == _dimensaoId, orElse: () => dimensoesDisponiveis.first);
-    final metricasAtuais = metricasDisponiveis.where((m) => _metricaIds.contains(m.id)).toList();
+    final dimensaoAtual = dimensoesDisponiveis.firstWhere(
+        (d) => d.id == _dimensaoId,
+        orElse: () => dimensoesDisponiveis.first);
+    final metricasAtuais =
+        metricasDisponiveis.where((m) => _metricaIds.contains(m.id)).toList();
     final dadosBase = _dadosBase(brutos);
-    final resultado = calcularResultado(dadosBase, dimensaoAtual, metricasAtuais);
-    final metricaGrafico = metricasAtuais.isNotEmpty ? metricasAtuais.first : metricasDisponiveis.first;
+    final resultado =
+        calcularResultado(dadosBase, dimensaoAtual, metricasAtuais);
+    final metricaGrafico = metricasAtuais.isNotEmpty
+        ? metricasAtuais.first
+        : metricasDisponiveis.first;
     final dadosGrafico = resultado.take(25).toList();
 
     return ListView(
@@ -91,52 +106,71 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF1E1B4B), Color(0xFF4F46E5)]),
+            gradient: const LinearGradient(
+                colors: [Color(0xFF1E1B4B), Color(0xFF4F46E5)]),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('🗂️ Relatórios Personalizados', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('🗂️ Relatórios Personalizados',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
               SizedBox(height: 4),
-              Text('Combine fonte, dimensão, uma ou mais métricas e tipo de gráfico.',
+              Text(
+                  'Combine fonte, dimensão, uma ou mais métricas e tipo de gráfico.',
                   style: TextStyle(color: Colors.white70, fontSize: 12)),
             ],
           ),
         ),
         const SizedBox(height: 16),
-
-        const Text('Fonte', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+        const Text('Fonte',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: _fonte,
-          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), isDense: true),
           items: const [
-            DropdownMenuItem(value: 'abastecimentos', child: Text('⛽ Abastecimentos')),
+            DropdownMenuItem(
+                value: 'abastecimentos', child: Text('⛽ Abastecimentos')),
             DropdownMenuItem(value: 'manutencao', child: Text('🔧 Manutenção')),
-            DropdownMenuItem(value: 'custos_fixos', child: Text('💰 Custos Fixos')),
-            DropdownMenuItem(value: 'notas_fiscais', child: Text('🧾 Notas Fiscais')),
+            DropdownMenuItem(
+                value: 'custos_fixos', child: Text('💰 Custos Fixos')),
+            DropdownMenuItem(
+                value: 'notas_fiscais', child: Text('🧾 Notas Fiscais')),
             DropdownMenuItem(value: 'fretes', child: Text('🚚 Fretes')),
-            DropdownMenuItem(value: 'financeiro', child: Text('🏦 Financeiro (Receber/Pagar)')),
-            DropdownMenuItem(value: 'acoes_sugeridas', child: Text('💡 Ações Sugeridas')),
+            DropdownMenuItem(
+                value: 'financeiro',
+                child: Text('🏦 Financeiro (Receber/Pagar)')),
+            DropdownMenuItem(
+                value: 'acoes_sugeridas', child: Text('💡 Ações Sugeridas')),
             DropdownMenuItem(value: 'chamados', child: Text('🎫 Chamados')),
             DropdownMenuItem(value: 'avaliacoes', child: Text('⭐ Avaliações')),
           ],
           onChanged: (v) => _trocarFonte(v ?? _fonte),
         ),
         const SizedBox(height: 12),
-
-        const Text('Dimensão', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+        const Text('Dimensão',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: dimensaoAtual.id,
-          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-          items: dimensoesDisponiveis.map((d) => DropdownMenuItem(value: d.id, child: Text(d.label))).toList(),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), isDense: true),
+          items: dimensoesDisponiveis
+              .map((d) => DropdownMenuItem(value: d.id, child: Text(d.label)))
+              .toList(),
           onChanged: (v) => setState(() => _dimensaoId = v ?? _dimensaoId),
         ),
         const SizedBox(height: 12),
-
-        const Text('Métricas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+        const Text('Métricas',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
         const SizedBox(height: 4),
         Wrap(
           spacing: 6,
@@ -157,12 +191,14 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           }).toList(),
         ),
         const SizedBox(height: 12),
-
-        const Text('Gráfico', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+        const Text('Gráfico',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: _tipoGrafico,
-          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), isDense: true),
           items: const [
             DropdownMenuItem(value: 'bar', child: Text('📊 Barras')),
             DropdownMenuItem(value: 'line', child: Text('📈 Linhas')),
@@ -172,7 +208,6 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           onChanged: (v) => setState(() => _tipoGrafico = v ?? _tipoGrafico),
         ),
         const SizedBox(height: 20),
-
         if (dadosBase.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -185,7 +220,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
         else if (resultado.isEmpty || metricasAtuais.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text('Nenhum resultado para essa combinação de dimensão/métrica.', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+            child: Text(
+                'Nenhum resultado para essa combinação de dimensão/métrica.',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
           )
         else ...[
           Text(
@@ -223,7 +260,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
   }
 
   Widget _barras(List<GrupoRelatorio> dados, MetricaRelatorio metrica) {
-    final maxV = dados.map((d) => d.valores[metrica.id] ?? 0).fold<double>(0, (a, b) => a > b ? a : b);
+    final maxV = dados
+        .map((d) => d.valores[metrica.id] ?? 0)
+        .fold<double>(0, (a, b) => a > b ? a : b);
     return SizedBox(
       height: 260,
       child: BarChart(
@@ -235,7 +274,8 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                 toY: e.value.valores[metrica.id] ?? 0,
                 color: _cores[e.key % _cores.length],
                 width: 14,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(3)),
               ),
             ]);
           }).toList(),
@@ -244,7 +284,8 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 48,
-                getTitlesWidget: (v, _) => Text(_compacto(v), style: const TextStyle(fontSize: 9)),
+                getTitlesWidget: (v, _) =>
+                    Text(_compacto(v), style: const TextStyle(fontSize: 9)),
               ),
             ),
             bottomTitles: AxisTitles(
@@ -257,19 +298,24 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                   final label = dados[idx].chave;
                   return Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(label.length > 8 ? '${label.substring(0, 8)}…' : label,
-                        style: const TextStyle(fontSize: 8), overflow: TextOverflow.ellipsis),
+                    child: Text(
+                        label.length > 8 ? '${label.substring(0, 8)}…' : label,
+                        style: const TextStyle(fontSize: 8),
+                        overflow: TextOverflow.ellipsis),
                   );
                 },
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(show: false),
           gridData: FlGridData(
             drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
@@ -286,7 +332,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
   }
 
   Widget _linha(List<GrupoRelatorio> dados, MetricaRelatorio metrica) {
-    final maxV = dados.map((d) => d.valores[metrica.id] ?? 0).fold<double>(0, (a, b) => a > b ? a : b);
+    final maxV = dados
+        .map((d) => d.valores[metrica.id] ?? 0)
+        .fold<double>(0, (a, b) => a > b ? a : b);
     return SizedBox(
       height: 260,
       child: LineChart(
@@ -294,7 +342,12 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           maxY: maxV <= 0 ? 1 : maxV * 1.2,
           lineBarsData: [
             LineChartBarData(
-              spots: dados.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.valores[metrica.id] ?? 0)).toList(),
+              spots: dados
+                  .asMap()
+                  .entries
+                  .map((e) => FlSpot(
+                      e.key.toDouble(), e.value.valores[metrica.id] ?? 0))
+                  .toList(),
               isCurved: false,
               color: _cores.first,
               barWidth: 2,
@@ -303,7 +356,11 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           ],
           titlesData: FlTitlesData(
             leftTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: true, reservedSize: 48, getTitlesWidget: (v, _) => Text(_compacto(v), style: const TextStyle(fontSize: 9))),
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 48,
+                  getTitlesWidget: (v, _) =>
+                      Text(_compacto(v), style: const TextStyle(fontSize: 9))),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
@@ -315,16 +372,23 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                   final label = dados[idx].chave;
                   return Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(label.length > 8 ? '${label.substring(0, 8)}…' : label, style: const TextStyle(fontSize: 8)),
+                    child: Text(
+                        label.length > 8 ? '${label.substring(0, 8)}…' : label,
+                        style: const TextStyle(fontSize: 8)),
                   );
                 },
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey.shade300)),
-          gridData: FlGridData(getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1)),
+          borderData: FlBorderData(
+              show: true, border: Border.all(color: Colors.grey.shade300)),
+          gridData: FlGridData(
+              getDrawingHorizontalLine: (_) =>
+                  FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1)),
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
               getTooltipColor: (_) => const Color(0xFF1E293B),
@@ -342,7 +406,8 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
   }
 
   Widget _pizza(List<GrupoRelatorio> dados, MetricaRelatorio metrica) {
-    final total = dados.fold<double>(0, (s, d) => s + (d.valores[metrica.id] ?? 0));
+    final total =
+        dados.fold<double>(0, (s, d) => s + (d.valores[metrica.id] ?? 0));
     return Column(
       children: [
         SizedBox(
@@ -357,7 +422,10 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                   title: '${pct.toStringAsFixed(0)}%',
                   color: _cores[e.key % _cores.length],
                   radius: 85,
-                  titleStyle: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  titleStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
                 );
               }).toList(),
             ),
@@ -371,7 +439,12 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(width: 8, height: 8, decoration: BoxDecoration(color: _cores[e.key % _cores.length], shape: BoxShape.circle)),
+                Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                        color: _cores[e.key % _cores.length],
+                        shape: BoxShape.circle)),
                 const SizedBox(width: 4),
                 Text(e.value.chave, style: const TextStyle(fontSize: 10)),
               ],
@@ -382,7 +455,8 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
     );
   }
 
-  Widget _tabela(List<GrupoRelatorio> resultado, DimensaoRelatorio dimensao, List<MetricaRelatorio> metricas) {
+  Widget _tabela(List<GrupoRelatorio> resultado, DimensaoRelatorio dimensao,
+      List<MetricaRelatorio> metricas) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
@@ -390,16 +464,32 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
         dataRowMinHeight: 36,
         dataRowMaxHeight: 44,
         columns: [
-          DataColumn(label: Text(dimensao.label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-          for (final m in metricas) DataColumn(label: Text(m.label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)), numeric: true),
-          const DataColumn(label: Text('Registros', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)), numeric: true),
+          DataColumn(
+              label: Text(dimensao.label,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700))),
+          for (final m in metricas)
+            DataColumn(
+                label: Text(m.label,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700)),
+                numeric: true),
+          const DataColumn(
+              label: Text('Registros',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              numeric: true),
         ],
         rows: resultado
             .map((r) => DataRow(cells: [
                   DataCell(Text(r.chave, style: const TextStyle(fontSize: 12))),
                   for (final m in metricas)
-                    DataCell(Text(formatarValorMetrica(r.valores[m.id] ?? 0, m.formato), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                  DataCell(Text('${r.qtdLinhas}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
+                    DataCell(Text(
+                        formatarValorMetrica(r.valores[m.id] ?? 0, m.formato),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600))),
+                  DataCell(Text('${r.qtdLinhas}',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600))),
                 ]))
             .toList(),
       ),

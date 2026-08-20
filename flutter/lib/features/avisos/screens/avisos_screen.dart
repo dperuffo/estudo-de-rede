@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../../core/providers/avisos_provider.dart';
 import '../../../core/widgets/markdown_simples.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _data = DateFormat('dd/MM/yyyy HH:mm');
 
 String _fmtData(String? iso) {
@@ -48,7 +50,14 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
     final async = ref.watch(avisosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Central de Avisos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Central de Avisos')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Não deu pra carregar: $e')),
@@ -71,7 +80,8 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
                     children: const [
                       Padding(
                         padding: EdgeInsets.all(24),
-                        child: Text('Nenhum aviso no momento.', style: TextStyle(color: Colors.grey)),
+                        child: Text('Nenhum aviso no momento.',
+                            style: TextStyle(color: Colors.grey)),
                       ),
                     ],
                   )
@@ -88,24 +98,34 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
                           side: BorderSide(color: cor.withOpacity(0.35)),
                         ),
                         child: ExpansionTile(
-                          leading: Icon(_tipoIcone[a.tipo] ?? Icons.campaign_outlined, color: cor),
-                          title: Text(a.titulo, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          subtitle: Text('${_fmtData(a.dataPublicacao)}${a.fixado ? ' · 📌 Fixado' : ''}',
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                          leading: Icon(
+                              _tipoIcone[a.tipo] ?? Icons.campaign_outlined,
+                              color: cor),
+                          title: Text(a.titulo,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                          subtitle: Text(
+                              '${_fmtData(a.dataPublicacao)}${a.fixado ? ' · 📌 Fixado' : ''}',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade600)),
                           children: [
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(a.resumo, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                                  Text(a.resumo,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey.shade700)),
                                   const SizedBox(height: 8),
                                   if (a.urlImagem != null)
                                     Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(a.urlImagem!, fit: BoxFit.cover),
+                                        child: Image.network(a.urlImagem!,
+                                            fit: BoxFit.cover),
                                       ),
                                     ),
                                   ...renderMarkdownSimples(a.corpo),

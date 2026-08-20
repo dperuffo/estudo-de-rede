@@ -31,8 +31,18 @@ Future<List> _rpcSeguro(Future rpcFuture) async {
 }
 
 const _nomesMes = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
 ];
 
 String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
@@ -85,7 +95,8 @@ class PontoPrevisaoConsumo {
   final String diaLabel;
   final double litros;
   final String tipo; // 'real' | 'projetado'
-  const PontoPrevisaoConsumo({required this.diaLabel, required this.litros, required this.tipo});
+  const PontoPrevisaoConsumo(
+      {required this.diaLabel, required this.litros, required this.tipo});
 }
 
 class PontoPrecoMedio {
@@ -224,7 +235,8 @@ class IndicadoresAvancadosDados {
     required this.desempenhoPorAtivo,
   });
 
-  factory IndicadoresAvancadosDados.vazio(int ano, int mes) => IndicadoresAvancadosDados(
+  factory IndicadoresAvancadosDados.vazio(int ano, int mes) =>
+      IndicadoresAvancadosDados(
         temEmpresa: false,
         ano: ano,
         mes: mes,
@@ -261,7 +273,9 @@ List<PontoPrevisaoConsumo> _calcularPrevisaoConsumo({
   required int diaAtual,
   required bool projetarRestante,
 }) {
-  int diaDaSemana(int dia) => DateTime(ano, mes, dia).weekday % 7; // 0=domingo..6=sábado, igual ao JS getDay()
+  int diaDaSemana(int dia) =>
+      DateTime(ano, mes, dia).weekday %
+      7; // 0=domingo..6=sábado, igual ao JS getDay()
 
   final somaPadrao = padraoDiaSemana.values.fold<double>(0, (s, v) => s + v);
   final mediaGeralBruta = somaPadrao / 7;
@@ -299,7 +313,10 @@ List<PontoPrevisaoConsumo> _calcularPrevisaoConsumo({
       ));
     } else if (projetarRestante) {
       final projetado = baseline * fator(diaDaSemana(dia));
-      pontos.add(PontoPrevisaoConsumo(diaLabel: diaLabel, litros: (projetado * 10).round() / 10, tipo: 'projetado'));
+      pontos.add(PontoPrevisaoConsumo(
+          diaLabel: diaLabel,
+          litros: (projetado * 10).round() / 10,
+          tipo: 'projetado'));
     }
   }
   return pontos;
@@ -310,11 +327,13 @@ String _diaLabelCurto(String isoData) {
   return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
 }
 
-final indicadoresAvancadosProvider = FutureProvider.autoDispose
-    .family<IndicadoresAvancadosDados, ({int ano, int mes, String? combustivel})>((ref, periodo) async {
+final indicadoresAvancadosProvider = FutureProvider.autoDispose.family<
+    IndicadoresAvancadosDados,
+    ({int ano, int mes, String? combustivel})>((ref, periodo) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
-  if (empresaId == null) return IndicadoresAvancadosDados.vazio(periodo.ano, periodo.mes);
+  if (empresaId == null)
+    return IndicadoresAvancadosDados.vazio(periodo.ano, periodo.mes);
 
   final supabase = SupabaseService.client;
   final agora = DateTime.now();
@@ -432,7 +451,8 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
   final padraoDiaSemana = <int, double>{};
   for (final p in padraoDiaSemanaRaw) {
     final m = p as Map<String, dynamic>;
-    padraoDiaSemana[(m['dia_semana'] as num).toInt()] = (m['media_litros'] as num?)?.toDouble() ?? 0;
+    padraoDiaSemana[(m['dia_semana'] as num).toInt()] =
+        (m['media_litros'] as num?)?.toDouble() ?? 0;
   }
   final previsaoConsumo = _calcularPrevisaoConsumo(
     diasReais: diasReaisMap,
@@ -444,8 +464,9 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
     projetarRestante: isMesAtual,
   );
   final totalLitrosMes = diasReaisMap.values.fold<double>(0, (s, v) => s + v);
-  final totalLitrosProjetado =
-      previsaoConsumo.where((p) => p.tipo == 'projetado').fold<double>(0, (s, p) => s + p.litros);
+  final totalLitrosProjetado = previsaoConsumo
+      .where((p) => p.tipo == 'projetado')
+      .fold<double>(0, (s, p) => s + p.litros);
 
   // Item 3 — Evolução do preço médio.
   final precoMedio = consumoDiarioRaw
@@ -453,7 +474,8 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
       .where((m) => ((m['litros'] as num?)?.toDouble() ?? 0) > 0)
       .map((m) => PontoPrecoMedio(
             diaLabel: _diaLabelCurto(m['dia'] as String),
-            precoMedio: ((m['valor'] as num).toDouble()) / ((m['litros'] as num).toDouble()),
+            precoMedio: ((m['valor'] as num).toDouble()) /
+                ((m['litros'] as num).toDouble()),
           ))
       .toList();
 
@@ -473,7 +495,8 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
   final postosNomesOrdenados = <String>[];
   for (final v in volumePostosRaw) {
     final m = v as Map<String, dynamic>;
-    final nome = (m['posto_nome'] as String?) ?? (m['posto_cnpj'] as String? ?? '—');
+    final nome =
+        (m['posto_nome'] as String?) ?? (m['posto_cnpj'] as String? ?? '—');
     if (postosNomesSet.add(nome)) postosNomesOrdenados.add(nome);
   }
   final porDiaPostos = <String, Map<String, double>>{};
@@ -481,7 +504,8 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
   final totalPorPosto = <String, double>{};
   for (final v in volumePostosRaw) {
     final m = v as Map<String, dynamic>;
-    final nome = (m['posto_nome'] as String?) ?? (m['posto_cnpj'] as String? ?? '—');
+    final nome =
+        (m['posto_nome'] as String?) ?? (m['posto_cnpj'] as String? ?? '—');
     final diaIso = m['dia'] as String;
     final litros = (m['litros'] as num?)?.toDouble() ?? 0;
     if (!porDiaPostos.containsKey(diaIso)) {
@@ -493,9 +517,13 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
   }
   final diasOrdenados = porDiaPostos.keys.toList()..sort();
   final evolutivoPostos = diasOrdenados
-      .map((d) => PontoEvolutivoPostos(diaLabel: diaIsoParaLabel[d]!, valores: porDiaPostos[d]!))
+      .map((d) => PontoEvolutivoPostos(
+          diaLabel: diaIsoParaLabel[d]!, valores: porDiaPostos[d]!))
       .toList();
-  final topPostos = totalPorPosto.entries.map((e) => PontoTopPosto(posto: e.key, litros: (e.value * 10).round() / 10)).toList()
+  final topPostos = totalPorPosto.entries
+      .map((e) =>
+          PontoTopPosto(posto: e.key, litros: (e.value * 10).round() / 10))
+      .toList()
     ..sort((a, b) => b.litros.compareTo(a.litros));
 
   // Itens 6/7 — Ranking de veículos e motoristas por gasto.
@@ -503,7 +531,8 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
     final m = r as Map<String, dynamic>;
     final marca = m['marca'] as String?;
     final modelo = m['modelo'] as String?;
-    final sub = [marca, modelo].where((s) => s != null && s.isNotEmpty).join(' ');
+    final sub =
+        [marca, modelo].where((s) => s != null && s.isNotEmpty).join(' ');
     return ItemRankingGasto(
       chave: m['placa'] as String,
       label: m['placa'] as String,

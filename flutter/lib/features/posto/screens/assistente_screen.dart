@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/assistente_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — porta de ChatAssistente.tsx pro Flutter. Histórico só em
 // memória (mesmo comportamento da web: fecha a tela, perde a conversa —
 // não persiste no banco). Fora do escopo desta versão: exportar PDF da
@@ -11,7 +13,11 @@ class _MensagemExibida {
   final String content;
   final List<ConsultaExecutada>? consultas;
   final bool erro;
-  const _MensagemExibida({required this.role, required this.content, this.consultas, this.erro = false});
+  const _MensagemExibida(
+      {required this.role,
+      required this.content,
+      this.consultas,
+      this.erro = false});
 }
 
 const _perguntasSugeridas = [
@@ -60,7 +66,9 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
     final perguntaLimpa = texto.trim();
     if (perguntaLimpa.isEmpty || _enviando) return;
 
-    final historico = _mensagens.map((m) => MensagemChat(role: m.role, content: m.content)).toList();
+    final historico = _mensagens
+        .map((m) => MensagemChat(role: m.role, content: m.content))
+        .toList();
 
     setState(() {
       _mensagens.add(_MensagemExibida(role: 'user', content: perguntaLimpa));
@@ -69,17 +77,20 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
     });
     _rolarParaFim();
 
-    final resultado = await AssistenteService().perguntar(perguntaLimpa, historico);
+    final resultado =
+        await AssistenteService().perguntar(perguntaLimpa, historico);
 
     if (!mounted) return;
     setState(() {
       _enviando = false;
       if (resultado.erro != null) {
-        _mensagens.add(_MensagemExibida(role: 'assistant', content: resultado.erro!, erro: true));
+        _mensagens.add(_MensagemExibida(
+            role: 'assistant', content: resultado.erro!, erro: true));
       } else {
         _mensagens.add(_MensagemExibida(
           role: 'assistant',
-          content: resultado.resposta ?? 'Não consegui gerar uma resposta para essa pergunta.',
+          content: resultado.resposta ??
+              'Não consegui gerar uma resposta para essa pergunta.',
           consultas: resultado.consultas,
         ));
       }
@@ -90,7 +101,14 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Assistente FNI')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Assistente FNI')),
       body: Column(
         children: [
           Expanded(
@@ -101,7 +119,8 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _mensagens.length + (_enviando ? 1 : 0),
                     itemBuilder: (context, i) {
-                      if (i == _mensagens.length) return _buildBalaoCarregando();
+                      if (i == _mensagens.length)
+                        return _buildBalaoCarregando();
                       return _buildBalao(_mensagens[i]);
                     },
                   ),
@@ -142,28 +161,36 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
 
   Widget _buildBalao(_MensagemExibida m) {
     final ehUsuario = m.role == 'user';
-    final cor = ehUsuario ? const Color(0xFF0D2D6B) : (m.erro ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
-    final corTexto = ehUsuario ? Colors.white : (m.erro ? const Color(0xFFB91C1C) : const Color(0xFF1E293B));
+    final cor = ehUsuario
+        ? const Color(0xFF0D2D6B)
+        : (m.erro ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
+    final corTexto = ehUsuario
+        ? Colors.white
+        : (m.erro ? const Color(0xFFB91C1C) : const Color(0xFF1E293B));
 
     return Align(
       alignment: ehUsuario ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(16)),
+        decoration:
+            BoxDecoration(color: cor, borderRadius: BorderRadius.circular(16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(m.content, style: TextStyle(color: corTexto, fontSize: 14)),
             if (m.consultas != null && m.consultas!.isNotEmpty)
               Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                data: Theme.of(context)
+                    .copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   title: Text(
                     '${m.consultas!.length} consulta${m.consultas!.length > 1 ? 's' : ''} ao banco',
-                    style: TextStyle(fontSize: 11, color: corTexto.withOpacity(0.7)),
+                    style: TextStyle(
+                        fontSize: 11, color: corTexto.withOpacity(0.7)),
                   ),
                   children: m.consultas!
                       .map((c) => Container(
@@ -176,7 +203,8 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
                             ),
                             child: Text(
                               '${c.erro != null ? "Erro: ${c.erro}" : "${c.linhas} linha(s)"} — ${c.sql}',
-                              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                              style: const TextStyle(
+                                  fontSize: 11, fontFamily: 'monospace'),
                             ),
                           ))
                       .toList(),
@@ -194,7 +222,9 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(16)),
         child: const Text('Consultando os dados da sua operação…',
             style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
       ),
@@ -215,7 +245,8 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
                   hintText: 'Pergunte algo sobre sua frota…',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 onSubmitted: _enviar,
               ),

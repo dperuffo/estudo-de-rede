@@ -2,7 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../posto/providers/ajuste_abastecimento_provider.dart'
-    show AbastecimentoParaAjuste, RodadaAjuste, AjusteAberto, AjusteAbastecimentoDetalhe;
+    show
+        AbastecimentoParaAjuste,
+        RodadaAjuste,
+        AjusteAberto,
+        AjusteAbastecimentoDetalhe;
 
 // Fase FLT-3 — mesmo detalhe+ajuste de abastecimento da Fase FLT-2
 // (ajuste_abastecimento_provider.dart), modelado de perto pro lado
@@ -14,10 +18,11 @@ import '../../posto/providers/ajuste_abastecimento_provider.dart'
 // classe original só cobre o lado posto — por isso este provider expõe o
 // status calculado à parte (`minhaVezDeResponderCliente` abaixo), a tela
 // usa essa função em vez do getter da classe.
-bool minhaVezDeResponderCliente(AjusteAbastecimentoDetalhe d) => d.ajusteAberto?.status == 'pendente_cliente';
+bool minhaVezDeResponderCliente(AjusteAbastecimentoDetalhe d) =>
+    d.ajusteAberto?.status == 'pendente_cliente';
 
-final ajusteAbastecimentoClienteProvider =
-    FutureProvider.autoDispose.family<AjusteAbastecimentoDetalhe, String>((ref, chave) async {
+final ajusteAbastecimentoClienteProvider = FutureProvider.autoDispose
+    .family<AjusteAbastecimentoDetalhe, String>((ref, chave) async {
   final partes = chave.split(':');
   final provedor = partes.first;
   final idTexto = partes.sublist(1).join(':');
@@ -46,7 +51,8 @@ final ajusteAbastecimentoClienteProvider =
   String? empresaPostoId;
   final postoCnpj = linha['posto_cnpj'] as String?;
   if (postoCnpj != null && postoCnpj.isNotEmpty) {
-    empresaPostoId = await supabase.rpc('resolver_empresa_por_cnpj_segmento', params: {
+    empresaPostoId =
+        await supabase.rpc('resolver_empresa_por_cnpj_segmento', params: {
       'p_cnpj': postoCnpj,
       'p_segmento': 'Revenda',
     }) as String?;
@@ -74,10 +80,13 @@ final ajusteAbastecimentoClienteProvider =
   );
 
   if (empresaClienteId == null) {
-    return AjusteAbastecimentoDetalhe(abastecimento: abastecimento, rodadas: const []);
+    return AjusteAbastecimentoDetalhe(
+        abastecimento: abastecimento, rodadas: const []);
   }
 
-  final colunaId = abastecimento.identificadorTipo == 'profrotas' ? 'abastecimento_id' : 'abastecimento_externo_id';
+  final colunaId = abastecimento.identificadorTipo == 'profrotas'
+      ? 'abastecimento_id'
+      : 'abastecimento_externo_id';
   final idNumerico = int.tryParse(abastecimento.id);
 
   Map<String, dynamic>? ajusteRaw;
@@ -87,15 +96,17 @@ final ajusteAbastecimentoClienteProvider =
         .select('id, status')
         .eq(colunaId, idNumerico)
         .eq('empresa_cliente_id', empresaClienteId)
-        .inFilter('status', ['pendente_cliente', 'pendente_posto'])
-        .maybeSingle();
+        .inFilter(
+            'status', ['pendente_cliente', 'pendente_posto']).maybeSingle();
   }
 
   if (ajusteRaw == null) {
-    return AjusteAbastecimentoDetalhe(abastecimento: abastecimento, rodadas: const []);
+    return AjusteAbastecimentoDetalhe(
+        abastecimento: abastecimento, rodadas: const []);
   }
 
-  final ajusteAberto = AjusteAberto(id: ajusteRaw['id'] as String, status: ajusteRaw['status'] as String);
+  final ajusteAberto = AjusteAberto(
+      id: ajusteRaw['id'] as String, status: ajusteRaw['status'] as String);
 
   final rodadasRaw = await supabase
       .from('ajustes_abastecimentos_rodadas')

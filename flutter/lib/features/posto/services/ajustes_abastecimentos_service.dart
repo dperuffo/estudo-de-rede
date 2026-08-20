@@ -64,13 +64,17 @@ class CamposAjuste {
 
 String? validarCamposAjuste(CamposAjuste campos) {
   if (campos.vazio) return 'Preencha ao menos um campo para propor o ajuste.';
-  if (campos.hodometro != null && campos.hodometro! < 0) return 'Hodômetro inválido.';
-  if (campos.itemQuantidade != null && campos.itemQuantidade! <= 0) return 'Litros inválido.';
+  if (campos.hodometro != null && campos.hodometro! < 0)
+    return 'Hodômetro inválido.';
+  if (campos.itemQuantidade != null && campos.itemQuantidade! <= 0)
+    return 'Litros inválido.';
   if (campos.itemValorUnitario != null && campos.itemValorUnitario! <= 0) {
     return 'Preço por litro inválido.';
   }
-  if (campos.itemValorTotal != null && campos.itemValorTotal! <= 0) return 'Valor total inválido.';
-  if (campos.dataAbastecimento != null && DateTime.tryParse(campos.dataAbastecimento!) == null) {
+  if (campos.itemValorTotal != null && campos.itemValorTotal! <= 0)
+    return 'Valor total inválido.';
+  if (campos.dataAbastecimento != null &&
+      DateTime.tryParse(campos.dataAbastecimento!) == null) {
     return 'Data/hora inválida.';
   }
   return null;
@@ -93,14 +97,17 @@ class AjustesAbastecimentosService {
     final erroValidacao = validarCamposAjuste(campos);
     if (erroValidacao != null) return erroValidacao;
 
-    final statusInicial = autor == 'posto' ? 'pendente_cliente' : 'pendente_posto';
+    final statusInicial =
+        autor == 'posto' ? 'pendente_cliente' : 'pendente_posto';
 
     try {
       final ajuste = await _supabase
           .from('ajustes_abastecimentos')
           .insert({
-            'abastecimento_id': identificador.tipo == 'profrotas' ? identificador.id : null,
-            'abastecimento_externo_id': identificador.tipo == 'externo' ? identificador.id : null,
+            'abastecimento_id':
+                identificador.tipo == 'profrotas' ? identificador.id : null,
+            'abastecimento_externo_id':
+                identificador.tipo == 'externo' ? identificador.id : null,
             'empresa_cliente_id': empresaClienteId,
             'empresa_posto_id': empresaPostoId,
             'origem': autor,
@@ -140,7 +147,8 @@ class AjustesAbastecimentosService {
     if (erroValidacao != null) return erroValidacao;
 
     final meuTurno = autor == 'posto' ? 'pendente_posto' : 'pendente_cliente';
-    final proximoTurno = autor == 'posto' ? 'pendente_cliente' : 'pendente_posto';
+    final proximoTurno =
+        autor == 'posto' ? 'pendente_cliente' : 'pendente_posto';
 
     try {
       final ajuste = await _supabase
@@ -153,7 +161,8 @@ class AjustesAbastecimentosService {
       if (status == 'aceito' || status == 'recusado' || status == 'cancelado') {
         return 'Esta solicitação já foi encerrada e não aceita novas rodadas.';
       }
-      if (status != meuTurno) return 'Não é a sua vez de responder esta solicitação.';
+      if (status != meuTurno)
+        return 'Não é a sua vez de responder esta solicitação.';
 
       final rodadaAtual = (ajuste['rodada_atual'] as num).toInt();
       final novaRodada = rodadaAtual + 1;
@@ -161,7 +170,11 @@ class AjustesAbastecimentosService {
 
       await _supabase
           .from('ajustes_abastecimentos_rodadas')
-          .update({'decisao': 'contraproposta', 'decidido_em': agora, 'decidido_por': _meuEmail})
+          .update({
+            'decisao': 'contraproposta',
+            'decidido_em': agora,
+            'decidido_por': _meuEmail
+          })
           .eq('ajuste_id', ajusteId)
           .eq('numero_rodada', rodadaAtual);
 
@@ -187,7 +200,8 @@ class AjustesAbastecimentosService {
     }
   }
 
-  Future<String?> decidirAjuste({required String ajusteId, required bool aceitar}) async {
+  Future<String?> decidirAjuste(
+      {required String ajusteId, required bool aceitar}) async {
     try {
       await _supabase.rpc('decidir_ajuste_abastecimento', params: {
         'p_ajuste_id': ajusteId,

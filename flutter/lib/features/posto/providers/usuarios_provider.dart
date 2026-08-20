@@ -35,7 +35,8 @@ class UsuarioDoPosto {
   });
 }
 
-final usuariosPostoProvider = FutureProvider.autoDispose<List<UsuarioDoPosto>>((ref) async {
+final usuariosPostoProvider =
+    FutureProvider.autoDispose<List<UsuarioDoPosto>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -54,7 +55,8 @@ final usuariosPostoProvider = FutureProvider.autoDispose<List<UsuarioDoPosto>>((
 
   final usuariosRaw = await supabase
       .from('usuarios_app')
-      .select('email, nome, perfil, segmento, ativo, mfa_habilitado, cpf, telefone')
+      .select(
+          'email, nome, perfil, segmento, ativo, mfa_habilitado, cpf, telefone')
       .inFilter('email', roles.keys.toList())
       .order('nome') as List;
 
@@ -75,7 +77,8 @@ final usuariosPostoProvider = FutureProvider.autoDispose<List<UsuarioDoPosto>>((
   }).toList();
 });
 
-final usuarioDetalheProvider = FutureProvider.autoDispose.family<UsuarioDoPosto?, String>((ref, email) async {
+final usuarioDetalheProvider = FutureProvider.autoDispose
+    .family<UsuarioDoPosto?, String>((ref, email) async {
   final lista = await ref.watch(usuariosPostoProvider.future);
   for (final u in lista) {
     if (u.email == email) return u;

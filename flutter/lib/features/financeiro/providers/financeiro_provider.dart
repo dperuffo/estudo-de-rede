@@ -2,7 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../posto/providers/financeiro_posto_provider.dart'
-    show FaturaFinanceiro, IndicadorProvedor, CicloAbertoResumo, LinhaContraparte, ContagemFaturas, agruparPorContraparte;
+    show
+        FaturaFinanceiro,
+        IndicadorProvedor,
+        CicloAbertoResumo,
+        LinhaContraparte,
+        ContagemFaturas,
+        agruparPorContraparte;
 
 // Fase FLT-3 — porta de src/app/(dashboard)/financeiro/page.tsx pro Flutter
 // (visão Cliente), escopo bem reduzido em relação à web (tela mais densa
@@ -54,7 +60,8 @@ class IndicadoresFinanceiros {
     custoPorKm: null,
     orcamentoPlanejado: 0,
   );
-  factory IndicadoresFinanceiros.fromMap(Map<String, dynamic> m) => IndicadoresFinanceiros(
+  factory IndicadoresFinanceiros.fromMap(Map<String, dynamic> m) =>
+      IndicadoresFinanceiros(
         custoCombustivel: (m['custo_combustivel'] as num?)?.toDouble() ?? 0,
         litrosAbastecidos: (m['litros_abastecidos'] as num?)?.toDouble() ?? 0,
         kmRodado: (m['km_rodado'] as num?)?.toDouble() ?? 0,
@@ -79,7 +86,8 @@ class PontoEvolucaoFinanceira {
     required this.custoManutencao,
     required this.custoFixos,
   });
-  factory PontoEvolucaoFinanceira.fromMap(Map<String, dynamic> m) => PontoEvolucaoFinanceira(
+  factory PontoEvolucaoFinanceira.fromMap(Map<String, dynamic> m) =>
+      PontoEvolucaoFinanceira(
         mes: m['mes'] as String,
         custoCombustivel: (m['custo_combustivel'] as num?)?.toDouble() ?? 0,
         custoManutencao: (m['custo_manutencao'] as num?)?.toDouble() ?? 0,
@@ -104,7 +112,8 @@ class FinanceiroClienteDados {
   });
 }
 
-final financeiroClienteProvider = FutureProvider.autoDispose<FinanceiroClienteDados?>((ref) async {
+final financeiroClienteProvider =
+    FutureProvider.autoDispose<FinanceiroClienteDados?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -122,32 +131,35 @@ final financeiroClienteProvider = FutureProvider.autoDispose<FinanceiroClienteDa
   }) as List;
   final indicadores = indicadoresRaw.isEmpty
       ? IndicadoresFinanceiros.vazio
-      : IndicadoresFinanceiros.fromMap(indicadoresRaw.first as Map<String, dynamic>);
+      : IndicadoresFinanceiros.fromMap(
+          indicadoresRaw.first as Map<String, dynamic>);
 
-  final provedorRaw = await supabase.rpc('indicadores_financeiros_por_provedor', params: {
+  final provedorRaw =
+      await supabase.rpc('indicadores_financeiros_por_provedor', params: {
     'p_empresa_id': empresaId,
     'p_data_inicio': inicioMes,
     'p_data_fim': hojeIso,
   }) as List;
-  final porProvedor = provedorRaw
-      .map((m) {
-        final mm = m as Map<String, dynamic>;
-        return IndicadorProvedor(
-          provedor: mm['provedor'] as String? ?? 'outro',
-          valorTotal: (mm['custo_combustivel'] as num?)?.toDouble() ?? 0,
-          litros: (mm['litros'] as num?)?.toDouble() ?? 0,
-          qtdAbastecimentos: (mm['qtd_abastecimentos'] as num?)?.toInt() ?? 0,
-        );
-      })
-      .toList()
+  final porProvedor = provedorRaw.map((m) {
+    final mm = m as Map<String, dynamic>;
+    return IndicadorProvedor(
+      provedor: mm['provedor'] as String? ?? 'outro',
+      valorTotal: (mm['custo_combustivel'] as num?)?.toDouble() ?? 0,
+      litros: (mm['litros'] as num?)?.toDouble() ?? 0,
+      qtdAbastecimentos: (mm['qtd_abastecimentos'] as num?)?.toInt() ?? 0,
+    );
+  }).toList()
     ..sort((a, b) => b.valorTotal.compareTo(a.valorTotal));
 
-  final evolucaoRaw = await supabase.rpc('indicadores_financeiros_evolucao', params: {
+  final evolucaoRaw =
+      await supabase.rpc('indicadores_financeiros_evolucao', params: {
     'p_empresa_id': empresaId,
     'p_data_inicio': inicioEvolucao,
     'p_data_fim': hojeIso,
   }) as List;
-  final evolucao = evolucaoRaw.map((m) => PontoEvolucaoFinanceira.fromMap(m as Map<String, dynamic>)).toList();
+  final evolucao = evolucaoRaw
+      .map((m) => PontoEvolucaoFinanceira.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // Cobrança em Aberto (visão Cliente) — mesma lógica de
   // VisaoCiclosPorContraparte da Financeiro Posto, com posto no lugar de
@@ -155,9 +167,13 @@ final financeiroClienteProvider = FutureProvider.autoDispose<FinanceiroClienteDa
   // posto_nome já denormalizado; ciclo/prazo de faturamento é o MEU
   // próprio (empresas.ciclo_faturamento_dias/prazo_vencimento_dias),
   // igual pra qualquer posto que me fatura.
-  final minhaEmpresa =
-      await supabase.from('empresas').select('ciclo_faturamento_dias').eq('id', empresaId).maybeSingle();
-  final meuCiclo = (minhaEmpresa?['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30;
+  final minhaEmpresa = await supabase
+      .from('empresas')
+      .select('ciclo_faturamento_dias')
+      .eq('id', empresaId)
+      .maybeSingle();
+  final meuCiclo =
+      (minhaEmpresa?['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30;
 
   final negociacoesRaw = await supabase
       .from('negociacoes_postos')

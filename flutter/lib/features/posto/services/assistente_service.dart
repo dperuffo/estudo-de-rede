@@ -27,7 +27,8 @@ class ConsultaExecutada {
   final int linhas;
   final String? erro;
   const ConsultaExecutada({required this.sql, required this.linhas, this.erro});
-  factory ConsultaExecutada.fromMap(Map<String, dynamic> m) => ConsultaExecutada(
+  factory ConsultaExecutada.fromMap(Map<String, dynamic> m) =>
+      ConsultaExecutada(
         sql: m['sql'] as String? ?? '',
         linhas: (m['linhas'] as num?)?.toInt() ?? 0,
         erro: m['erro'] as String?,
@@ -54,16 +55,20 @@ class AssistenteService {
     headers: {'Content-Type': 'application/json'},
   ));
 
-  Future<RespostaAssistente> perguntar(String pergunta, List<MensagemChat> historico) async {
+  Future<RespostaAssistente> perguntar(
+      String pergunta, List<MensagemChat> historico) async {
     final perguntaLimpa = pergunta.trim();
-    if (perguntaLimpa.isEmpty) return const RespostaAssistente.erro('Digite uma pergunta.');
+    if (perguntaLimpa.isEmpty)
+      return const RespostaAssistente.erro('Digite uma pergunta.');
     if (perguntaLimpa.length > 2000) {
-      return const RespostaAssistente.erro('Pergunta muito longa (máximo 2000 caracteres).');
+      return const RespostaAssistente.erro(
+          'Pergunta muito longa (máximo 2000 caracteres).');
     }
 
     final token = SupabaseService.client.auth.currentSession?.accessToken;
     if (token == null) {
-      return const RespostaAssistente.erro('Sessão expirada, faça login novamente.');
+      return const RespostaAssistente.erro(
+          'Sessão expirada, faça login novamente.');
     }
 
     try {
@@ -76,14 +81,19 @@ class AssistenteService {
         },
       );
       final corpo = resposta.data as Map<String, dynamic>;
-      if (corpo['erro'] != null) return RespostaAssistente.erro(corpo['erro'] as String);
+      if (corpo['erro'] != null)
+        return RespostaAssistente.erro(corpo['erro'] as String);
       final consultasRaw = corpo['consultas'] as List? ?? const [];
-      final consultas = consultasRaw.map((c) => ConsultaExecutada.fromMap(c as Map<String, dynamic>)).toList();
+      final consultas = consultasRaw
+          .map((c) => ConsultaExecutada.fromMap(c as Map<String, dynamic>))
+          .toList();
       return RespostaAssistente.ok(corpo['resposta'] as String?, consultas);
     } on DioException catch (e) {
       final corpo = e.response?.data;
-      if (corpo is Map && corpo['erro'] != null) return RespostaAssistente.erro(corpo['erro'] as String);
-      return RespostaAssistente.erro('Não foi possível falar com o Assistente FNI agora. Tente novamente.');
+      if (corpo is Map && corpo['erro'] != null)
+        return RespostaAssistente.erro(corpo['erro'] as String);
+      return RespostaAssistente.erro(
+          'Não foi possível falar com o Assistente FNI agora. Tente novamente.');
     }
   }
 }

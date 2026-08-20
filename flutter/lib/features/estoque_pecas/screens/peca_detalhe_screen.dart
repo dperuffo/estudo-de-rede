@@ -4,6 +4,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/estoque_pecas_provider.dart';
 import '../services/estoque_pecas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Grupo 1 Rodopar item 2 (03/08/2026) — detalhe da peça, porta de
 // estoque-pecas/[id]/page.tsx + EstoquePecasAcoes.tsx: situação do estoque,
 // histórico de movimentos (ledger) e form de registrar entrada/saída com
@@ -71,15 +73,21 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
   }
 
   Future<void> _alternarAtiva(String pecaId, bool ativaAtual) async {
-    final mensagem = ativaAtual ? 'Desativar esta peça? Ela deixa de aparecer no cadastro ativo (o histórico é mantido).' : 'Reativar esta peça?';
+    final mensagem = ativaAtual
+        ? 'Desativar esta peça? Ela deixa de aparecer no cadastro ativo (o histórico é mantido).'
+        : 'Reativar esta peça?';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ativaAtual ? 'Desativar peça?' : 'Reativar peça?'),
         content: Text(mensagem),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ativaAtual ? 'Desativar' : 'Reativar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ativaAtual ? 'Desativar' : 'Reativar')),
         ],
       ),
     );
@@ -101,10 +109,18 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
     final pecaAsync = ref.watch(pecaEstoqueDetalheProvider(widget.id));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Peça')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Peça')),
       body: pecaAsync.when(
         data: (p) {
-          if (p == null) return const Center(child: Text('Peça não encontrada.'));
+          if (p == null)
+            return const Center(child: Text('Peça não encontrada.'));
           return _conteudo(p);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -125,8 +141,11 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-            child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(_erro!,
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
           ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,32 +153,45 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
             Expanded(
               child: Text(
                 p.nome + (p.codigo != null ? ' · ${p.codigo}' : ''),
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
             ),
             if (!p.ativa)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
-                child: const Text('Inativa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Text('Inativa',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black54)),
               ),
           ],
         ),
         const SizedBox(height: 16),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Situação do estoque', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('Situação do estoque',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _campoEstoque('Saldo atual', '${p.quantidadeAtual} ${p.unidadeMedida}', destaque: p.abaixoDoMinimo),
-                    _campoEstoque('Mínimo', '${p.quantidadeMinima} ${p.unidadeMedida}'),
-                    _campoEstoque('Custo médio', _fmtMoeda(p.custoUnitarioMedio)),
+                    _campoEstoque('Saldo atual',
+                        '${p.quantidadeAtual} ${p.unidadeMedida}',
+                        destaque: p.abaixoDoMinimo),
+                    _campoEstoque(
+                        'Mínimo', '${p.quantidadeMinima} ${p.unidadeMedida}'),
+                    _campoEstoque(
+                        'Custo médio', _fmtMoeda(p.custoUnitarioMedio)),
                   ],
                 ),
                 if (p.abaixoDoMinimo) ...[
@@ -167,36 +199,47 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                    child: const Text('Saldo abaixo (ou igual) ao estoque mínimo definido. Considere repor.',
-                        style: TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: const Text(
+                        'Saldo abaixo (ou igual) ao estoque mínimo definido. Considere repor.',
+                        style:
+                            TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
                   ),
                 ],
                 const SizedBox(height: 10),
                 TextButton.icon(
-                  onPressed: _processando ? null : () => _alternarAtiva(p.id, p.ativa),
-                  icon: Icon(p.ativa ? Icons.block : Icons.check_circle_outline, size: 18, color: p.ativa ? Colors.red : Colors.green),
-                  label: Text(p.ativa ? 'Desativar peça' : 'Reativar peça', style: TextStyle(color: p.ativa ? Colors.red : Colors.green)),
+                  onPressed:
+                      _processando ? null : () => _alternarAtiva(p.id, p.ativa),
+                  icon: Icon(p.ativa ? Icons.block : Icons.check_circle_outline,
+                      size: 18, color: p.ativa ? Colors.red : Colors.green),
+                  label: Text(p.ativa ? 'Desativar peça' : 'Reativar peça',
+                      style: TextStyle(
+                          color: p.ativa ? Colors.red : Colors.green)),
                 ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 14),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Registrar movimento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('Registrar movimento',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 manutencoesAsync.when(
                   data: (manutencoes) => _FormMovimento(
                     processando: _processando,
                     manutencoes: manutencoes,
-                    onRegistrar: (tipo, qtd, custo, placa, manutencaoId, motivo) => _registrarMovimento(
+                    onRegistrar:
+                        (tipo, qtd, custo, placa, manutencaoId, motivo) =>
+                            _registrarMovimento(
                       pecaId: p.id,
                       empresaId: p.empresaId,
                       tipoMovimento: tipo,
@@ -210,7 +253,9 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                   loading: () => _FormMovimento(
                     processando: _processando,
                     manutencoes: const [],
-                    onRegistrar: (tipo, qtd, custo, placa, manutencaoId, motivo) => _registrarMovimento(
+                    onRegistrar:
+                        (tipo, qtd, custo, placa, manutencaoId, motivo) =>
+                            _registrarMovimento(
                       pecaId: p.id,
                       empresaId: p.empresaId,
                       tipoMovimento: tipo,
@@ -224,7 +269,9 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                   error: (_, __) => _FormMovimento(
                     processando: _processando,
                     manutencoes: const [],
-                    onRegistrar: (tipo, qtd, custo, placa, manutencaoId, motivo) => _registrarMovimento(
+                    onRegistrar:
+                        (tipo, qtd, custo, placa, manutencaoId, motivo) =>
+                            _registrarMovimento(
                       pecaId: p.id,
                       empresaId: p.empresaId,
                       tipoMovimento: tipo,
@@ -241,26 +288,34 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
           ),
         ),
         const SizedBox(height: 14),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Histórico de movimentos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text('Histórico de movimentos',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 movimentosAsync.when(
                   data: (lista) {
                     if (lista.isEmpty) {
-                      return const Text('Nenhum movimento registrado ainda.', style: TextStyle(fontSize: 12, color: Colors.grey));
+                      return const Text('Nenhum movimento registrado ainda.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey));
                     }
                     return Column(
-                      children: lista.map((m) => _linhaMovimento(m, p.unidadeMedida)).toList(),
+                      children: lista
+                          .map((m) => _linhaMovimento(m, p.unidadeMedida))
+                          .toList(),
                     );
                   },
-                  loading: () => const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator())),
-                  error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                  loading: () => const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(8),
+                          child: CircularProgressIndicator())),
+                  error: (e, _) => Text('Erro: $e',
+                      style: const TextStyle(fontSize: 12, color: Colors.red)),
                 ),
               ],
             ),
@@ -275,9 +330,18 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey.shade500, letterSpacing: 0.4)),
+          Text(label.toUpperCase(),
+              style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.4)),
           const SizedBox(height: 2),
-          Text(valor, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: destaque ? const Color(0xFFB91C1C) : Colors.black87)),
+          Text(valor,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: destaque ? const Color(0xFFB91C1C) : Colors.black87)),
         ],
       ),
     );
@@ -292,10 +356,17 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: tipoMovimentoCorFundo[m.tipoMovimento] ?? const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+                color: tipoMovimentoCorFundo[m.tipoMovimento] ??
+                    const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12)),
             child: Text(
               tipoMovimentoLabel[m.tipoMovimento] ?? m.tipoMovimento,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: tipoMovimentoCorTexto[m.tipoMovimento] ?? Colors.grey.shade700),
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: tipoMovimentoCorTexto[m.tipoMovimento] ??
+                      Colors.grey.shade700),
             ),
           ),
           const SizedBox(width: 8),
@@ -305,7 +376,8 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
               children: [
                 Text(
                   '$sinal${m.quantidade} $unidade${m.custoUnitario != null ? ' (${_fmtMoeda(m.custoUnitario)}/un)' : ''}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   [
@@ -328,8 +400,12 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
 class _FormMovimento extends StatefulWidget {
   final bool processando;
   final List<ManutencaoResumo> manutencoes;
-  final Future<void> Function(String tipo, double quantidade, double? custo, String? placa, int? manutencaoId, String? motivo) onRegistrar;
-  const _FormMovimento({required this.processando, required this.manutencoes, required this.onRegistrar});
+  final Future<void> Function(String tipo, double quantidade, double? custo,
+      String? placa, int? manutencaoId, String? motivo) onRegistrar;
+  const _FormMovimento(
+      {required this.processando,
+      required this.manutencoes,
+      required this.onRegistrar});
 
   @override
   State<_FormMovimento> createState() => _FormMovimentoState();
@@ -355,7 +431,8 @@ class _FormMovimentoState extends State<_FormMovimento> {
 
   Future<void> _enviar() async {
     setState(() => _erroLocal = null);
-    final quantidade = double.tryParse(_quantidadeCtrl.text.replaceAll(',', '.'));
+    final quantidade =
+        double.tryParse(_quantidadeCtrl.text.replaceAll(',', '.'));
     if (quantidade == null || quantidade <= 0) {
       setState(() => _erroLocal = 'Informe uma quantidade válida.');
       return;
@@ -363,8 +440,12 @@ class _FormMovimentoState extends State<_FormMovimento> {
     await widget.onRegistrar(
       _tipo,
       quantidade,
-      _tipo == 'entrada' ? double.tryParse(_custoCtrl.text.replaceAll(',', '.')) : null,
-      _placaCtrl.text.trim().isEmpty ? null : _placaCtrl.text.trim().toUpperCase(),
+      _tipo == 'entrada'
+          ? double.tryParse(_custoCtrl.text.replaceAll(',', '.'))
+          : null,
+      _placaCtrl.text.trim().isEmpty
+          ? null
+          : _placaCtrl.text.trim().toUpperCase(),
       _manutencaoId,
       _motivoCtrl.text.trim().isEmpty ? null : _motivoCtrl.text.trim(),
     );
@@ -383,7 +464,8 @@ class _FormMovimentoState extends State<_FormMovimento> {
         if (_erroLocal != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(_erroLocal!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            child: Text(_erroLocal!,
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
           ),
         Row(
           children: [
@@ -391,10 +473,18 @@ class _FormMovimentoState extends State<_FormMovimento> {
               child: OutlinedButton(
                 onPressed: () => setState(() => _tipo = 'saida'),
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: _tipo == 'saida' ? const Color(0xFFFEF2F2) : null,
-                  side: BorderSide(color: _tipo == 'saida' ? const Color(0xFFFCA5A5) : Colors.grey.shade300),
+                  backgroundColor:
+                      _tipo == 'saida' ? const Color(0xFFFEF2F2) : null,
+                  side: BorderSide(
+                      color: _tipo == 'saida'
+                          ? const Color(0xFFFCA5A5)
+                          : Colors.grey.shade300),
                 ),
-                child: Text('Saída (uso)', style: TextStyle(color: _tipo == 'saida' ? const Color(0xFFB91C1C) : Colors.grey.shade700)),
+                child: Text('Saída (uso)',
+                    style: TextStyle(
+                        color: _tipo == 'saida'
+                            ? const Color(0xFFB91C1C)
+                            : Colors.grey.shade700)),
               ),
             ),
             const SizedBox(width: 8),
@@ -402,10 +492,18 @@ class _FormMovimentoState extends State<_FormMovimento> {
               child: OutlinedButton(
                 onPressed: () => setState(() => _tipo = 'entrada'),
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: _tipo == 'entrada' ? const Color(0xFFDCFCE7) : null,
-                  side: BorderSide(color: _tipo == 'entrada' ? const Color(0xFF86EFAC) : Colors.grey.shade300),
+                  backgroundColor:
+                      _tipo == 'entrada' ? const Color(0xFFDCFCE7) : null,
+                  side: BorderSide(
+                      color: _tipo == 'entrada'
+                          ? const Color(0xFF86EFAC)
+                          : Colors.grey.shade300),
                 ),
-                child: Text('Entrada (compra)', style: TextStyle(color: _tipo == 'entrada' ? const Color(0xFF166534) : Colors.grey.shade700)),
+                child: Text('Entrada (compra)',
+                    style: TextStyle(
+                        color: _tipo == 'entrada'
+                            ? const Color(0xFF166534)
+                            : Colors.grey.shade700)),
               ),
             ),
           ],
@@ -414,52 +512,74 @@ class _FormMovimentoState extends State<_FormMovimento> {
         TextField(
           controller: _quantidadeCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Quantidade', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Quantidade',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         if (_tipo == 'entrada') ...[
           const SizedBox(height: 10),
           TextField(
             controller: _custoCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Custo unitário (R\$)', hintText: 'opcional', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Custo unitário (R\$)',
+                hintText: 'opcional',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
         ],
         if (_tipo == 'saida') ...[
           const SizedBox(height: 10),
           TextField(
             controller: _placaCtrl,
-            decoration: const InputDecoration(labelText: 'Placa (veículo)', hintText: 'ABC1D23', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Placa (veículo)',
+                hintText: 'ABC1D23',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<int?>(
             value: _manutencaoId,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Vincular à OS (opcional)', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Vincular à OS (opcional)',
+                border: OutlineInputBorder(),
+                isDense: true),
             items: [
               const DropdownMenuItem(value: null, child: Text('Nenhuma')),
               for (final m in widget.manutencoes)
                 DropdownMenuItem(
                   value: m.id,
-                  child: Text('#${m.id} — ${m.placa} — ${m.dataManutencao}${m.tipo != null ? ' (${m.tipo})' : ''}', overflow: TextOverflow.ellipsis),
+                  child: Text(
+                      '#${m.id} — ${m.placa} — ${m.dataManutencao}${m.tipo != null ? ' (${m.tipo})' : ''}',
+                      overflow: TextOverflow.ellipsis),
                 ),
             ],
             onChanged: (v) => setState(() => _manutencaoId = v),
           ),
           const SizedBox(height: 4),
-          const Text('Vincular a uma OS mostra o consumo real de peças na manutenção — impede baixa sem justificativa.',
+          const Text(
+              'Vincular a uma OS mostra o consumo real de peças na manutenção — impede baixa sem justificativa.',
               style: TextStyle(fontSize: 11, color: Colors.grey)),
         ],
         const SizedBox(height: 10),
         TextField(
           controller: _motivoCtrl,
-          decoration: const InputDecoration(labelText: 'Motivo / observação', hintText: 'Opcional', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Motivo / observação',
+              hintText: 'Opcional',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
             onPressed: widget.processando ? null : _enviar,
-            child: Text(widget.processando ? 'Salvando...' : 'Registrar Movimento'),
+            child: Text(
+                widget.processando ? 'Salvando...' : 'Registrar Movimento'),
           ),
         ),
       ],

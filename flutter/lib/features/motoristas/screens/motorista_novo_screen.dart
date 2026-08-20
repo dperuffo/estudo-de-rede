@@ -6,6 +6,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/motoristas_provider.dart';
 import '../services/motoristas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataIso = DateFormat('yyyy-MM-dd');
 
 // Fase FLT-3 — cadastrar novo motorista, porta de MotoristaForm.tsx (modo
@@ -15,7 +17,8 @@ class MotoristaNovoScreen extends ConsumerStatefulWidget {
   const MotoristaNovoScreen({super.key});
 
   @override
-  ConsumerState<MotoristaNovoScreen> createState() => _MotoristaNovoScreenState();
+  ConsumerState<MotoristaNovoScreen> createState() =>
+      _MotoristaNovoScreenState();
 }
 
 class _MotoristaNovoScreenState extends ConsumerState<MotoristaNovoScreen> {
@@ -94,41 +97,56 @@ class _MotoristaNovoScreenState extends ConsumerState<MotoristaNovoScreen> {
     final centrosAsync = ref.watch(centrosCustoOpcoesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo motorista')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Novo motorista')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
             controller: _nomeCtrl,
-            decoration: const InputDecoration(labelText: 'Nome completo *', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Nome completo *', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _cpfCtrl,
-            decoration: const InputDecoration(labelText: 'CPF *', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'CPF *', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _telefoneCtrl,
-            decoration: const InputDecoration(labelText: 'Telefone', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Telefone', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _emailCtrl,
-            decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'E-mail', border: OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             value: _classificacao,
-            decoration: const InputDecoration(labelText: 'Classificação', border: OutlineInputBorder()),
-            items: classificacoesMotorista.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            decoration: const InputDecoration(
+                labelText: 'Classificação', border: OutlineInputBorder()),
+            items: classificacoesMotorista
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
             onChanged: (v) => setState(() => _classificacao = v ?? 'Próprio'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _cnhCtrl,
-            decoration: const InputDecoration(labelText: 'CNH (número)', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'CNH (número)', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -150,10 +168,12 @@ class _MotoristaNovoScreenState extends ConsumerState<MotoristaNovoScreen> {
               if (centros.isEmpty) return const SizedBox.shrink();
               return DropdownButtonFormField<String>(
                 value: _centroCustoId,
-                decoration: const InputDecoration(labelText: 'Centro de custo', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Centro de custo', border: OutlineInputBorder()),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Nenhum')),
-                  ...centros.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nome))),
+                  ...centros.map((c) =>
+                      DropdownMenuItem(value: c.id, child: Text(c.nome))),
                 ],
                 onChanged: (v) => setState(() => _centroCustoId = v),
               );
@@ -163,8 +183,12 @@ class _MotoristaNovoScreenState extends ConsumerState<MotoristaNovoScreen> {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
           ],
           const SizedBox(height: 16),

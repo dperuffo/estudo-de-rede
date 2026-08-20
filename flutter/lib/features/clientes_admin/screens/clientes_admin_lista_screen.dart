@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../clientes/providers/cliente_cadastro_provider.dart' show ClienteCadastro, statusEmpresaLabel, planoLabel;
+import '../../clientes/providers/cliente_cadastro_provider.dart'
+    show ClienteCadastro, statusEmpresaLabel, planoLabel;
 import '../providers/clientes_admin_provider.dart';
 import '../services/clientes_admin_service.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 String _formatarCnpj(String? cnpj) {
   if (cnpj == null || cnpj.isEmpty) return '—';
@@ -19,10 +22,12 @@ class ClientesAdminListaScreen extends ConsumerStatefulWidget {
   const ClientesAdminListaScreen({super.key});
 
   @override
-  ConsumerState<ClientesAdminListaScreen> createState() => _ClientesAdminListaScreenState();
+  ConsumerState<ClientesAdminListaScreen> createState() =>
+      _ClientesAdminListaScreenState();
 }
 
-class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScreen> {
+class _ClientesAdminListaScreenState
+    extends ConsumerState<ClientesAdminListaScreen> {
   final _buscaCtrl = TextEditingController();
   String _busca = '';
   final Set<String> _alternando = {};
@@ -36,7 +41,8 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
   Future<void> _alternarAtivo(ClienteCadastro c) async {
     setState(() => _alternando.add(c.id));
     final vaiAtivar = c.status != 'ativo';
-    final erro = await ClientesAdminService().alternarAtivo(empresaId: c.id, ativar: vaiAtivar);
+    final erro = await ClientesAdminService()
+        .alternarAtivo(empresaId: c.id, ativar: vaiAtivar);
     if (!mounted) return;
     setState(() => _alternando.remove(c.id));
     if (erro != null) {
@@ -53,7 +59,14 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Clientes (todos)')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Clientes (todos)')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -67,9 +80,12 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso restrito', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('Acesso restrito',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(height: 8),
-              Text('Esta tela é exclusiva do time interno (perfil administrador).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Text(
+                  'Esta tela é exclusiva do time interno (perfil administrador).',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
             ],
           ),
         ),
@@ -123,7 +139,9 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
             if (lista.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('Nenhum cliente encontrado.', style: TextStyle(color: Colors.grey))),
+                child: Center(
+                    child: Text('Nenhum cliente encontrado.',
+                        style: TextStyle(color: Colors.grey))),
               );
             }
             return Column(children: lista.map(_cardCliente).toList());
@@ -142,9 +160,12 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+            Text(label,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
             const SizedBox(height: 4),
-            Text(valor, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(valor,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -172,16 +193,26 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(c.nome, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      Text(_formatarCnpj(c.cnpj), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text(c.nome,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
+                      Text(_formatarCnpj(c.cnpj),
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: corStatus.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: corStatus.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12)),
                   child: Text(statusEmpresaLabel[c.status] ?? c.status,
-                      style: TextStyle(fontSize: 10, color: corStatus, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: corStatus,
+                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -197,9 +228,13 @@ class _ClientesAdminListaScreenState extends ConsumerState<ClientesAdminListaScr
               child: OutlinedButton(
                 onPressed: alternando ? null : () => _alternarAtivo(c),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: c.status == 'ativo' ? Colors.red : const Color(0xFF15803D),
+                  foregroundColor: c.status == 'ativo'
+                      ? Colors.red
+                      : const Color(0xFF15803D),
                 ),
-                child: Text(alternando ? 'Aguarde...' : (c.status == 'ativo' ? 'Suspender' : 'Ativar')),
+                child: Text(alternando
+                    ? 'Aguarde...'
+                    : (c.status == 'ativo' ? 'Suspender' : 'Ativar')),
               ),
             ),
           ],

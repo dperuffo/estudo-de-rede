@@ -26,13 +26,16 @@ class AntifraudeService {
     if (tipo == 'limite_valor_quantidade') {
       final c = <String, dynamic>{};
       if (litrosMaxDia != null) c['litros_max_dia'] = litrosMaxDia;
-      if (valorMaxAbastecimento != null) c['valor_max_abastecimento'] = valorMaxAbastecimento;
+      if (valorMaxAbastecimento != null)
+        c['valor_max_abastecimento'] = valorMaxAbastecimento;
       return c;
     }
     // janela_tempo_frequencia
     final c = <String, dynamic>{};
-    if (intervaloMinimoHoras != null) c['intervalo_minimo_horas'] = intervaloMinimoHoras;
-    if ((horarioInicio != null && horarioInicio.isNotEmpty) || (horarioFim != null && horarioFim.isNotEmpty)) {
+    if (intervaloMinimoHoras != null)
+      c['intervalo_minimo_horas'] = intervaloMinimoHoras;
+    if ((horarioInicio != null && horarioInicio.isNotEmpty) ||
+        (horarioFim != null && horarioFim.isNotEmpty)) {
       c['horario_permitido'] = {'inicio': horarioInicio, 'fim': horarioFim};
     }
     return c;
@@ -53,7 +56,8 @@ class AntifraudeService {
     String? horarioFim,
   }) async {
     if (nome.trim().isEmpty) return 'Nome é obrigatório.';
-    if (escopo != 'empresa' && (escopoReferencia == null || escopoReferencia.trim().isEmpty)) {
+    if (escopo != 'empresa' &&
+        (escopoReferencia == null || escopoReferencia.trim().isEmpty)) {
       return 'Selecione o motorista ou o veículo ao qual a regra se aplica.';
     }
     final condicoes = _montarCondicoes(
@@ -101,7 +105,8 @@ class AntifraudeService {
     String? horarioFim,
   }) async {
     if (nome.trim().isEmpty) return 'Nome é obrigatório.';
-    if (escopo != 'empresa' && (escopoReferencia == null || escopoReferencia.trim().isEmpty)) {
+    if (escopo != 'empresa' &&
+        (escopoReferencia == null || escopoReferencia.trim().isEmpty)) {
       return 'Selecione o motorista ou o veículo ao qual a regra se aplica.';
     }
     final condicoes = _montarCondicoes(
@@ -133,10 +138,10 @@ class AntifraudeService {
   }
 
   Future<void> alternarStatus({required String id, required bool ativo}) async {
-    await _supabase
-        .from('regras_antifraude')
-        .update({'status': ativo ? 'Ativo' : 'Inativo', 'atualizado_em': DateTime.now().toIso8601String()}).eq(
-            'id', id);
+    await _supabase.from('regras_antifraude').update({
+      'status': ativo ? 'Ativo' : 'Inativo',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   Future<void> excluir(String id) async {
@@ -146,6 +151,7 @@ class AntifraudeService {
   Future<void> marcarFalhasComoLidas() async {
     await _supabase
         .from('antifraude_verificacoes_falhas')
-        .update({'lida_em': DateTime.now().toIso8601String()}).isFilter('lida_em', null);
+        .update({'lida_em': DateTime.now().toIso8601String()}).isFilter(
+            'lida_em', null);
   }
 }

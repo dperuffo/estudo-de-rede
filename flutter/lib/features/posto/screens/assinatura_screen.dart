@@ -6,6 +6,8 @@ import '../providers/assinatura_provider.dart';
 import '../services/assinatura_service.dart';
 import 'termo_adesao_dialog.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 const _statusLabel = <String, String>{
   'trial': 'Em teste (trial)',
   'ativo': 'Ativo',
@@ -33,33 +35,41 @@ class AssinaturaScreen extends ConsumerStatefulWidget {
 class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
   bool _processando = false;
 
-  Future<void> _assinar(String empresaId, String plano, String planoLabel, String precoLabel) async {
-    final aceitou = await mostrarModalTermoAdesao(context, planoLabel: planoLabel, precoLabel: precoLabel);
+  Future<void> _assinar(String empresaId, String plano, String planoLabel,
+      String precoLabel) async {
+    final aceitou = await mostrarModalTermoAdesao(context,
+        planoLabel: planoLabel, precoLabel: precoLabel);
     if (!aceitou || !mounted) return;
 
     setState(() => _processando = true);
-    final resultado = await AssinaturaService().criarCheckout(empresaId: empresaId, plano: plano);
+    final resultado = await AssinaturaService()
+        .criarCheckout(empresaId: empresaId, plano: plano);
     if (!mounted) return;
     setState(() => _processando = false);
 
     if (resultado.erro != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resultado.erro!)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(resultado.erro!)));
       return;
     }
-    await launchUrl(Uri.parse(resultado.url!), mode: LaunchMode.externalApplication);
+    await launchUrl(Uri.parse(resultado.url!),
+        mode: LaunchMode.externalApplication);
   }
 
   Future<void> _abrirPortal(String empresaId) async {
     setState(() => _processando = true);
-    final resultado = await AssinaturaService().abrirPortalPagamento(empresaId: empresaId);
+    final resultado =
+        await AssinaturaService().abrirPortalPagamento(empresaId: empresaId);
     if (!mounted) return;
     setState(() => _processando = false);
 
     if (resultado.erro != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resultado.erro!)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(resultado.erro!)));
       return;
     }
-    await launchUrl(Uri.parse(resultado.url!), mode: LaunchMode.externalApplication);
+    await launchUrl(Uri.parse(resultado.url!),
+        mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -68,12 +78,20 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
     final precosAsync = ref.watch(precosPlanosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Minha Assinatura')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Minha Assinatura')),
       body: assinaturaAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (dados) {
-          if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+          if (dados == null)
+            return const Center(child: Text('Nenhuma empresa selecionada.'));
           final precos = precosAsync.valueOrNull ?? {};
           return _buildConteudo(context, dados, precos);
         },
@@ -81,13 +99,15 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
     );
   }
 
-  Widget _buildConteudo(BuildContext context, AssinaturaDetalhe dados, Map<String, PrecoPlano> precos) {
+  Widget _buildConteudo(BuildContext context, AssinaturaDetalhe dados,
+      Map<String, PrecoPlano> precos) {
     final empresa = dados.empresa;
     int? diasRestantesTrial;
     if (empresa.status == 'trial' && empresa.trialEndsAt != null) {
       final fim = DateTime.tryParse(empresa.trialEndsAt!);
       if (fim != null) {
-        diasRestantesTrial = (fim.difference(DateTime.now()).inHours / 24).ceil();
+        diasRestantesTrial =
+            (fim.difference(DateTime.now()).inHours / 24).ceil();
       }
     }
     final planoRecomendado = planoRecomendadoPorRede(dados.qtdPostosNaRede);
@@ -110,12 +130,16 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               children: [
-                _indicador('Plano atual', _planoLabel[empresa.plano] ?? empresa.plano),
-                _indicador('Status', _statusLabel[empresa.status] ?? empresa.status),
+                _indicador(
+                    'Plano atual', _planoLabel[empresa.plano] ?? empresa.plano),
+                _indicador(
+                    'Status', _statusLabel[empresa.status] ?? empresa.status),
                 _indicador('Postos na Rede', '${dados.qtdPostosNaRede}'),
                 _indicador(
                   'Pagamento',
-                  empresa.stripeCustomerId != null ? 'Configurado' : 'Não configurado',
+                  empresa.stripeCustomerId != null
+                      ? 'Configurado'
+                      : 'Não configurado',
                 ),
               ],
             ),
@@ -124,7 +148,9 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: diasRestantesTrial <= 3 ? const Color(0xFFFEF2F2) : const Color(0xFFEFF6FF),
+                  color: diasRestantesTrial <= 3
+                      ? const Color(0xFFFEF2F2)
+                      : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -133,13 +159,16 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                       : 'Seu trial expirou. Escolha um plano abaixo para reativar o acesso.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: diasRestantesTrial <= 3 ? const Color(0xFFB91C1C) : const Color(0xFF1D4ED8),
+                    color: diasRestantesTrial <= 3
+                        ? const Color(0xFFB91C1C)
+                        : const Color(0xFF1D4ED8),
                   ),
                 ),
               ),
             ],
             const SizedBox(height: 20),
-            const Text('Planos disponíveis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const Text('Planos disponíveis',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 4),
             Text(
               'Sua rede tem ${dados.qtdPostosNaRede} posto${dados.qtdPostosNaRede == 1 ? '' : 's'} — recomendamos '
@@ -148,15 +177,21 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
             ),
             const SizedBox(height: 12),
             ...['basico', 'profissional', 'enterprise'].map((plano) {
-              final ehAtual = empresa.plano == plano && empresa.status == 'ativo';
+              final ehAtual =
+                  empresa.plano == plano && empresa.status == 'ativo';
               final ehRecomendado = !ehAtual && plano == planoRecomendado;
               final precoLabel = formatarPrecoPlano(precos[plano]);
               return Card(
                 margin: const EdgeInsets.only(bottom: 10),
-                color: ehAtual ? const Color(0xFFEFF6FF) : (ehRecomendado ? const Color(0xFFF8FAFC) : null),
+                color: ehAtual
+                    ? const Color(0xFFEFF6FF)
+                    : (ehRecomendado ? const Color(0xFFF8FAFC) : null),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: ehAtual ? const Color(0xFF1D4ED8) : Colors.grey.shade300),
+                  side: BorderSide(
+                      color: ehAtual
+                          ? const Color(0xFF1D4ED8)
+                          : Colors.grey.shade300),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -166,34 +201,48 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                       if (ehRecomendado)
                         Container(
                           margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1D4ED8),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text('Recomendado',
-                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600)),
                         ),
-                      Text(_planoLabel[plano]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(_planoLabel[plano]!,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 4),
                       Text(precoLabel,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0D2D6B))),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF0D2D6B))),
                       const SizedBox(height: 10),
                       if (ehAtual)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: const Color(0xFFDCFCE7),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text('Plano atual',
-                              style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w600)),
+                              style: TextStyle(
+                                  color: Color(0xFF15803D),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
                         )
                       else
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton(
-                            onPressed: () => _assinar(empresa.id, plano, _planoLabel[plano]!, precoLabel),
+                            onPressed: () => _assinar(empresa.id, plano,
+                                _planoLabel[plano]!, precoLabel),
                             child: Text('Assinar ${_planoLabel[plano]}'),
                           ),
                         ),
@@ -212,7 +261,9 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Pagamento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          const Text('Pagamento',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
                           const SizedBox(height: 4),
                           const Text(
                             'Gerencie forma de pagamento, baixe recibos ou cancele a assinatura direto pelo portal do Stripe.',
@@ -229,34 +280,42 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                       )
                     else
                       const Text('Assine um plano pago\npara gerenciar',
-                          textAlign: TextAlign.right, style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          textAlign: TextAlign.right,
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Histórico de faturas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const Text('Histórico de faturas',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
             if (dados.invoices.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Nenhuma fatura registrada ainda.', style: TextStyle(color: Colors.grey)),
+                child: Text('Nenhuma fatura registrada ainda.',
+                    style: TextStyle(color: Colors.grey)),
               )
             else
               ...dados.invoices.map((inv) => Card(
                     margin: const EdgeInsets.only(bottom: 6),
                     child: ListTile(
-                      title: Text(_periodoFatura(inv.periodoInicio, inv.periodoFim)),
+                      title: Text(
+                          _periodoFatura(inv.periodoInicio, inv.periodoFim)),
                       subtitle: Text(_dataFormatada(inv.criadoEm)),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(_valorFatura(inv.valorCents), style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(_valorFatura(inv.valorCents),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
                           Text(inv.status,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: inv.status == 'pago' ? const Color(0xFF15803D) : Colors.grey,
+                                color: inv.status == 'pago'
+                                    ? const Color(0xFF15803D)
+                                    : Colors.grey,
                               )),
                         ],
                       ),
@@ -270,7 +329,9 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                   text: 'Dúvidas sobre cobrança? ',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                   children: [
-                    TextSpan(text: 'Abra um chamado.', style: TextStyle(color: Color(0xFF1D4ED8))),
+                    TextSpan(
+                        text: 'Abra um chamado.',
+                        style: TextStyle(color: Color(0xFF1D4ED8))),
                   ],
                 ),
               ),
@@ -289,9 +350,13 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(fontSize: 10, color: Colors.grey)),
             const SizedBox(height: 4),
-            Text(valor, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+            Text(valor,
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ),

@@ -34,7 +34,8 @@ String rotuloNota(int estrelas) {
   return 'Muito ruim';
 }
 
-final avaliacoesProvider = FutureProvider.autoDispose<List<Avaliacao>>((ref) async {
+final avaliacoesProvider =
+    FutureProvider.autoDispose<List<Avaliacao>>((ref) async {
   final email = AuthService().emailAtual;
   if (email == null) return [];
   final rows = await SupabaseService.client

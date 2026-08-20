@@ -20,9 +20,24 @@ const classificacoesVeiculo = ['Próprio', 'Agregado'];
 // "Carro de Passeio" — quase toda a frota cadastrada usava esse rótulo
 // genérico e é, na prática, veículo leve de passeio. Dados existentes já
 // migrados no banco (migração renomear_outro_para_carro_passeio).
-const tiposVeiculo = ['Cavalo Mecânico', 'Carreta', 'Truck', 'Toco', 'VUC', 'Utilitário', 'Carro de Passeio'];
+const tiposVeiculo = [
+  'Cavalo Mecânico',
+  'Carreta',
+  'Truck',
+  'Toco',
+  'VUC',
+  'Utilitário',
+  'Carro de Passeio'
+];
 const tiposPorteVeiculo = ['Leve', 'Pesado'];
-const ciclosCombustivel = ['Diesel S10', 'Diesel S500', 'Gasolina', 'Etanol', 'GNV', 'Flex'];
+const ciclosCombustivel = [
+  'Diesel S10',
+  'Diesel S500',
+  'Gasolina',
+  'Etanol',
+  'GNV',
+  'Flex'
+];
 
 class Veiculo {
   final String id;
@@ -135,17 +150,22 @@ class Veiculo {
   }
 }
 
-final veiculosClienteProvider = FutureProvider.autoDispose<List<Veiculo>>((ref) async {
+final veiculosClienteProvider =
+    FutureProvider.autoDispose<List<Veiculo>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
-  final veiculos = rows.map((m) => Veiculo.fromMap(m as Map<String, dynamic>)).toList()
+  final rows = await SupabaseService.client
+      .rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
+  final veiculos = rows
+      .map((m) => Veiculo.fromMap(m as Map<String, dynamic>))
+      .toList()
     ..sort((a, b) => a.placa.compareTo(b.placa));
   return veiculos.take(1000).toList();
 });
 
-final veiculoDetalheProvider = FutureProvider.autoDispose.family<Veiculo?, String>((ref, id) async {
+final veiculoDetalheProvider =
+    FutureProvider.autoDispose.family<Veiculo?, String>((ref, id) async {
   final lista = await ref.watch(veiculosClienteProvider.future);
   for (final v in lista) {
     if (v.id == id) return v;

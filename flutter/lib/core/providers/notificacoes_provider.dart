@@ -80,10 +80,12 @@ Future<int> _contagemSegura(Future<int> Function() consulta) async {
   }
 }
 
-final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges>((ref) async {
+final notificacoesBadgesProvider =
+    FutureProvider.autoDispose<NotificacoesBadges>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final supabase = SupabaseService.client;
-  final statusQueMeCabeResponder = sessao.ehPosto ? 'pendente_posto' : 'pendente_cliente';
+  final statusQueMeCabeResponder =
+      sessao.ehPosto ? 'pendente_posto' : 'pendente_cliente';
 
   Future<int> contarChamados() async {
     final rows = await supabase
@@ -109,8 +111,8 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
       final resp = await supabase
           .from('negociacoes_postos')
           .select('id')
-          .inFilter('status', ['pendente_cliente', 'pendente_posto'])
-          .count(CountOption.exact);
+          .inFilter('status', ['pendente_cliente', 'pendente_posto']).count(
+              CountOption.exact);
       return resp.count;
     }
     final resp = await supabase
@@ -131,28 +133,41 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
   }
 
   Future<int> contarAnomalias() async {
-    final resp =
-        await supabase.from('anomalias_abastecimento').select('id').filter('revisado_em', 'is', null).count(CountOption.exact);
+    final resp = await supabase
+        .from('anomalias_abastecimento')
+        .select('id')
+        .filter('revisado_em', 'is', null)
+        .count(CountOption.exact);
     return resp.count;
   }
 
   Future<int> contarAcessosClientes() async {
     if (!sessao.ehAdmin) return 0;
-    final resp =
-        await supabase.from('acessos_clientes').select('id').filter('admin_visto_em', 'is', null).count(CountOption.exact);
+    final resp = await supabase
+        .from('acessos_clientes')
+        .select('id')
+        .filter('admin_visto_em', 'is', null)
+        .count(CountOption.exact);
     return resp.count;
   }
 
   Future<int> contarAvaliacoes() async {
     if (!sessao.ehAdmin) return 0;
-    final resp =
-        await supabase.from('avaliacoes').select('id').filter('resposta_admin', 'is', null).count(CountOption.exact);
+    final resp = await supabase
+        .from('avaliacoes')
+        .select('id')
+        .filter('resposta_admin', 'is', null)
+        .count(CountOption.exact);
     return resp.count;
   }
 
   Future<int> contarDocumentosPendentes() async {
     if (!sessao.ehAdmin) return 0;
-    final resp = await supabase.from('empresas').select('id').eq('documentacao_status', 'pendente').count(CountOption.exact);
+    final resp = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('documentacao_status', 'pendente')
+        .count(CountOption.exact);
     return resp.count;
   }
 
@@ -160,15 +175,22 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
   // lidas, mesma RLS por empresa de antifraude_verificacoes_falhas (não
   // precisa de caso especial admin/não-admin, igual Anomalias).
   Future<int> contarAntifraude() async {
-    final resp =
-        await supabase.from('antifraude_verificacoes_falhas').select('id').filter('lida_em', 'is', null).count(CountOption.exact);
+    final resp = await supabase
+        .from('antifraude_verificacoes_falhas')
+        .select('id')
+        .filter('lida_em', 'is', null)
+        .count(CountOption.exact);
     return resp.count;
   }
 
   // Fase FLT-Ações-Sugeridas — mesma RLS por empresa de acoes_sugeridas
   // (bypass admin incluso), mesmo padrão de Anomalias/Antifraude acima.
   Future<int> contarAcoesSugeridas() async {
-    final resp = await supabase.from('acoes_sugeridas').select('id').eq('status', 'pendente').count(CountOption.exact);
+    final resp = await supabase
+        .from('acoes_sugeridas')
+        .select('id')
+        .eq('status', 'pendente')
+        .count(CountOption.exact);
     return resp.count;
   }
 
@@ -178,7 +200,10 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
   Future<int> contarMultasPendentes() async {
     final empresaId = sessao.empresaId;
     if (empresaId == null) return 0;
-    final emSeteDias = DateTime.now().add(const Duration(days: 7)).toIso8601String().substring(0, 10);
+    final emSeteDias = DateTime.now()
+        .add(const Duration(days: 7))
+        .toIso8601String()
+        .substring(0, 10);
     final resp = await supabase
         .from('multas')
         .select('id')

@@ -28,7 +28,8 @@ class AbaAlertas extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Postos com preço acima do ANP', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const Text('Postos com preço acima do ANP',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 4),
               Text(
                 'Postos GF com preço mais de 5% acima da referência ANP (município → estado → Brasil).',
@@ -43,37 +44,82 @@ class AbaAlertas extends StatelessWidget {
                 crossAxisSpacing: 8,
                 childAspectRatio: 1.7,
                 children: [
-                  CartaoIndicador(label: '⚠️ Postos em Alerta', valor: formatarInt(d.alertas.length), sub: '${d.pctAlerta.toStringAsFixed(0)}% da base', mini: true),
-                  CartaoIndicador(label: '✅ Dentro da Média', valor: formatarInt(d.totalAvaliados - d.alertas.length), mini: true),
-                  CartaoIndicador(label: '📈 Pior Desvio', valor: '+${d.piorDesvio.toStringAsFixed(1)}%', mini: true),
-                  CartaoIndicador(label: '📊 Desvio Médio', valor: '+${d.desvioMedio.toStringAsFixed(1)}%', mini: true),
+                  CartaoIndicador(
+                      label: '⚠️ Postos em Alerta',
+                      valor: formatarInt(d.alertas.length),
+                      sub: '${d.pctAlerta.toStringAsFixed(0)}% da base',
+                      mini: true),
+                  CartaoIndicador(
+                      label: '✅ Dentro da Média',
+                      valor: formatarInt(d.totalAvaliados - d.alertas.length),
+                      mini: true),
+                  CartaoIndicador(
+                      label: '📈 Pior Desvio',
+                      valor: '+${d.piorDesvio.toStringAsFixed(1)}%',
+                      mini: true),
+                  CartaoIndicador(
+                      label: '📊 Desvio Médio',
+                      valor: '+${d.desvioMedio.toStringAsFixed(1)}%',
+                      mini: true),
                 ],
               ),
               const SizedBox(height: 16),
               if (d.alertasPorEstado.isNotEmpty) ...[
-                Text('Postos em Alerta por Estado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+                Text('Postos em Alerta por Estado',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade600)),
                 const SizedBox(height: 8),
                 BarraHorizontal(
                   dados: d.alertasPorEstado
-                      .map((e) => BarraHorizontalItem(label: e.uf, valor: e.postosAlerta.toDouble(), cor: _corPorDesvio(e.piorDesvio), texto: '${e.postosAlerta}'))
+                      .map((e) => BarraHorizontalItem(
+                          label: e.uf,
+                          valor: e.postosAlerta.toDouble(),
+                          cor: _corPorDesvio(e.piorDesvio),
+                          texto: '${e.postosAlerta}'))
                       .toList(),
                   eixoX: 'Postos em alerta',
                 ),
                 const SizedBox(height: 16),
-                Text('Resumo por Estado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+                Text('Resumo por Estado',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade600)),
                 const SizedBox(height: 8),
                 TabelaSimples(
                   colunas: const ['Estado', 'Postos', 'Pior Desvio'],
-                  linhas: d.alertasPorEstado.map((e) => [e.uf, '${e.postosAlerta}', '+${e.piorDesvio.toStringAsFixed(1)}%']).toList(),
+                  linhas: d.alertasPorEstado
+                      .map((e) => [
+                            e.uf,
+                            '${e.postosAlerta}',
+                            '+${e.piorDesvio.toStringAsFixed(1)}%'
+                          ])
+                      .toList(),
                 ),
               ] else
-                const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Nenhum posto em alerta no momento.', style: TextStyle(color: Colors.grey))),
+                const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Nenhum posto em alerta no momento.',
+                        style: TextStyle(color: Colors.grey))),
               if (top20.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Text('Top 20 Postos com Maior Desvio', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+                Text('Top 20 Postos com Maior Desvio',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade600)),
                 const SizedBox(height: 8),
                 TabelaSimples(
-                  colunas: const ['Posto', 'UF', 'Combustível', 'Preço GF', 'Ref. ANP', 'Desvio'],
+                  colunas: const [
+                    'Posto',
+                    'UF',
+                    'Combustível',
+                    'Preço GF',
+                    'Ref. ANP',
+                    'Desvio'
+                  ],
                   flexColunas: const [3, 1, 3, 2, 2, 2],
                   maxHeight: 420,
                   linhas: top20
@@ -82,7 +128,9 @@ class AbaAlertas extends StatelessWidget {
                             a.uf ?? '—',
                             a.combustivel,
                             formatarMoeda(a.precoGf),
-                            a.precoAnp != null ? formatarMoeda(a.precoAnp!) : '—',
+                            a.precoAnp != null
+                                ? formatarMoeda(a.precoAnp!)
+                                : '—',
                             '+${a.diffPct.toStringAsFixed(1)}%',
                           ])
                       .toList(),

@@ -15,20 +15,23 @@ const logoutInatividadeMinutosPadrao = 30;
 const logoutInatividadeMinutosMin = 5;
 const logoutInatividadeMinutosMax = 480;
 
-final configuracoesSistemaProvider = FutureProvider.autoDispose<int>((ref) async {
+final configuracoesSistemaProvider =
+    FutureProvider.autoDispose<int>((ref) async {
   final row = await SupabaseService.client
       .from('configuracoes_sistema')
       .select('logout_inatividade_minutos')
       .eq('id', true)
       .maybeSingle();
   if (row == null) return logoutInatividadeMinutosPadrao;
-  return (row['logout_inatividade_minutos'] as num?)?.toInt() ?? logoutInatividadeMinutosPadrao;
+  return (row['logout_inatividade_minutos'] as num?)?.toInt() ??
+      logoutInatividadeMinutosPadrao;
 });
 
 // Mesma checagem dupla da web (RLS + validação aqui, mensagem melhor pro
 // usuário em vez de só deixar o erro de permissão do banco estourar).
 String? validarLogoutInatividadeMinutos(int minutos) {
-  if (minutos < logoutInatividadeMinutosMin || minutos > logoutInatividadeMinutosMax) {
+  if (minutos < logoutInatividadeMinutosMin ||
+      minutos > logoutInatividadeMinutosMax) {
     return 'O tempo precisa estar entre $logoutInatividadeMinutosMin e $logoutInatividadeMinutosMax minutos.';
   }
   return null;

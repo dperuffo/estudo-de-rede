@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/parcerias_locais_provider.dart';
 import 'item_parceria_form.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 class ItemParceriaEditarScreen extends ConsumerWidget {
   final String id;
   const ItemParceriaEditarScreen({super.key, required this.id});
@@ -15,7 +17,14 @@ class ItemParceriaEditarScreen extends ConsumerWidget {
     final itemAsync = ref.watch(itemParceriaDetalheProvider(id));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar Benefício')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Editar Benefício')),
       body: sessao?.empresaId == null
           ? const Center(child: Text('Selecione uma empresa primeiro.'))
           : itemAsync.when(

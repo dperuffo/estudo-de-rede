@@ -49,7 +49,8 @@ class FretesService {
     if (percentualAdiantamento < 0 || percentualAdiantamento > 100) {
       return 'Percentual de adiantamento precisa estar entre 0 e 100.';
     }
-    if (saldoCombustivelTipo != null && (saldoCombustivelAlocado == null || saldoCombustivelAlocado <= 0)) {
+    if (saldoCombustivelTipo != null &&
+        (saldoCombustivelAlocado == null || saldoCombustivelAlocado <= 0)) {
       return 'Informe um valor válido pra reserva de combustível.';
     }
 
@@ -89,7 +90,8 @@ class FretesService {
             .eq('motorista_id', motoristaId)
             .eq('status', 'ativo')
             .maybeSingle();
-        if (parceiro == null) return 'Esse motorista não é da sua empresa nem um parceiro ativo.';
+        if (parceiro == null)
+          return 'Esse motorista não é da sua empresa nem um parceiro ativo.';
       }
     }
 
@@ -97,14 +99,16 @@ class FretesService {
       await _supabase.from('fretes').insert({
         'empresa_id': empresaId,
         'titulo': titulo.trim(),
-        'descricao': descricao?.trim().isEmpty == true ? null : descricao?.trim(),
+        'descricao':
+            descricao?.trim().isEmpty == true ? null : descricao?.trim(),
         'origem_label': origemLabel,
         'origem_lat': origemLat,
         'origem_lon': origemLon,
         'destino_label': destinoLabel,
         'destino_lat': destinoLat,
         'destino_lon': destinoLon,
-        'tipo_carga': tipoCarga?.trim().isEmpty == true ? null : tipoCarga?.trim(),
+        'tipo_carga':
+            tipoCarga?.trim().isEmpty == true ? null : tipoCarga?.trim(),
         'peso_carga_kg': pesoCargaKg,
         // data_saida_prevista/prazo_entrega (colunas antigas, só data) ficam
         // preenchidas a partir da coleta/entrega novas quando não vierem
@@ -156,9 +160,11 @@ class FretesService {
   // Fase Fretes-Adiantamento-Combustível (19/07) — confirma o pagamento de
   // uma parcela. A regra "saldo_final só após concluído" mora no banco
   // (marcar_pagamento_frete); aqui só repassa e traduz o erro.
-  Future<String?> marcarPagamento({required String freteId, required String tipo}) async {
+  Future<String?> marcarPagamento(
+      {required String freteId, required String tipo}) async {
     try {
-      await _supabase.rpc('marcar_pagamento_frete', params: {'p_frete_id': freteId, 'p_tipo': tipo});
+      await _supabase.rpc('marcar_pagamento_frete',
+          params: {'p_frete_id': freteId, 'p_tipo': tipo});
       return null;
     } on PostgrestException catch (e) {
       return e.message;
@@ -168,18 +174,24 @@ class FretesService {
   }
 
   Future<void> cancelarFrete(String id) async {
-    await _supabase.from('fretes').update({'status': 'cancelado', 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', id);
+    await _supabase.from('fretes').update({
+      'status': 'cancelado',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   Future<void> reabrirFreteParaMercado(String id) async {
-    await _supabase
-        .from('fretes')
-        .update({'motorista_id': null, 'status': 'disponivel', 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', id);
+    await _supabase.from('fretes').update({
+      'motorista_id': null,
+      'status': 'disponivel',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   Future<String?> aceitarProposta(String negociacaoId) async {
     try {
-      await _supabase.rpc('aceitar_negociacao_frete', params: {'p_negociacao_id': negociacaoId});
+      await _supabase.rpc('aceitar_negociacao_frete',
+          params: {'p_negociacao_id': negociacaoId});
       return null;
     } catch (e) {
       return e.toString();
@@ -188,7 +200,8 @@ class FretesService {
 
   Future<String?> recusarProposta(String negociacaoId) async {
     try {
-      await _supabase.rpc('recusar_negociacao_frete', params: {'p_negociacao_id': negociacaoId});
+      await _supabase.rpc('recusar_negociacao_frete',
+          params: {'p_negociacao_id': negociacaoId});
       return null;
     } catch (e) {
       return e.toString();
@@ -221,7 +234,8 @@ class FretesService {
         'frete_id': freteId,
         'nome_posto': nomePosto.trim(),
         'item_catalogo_id': itemCatalogoId,
-        'observacao': observacao?.trim().isEmpty == true ? null : observacao?.trim(),
+        'observacao':
+            observacao?.trim().isEmpty == true ? null : observacao?.trim(),
       });
       return null;
     } catch (e) {
@@ -243,7 +257,9 @@ class FretesService {
       await _supabase.rpc('avaliar_frete', params: {
         'p_frete_id': freteId,
         'p_estrelas': estrelas,
-        'p_comentario': (comentario == null || comentario.trim().isEmpty) ? null : comentario.trim(),
+        'p_comentario': (comentario == null || comentario.trim().isEmpty)
+            ? null
+            : comentario.trim(),
         'p_tags': tags,
       });
       return null;
@@ -256,14 +272,18 @@ class FretesService {
   // Nenhum dos dois é emitido por aqui, ver cte_parser.dart. A trava de
   // verdade continua sendo a RLS (fretes_cte_dono_empresa/fretes_ciot_dono_
   // empresa) — isto aqui só devolve mensagem amigável antes de bater nela.
-  Future<String?> enviarCte({required String freteId, required String xmlTexto}) async {
+  Future<String?> enviarCte(
+      {required String freteId, required String xmlTexto}) async {
     final parse = parsearXmlCte(xmlTexto);
     if (!parse.ok) return parse.erro;
     final cte = parse.cte!;
 
     try {
-      final existente =
-          await _supabase.from('fretes_cte').select('id, frete_id').eq('chave_acesso', cte.chaveAcesso).maybeSingle();
+      final existente = await _supabase
+          .from('fretes_cte')
+          .select('id, frete_id')
+          .eq('chave_acesso', cte.chaveAcesso)
+          .maybeSingle();
       if (existente != null) {
         return existente['frete_id'] == freteId
             ? 'Este CT-e já está registrado neste frete.'
@@ -320,10 +340,12 @@ class FretesService {
     String? anexoPath;
     try {
       if (anexoBytes != null && anexoBytes.isNotEmpty) {
-        if (anexoBytes.length > 5 * 1024 * 1024) return 'O anexo é grande demais (máximo 5 MB).';
-        final extensao = (anexoNomeArquivo != null && anexoNomeArquivo.contains('.'))
-            ? anexoNomeArquivo.split('.').last
-            : 'pdf';
+        if (anexoBytes.length > 5 * 1024 * 1024)
+          return 'O anexo é grande demais (máximo 5 MB).';
+        final extensao =
+            (anexoNomeArquivo != null && anexoNomeArquivo.contains('.'))
+                ? anexoNomeArquivo.split('.').last
+                : 'pdf';
         anexoPath = '$freteId/ciot-$numeroLimpo.$extensao';
         await _supabase.storage.from('fretes-documentos').uploadBinary(
               anexoPath,
@@ -336,16 +358,22 @@ class FretesService {
         'frete_id': freteId,
         'numero_ciot': numeroLimpo,
         'rntrc': (rntrc == null || rntrc.trim().isEmpty) ? null : rntrc.trim(),
-        'placa_veiculo': (placaVeiculo == null || placaVeiculo.trim().isEmpty) ? null : placaVeiculo.trim().toUpperCase(),
+        'placa_veiculo': (placaVeiculo == null || placaVeiculo.trim().isEmpty)
+            ? null
+            : placaVeiculo.trim().toUpperCase(),
         'valor_frete': valorFrete,
-        'data_emissao': (dataEmissao == null || dataEmissao.isEmpty) ? null : dataEmissao,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'data_emissao':
+            (dataEmissao == null || dataEmissao.isEmpty) ? null : dataEmissao,
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'anexo_storage_path': anexoPath,
         'criado_por': AuthService().emailAtual,
       });
       return null;
     } on PostgrestException catch (e) {
-      if (e.code == '23505') return 'Esse número de CIOT já está registrado neste frete.';
+      if (e.code == '23505')
+        return 'Esse número de CIOT já está registrado neste frete.';
       return 'Não foi possível registrar o CIOT: ${e.message}';
     } catch (e) {
       return 'Não foi possível registrar o CIOT: $e';

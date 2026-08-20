@@ -73,7 +73,9 @@ class InteligenciaRedeScreen extends ConsumerWidget {
           elevation: 0,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
-          flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
           bottom: TabBar(
             isScrollable: true,
             indicator: BoxDecoration(
@@ -81,7 +83,8 @@ class InteligenciaRedeScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(999),
             ),
             indicatorSize: TabBarIndicatorSize.tab,
-            indicatorPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+            indicatorPadding:
+                const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
             labelColor: AppTheme.glassTextoAtivo,
             unselectedLabelColor: AppTheme.glassTextoMuted,
             tabs: _abas.map((a) => Tab(text: a)).toList(),
@@ -89,9 +92,14 @@ class InteligenciaRedeScreen extends ConsumerWidget {
         ),
         body: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Erro ao carregar: $e', textAlign: TextAlign.center))),
+          error: (e, _) => Center(
+              child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Erro ao carregar: $e',
+                      textAlign: TextAlign.center))),
           data: (dados) {
-            if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+            if (dados == null)
+              return const Center(child: Text('Nenhuma empresa selecionada.'));
             return Column(
               children: [
                 _cabecalhoKpis(dados),
@@ -137,15 +145,29 @@ class InteligenciaRedeScreen extends ConsumerWidget {
         crossAxisSpacing: 6,
         childAspectRatio: 2.4,
         children: [
-          CartaoIndicador(label: '⛽ Postos GF', valor: formatarInt(k.totalGf), sub: '${k.estadosComPosto} estados', mini: true),
-          CartaoIndicador(label: '🏙️ Municípios', valor: formatarInt(k.municipiosUnicos), sub: '${k.coberturaBr}% dos estados', mini: true),
+          CartaoIndicador(
+              label: '⛽ Postos GF',
+              valor: formatarInt(k.totalGf),
+              sub: '${k.estadosComPosto} estados',
+              mini: true),
+          CartaoIndicador(
+              label: '🏙️ Municípios',
+              valor: formatarInt(k.municipiosUnicos),
+              sub: '${k.coberturaBr}% dos estados',
+              mini: true),
           CartaoIndicador(
             label: '🚛 Diesel Médio GF',
             valor: k.dieselGf > 0 ? formatarMoeda(k.dieselGf) : '—',
-            sub: k.dieselGf > 0 && k.deltaDieselPct != null ? '${k.deltaDieselPct! > 0 ? "+" : ""}${k.deltaDieselPct!.toStringAsFixed(1)}% vs ANP' : 'Sem dados',
+            sub: k.dieselGf > 0 && k.deltaDieselPct != null
+                ? '${k.deltaDieselPct! > 0 ? "+" : ""}${k.deltaDieselPct!.toStringAsFixed(1)}% vs ANP'
+                : 'Sem dados',
             mini: true,
           ),
-          CartaoIndicador(label: '💰 Saving/Ano', valor: 'R\$ ${(k.savingPotencialAno / 1e6).toStringAsFixed(1)}M', sub: 'base: 100L/sem', mini: true),
+          CartaoIndicador(
+              label: '💰 Saving/Ano',
+              valor: 'R\$ ${(k.savingPotencialAno / 1e6).toStringAsFixed(1)}M',
+              sub: 'base: 100L/sem',
+              mini: true),
         ],
       ),
     );

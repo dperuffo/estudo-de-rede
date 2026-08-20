@@ -36,7 +36,8 @@ class ManutencaoPreditivaService {
         .replaceAll(RegExp('[ÚÙÛÜ]'), 'U')
         .replaceAll(RegExp('[Ç]'), 'C');
     final seguro = semAcentos.replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_');
-    final cortado = seguro.length > 150 ? seguro.substring(seguro.length - 150) : seguro;
+    final cortado =
+        seguro.length > 150 ? seguro.substring(seguro.length - 150) : seguro;
     return cortado.isEmpty ? 'arquivo' : cortado;
   }
 
@@ -63,7 +64,11 @@ class ManutencaoPreditivaService {
     if (itensRealizados.isEmpty) {
       throw Exception('Selecione ao menos um item realizado.');
     }
-    final veiculo = await _supabase.from('cadastro_veiculos').select('cnpj_frota').eq('placa', placa).maybeSingle();
+    final veiculo = await _supabase
+        .from('cadastro_veiculos')
+        .select('cnpj_frota')
+        .eq('placa', placa)
+        .maybeSingle();
 
     final inserida = await _supabase
         .from('manutencoes_realizadas')
@@ -79,7 +84,8 @@ class ManutencaoPreditivaService {
           'dias_parado': diasParado,
           'tipo': tipo,
           'itens_realizados': itensRealizados,
-          'obs_gerais': (obsGerais == null || obsGerais.isEmpty) ? null : obsGerais,
+          'obs_gerais':
+              (obsGerais == null || obsGerais.isEmpty) ? null : obsGerais,
           'criado_por': criadoPor,
         })
         .select('id')
@@ -100,7 +106,8 @@ class ManutencaoPreditivaService {
     final caminhos = <String>[];
     var falhas = 0;
     for (final arquivo in arquivos) {
-      final caminho = '$manutencaoId/${DateTime.now().millisecondsSinceEpoch}_${_sanitizarNomeParaStorage(arquivo.nome)}';
+      final caminho =
+          '$manutencaoId/${DateTime.now().millisecondsSinceEpoch}_${_sanitizarNomeParaStorage(arquivo.nome)}';
       try {
         await _supabase.storage.from(bucketEvidenciasManutencao).uploadBinary(
               caminho,
@@ -113,9 +120,16 @@ class ManutencaoPreditivaService {
       }
     }
     if (caminhos.isNotEmpty) {
-      final atual = await _supabase.from('manutencoes_realizadas').select('fotos').eq('id', manutencaoId).single();
-      final fotosAtuais = (atual['fotos'] as List?)?.cast<String>() ?? <String>[];
-      await _supabase.from('manutencoes_realizadas').update({'fotos': [...fotosAtuais, ...caminhos]}).eq('id', manutencaoId);
+      final atual = await _supabase
+          .from('manutencoes_realizadas')
+          .select('fotos')
+          .eq('id', manutencaoId)
+          .single();
+      final fotosAtuais =
+          (atual['fotos'] as List?)?.cast<String>() ?? <String>[];
+      await _supabase.from('manutencoes_realizadas').update({
+        'fotos': [...fotosAtuais, ...caminhos]
+      }).eq('id', manutencaoId);
     }
     if (falhas > 0) {
       return caminhos.isEmpty
@@ -132,7 +146,9 @@ class ManutencaoPreditivaService {
     final urls = <String>[];
     for (final caminho in caminhos) {
       try {
-        final url = await _supabase.storage.from(bucketEvidenciasManutencao).createSignedUrl(caminho, 3600);
+        final url = await _supabase.storage
+            .from(bucketEvidenciasManutencao)
+            .createSignedUrl(caminho, 3600);
         urls.add(url);
       } catch (_) {
         // Best-effort — se uma URL falhar (ex.: arquivo removido), as

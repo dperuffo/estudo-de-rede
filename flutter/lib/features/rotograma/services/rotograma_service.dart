@@ -79,5 +79,6 @@ class RotogramaService {
     await _supabase.from('rotogramas').delete().eq('id', id);
   }
 
-  String? _ouNull(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+  String? _ouNull(String? v) =>
+      (v == null || v.trim().isEmpty) ? null : v.trim();
 }

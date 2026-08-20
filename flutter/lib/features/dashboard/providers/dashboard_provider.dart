@@ -33,7 +33,18 @@ const _janelaCnhDias = 30;
 const _janelaAjustesDias = 30;
 
 const _mesesAbrev = [
-  'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez',
+  'jan',
+  'fev',
+  'mar',
+  'abr',
+  'mai',
+  'jun',
+  'jul',
+  'ago',
+  'set',
+  'out',
+  'nov',
+  'dez',
 ];
 
 String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
@@ -48,14 +59,16 @@ class PontoConsumoMensal {
   final String mesLabel; // "jan/25"
   final double litros;
   final double valor;
-  const PontoConsumoMensal({required this.mesLabel, required this.litros, required this.valor});
+  const PontoConsumoMensal(
+      {required this.mesLabel, required this.litros, required this.valor});
 }
 
 class CnhVencendo {
   final String id;
   final String nome;
   final String vencimento;
-  const CnhVencendo({required this.id, required this.nome, required this.vencimento});
+  const CnhVencendo(
+      {required this.id, required this.nome, required this.vencimento});
 }
 
 class ClienteGasto {
@@ -99,7 +112,8 @@ class ItemAjuste {
     required this.provedor,
   });
 
-  String? get chaveRota => provedor != null ? '$provedor:$abastecimentoId' : null;
+  String? get chaveRota =>
+      provedor != null ? '$provedor:$abastecimentoId' : null;
 }
 
 const statusAjusteLabel = <String, String>{
@@ -121,7 +135,8 @@ class ResumoAjustes {
     required this.impactoFinanceiro,
     required this.ultimos,
   });
-  static const vazio = ResumoAjustes(pendentes: 0, aceitosNoPeriodo: 0, impactoFinanceiro: 0, ultimos: []);
+  static const vazio = ResumoAjustes(
+      pendentes: 0, aceitosNoPeriodo: 0, impactoFinanceiro: 0, ultimos: []);
 }
 
 class LinhaCentroCusto {
@@ -154,7 +169,8 @@ class CentroCustoDados {
     required this.totalAbastecimento,
     required this.totalManutencao,
   });
-  static const vazio = CentroCustoDados(linhas: [], totalVeiculos: 0, totalAbastecimento: 0, totalManutencao: 0);
+  static const vazio = CentroCustoDados(
+      linhas: [], totalVeiculos: 0, totalAbastecimento: 0, totalManutencao: 0);
 }
 
 class ManutencaoResumo {
@@ -231,10 +247,12 @@ class DashboardClienteDados {
 
   // Onboarding some sozinho assim que veículos E motoristas já estiverem
   // cadastrados — mesma condição de saída de PrimeirosPassos.tsx.
-  bool get mostrarPrimeirosPassos => !(totalVeiculos > 0 && totalMotoristas > 0);
+  bool get mostrarPrimeirosPassos =>
+      !(totalVeiculos > 0 && totalMotoristas > 0);
 }
 
-final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDados>((ref) async {
+final dashboardClienteProvider =
+    FutureProvider.autoDispose<DashboardClienteDados>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return DashboardClienteDados.vazio;
@@ -242,18 +260,26 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
   final supabase = SupabaseService.client;
   final agora = DateTime.now();
   final inicioMesAtual = DateTime(agora.year, agora.month, 1);
-  final seisMesesAtras = DateTime(agora.year, agora.month - (_janelaConsumoMeses - 1), 1);
+  final seisMesesAtras =
+      DateTime(agora.year, agora.month - (_janelaConsumoMeses - 1), 1);
   final daqui30Dias = agora.add(const Duration(days: _janelaCnhDias));
   final desdeAjustes = agora.subtract(const Duration(days: _janelaAjustesDias));
 
   // Chamadas sequenciais (não Future.wait) — tipos de retorno diferentes
   // por consulta tornam o Future.wait tipado chato de escrever em Dart;
   // sequencial é mais simples de ler e o ganho de latência aqui é pequeno.
-  final totalClientesResp = await supabase.from('empresas').select('id').count(CountOption.exact);
-  final clientesAtivosResp =
-      await supabase.from('empresas').select('id').eq('status', 'ativo').count(CountOption.exact);
-  final totalMotoristasResp =
-      await supabase.from('motoristas').select('id').eq('empresa_id', empresaId).count(CountOption.exact);
+  final totalClientesResp =
+      await supabase.from('empresas').select('id').count(CountOption.exact);
+  final clientesAtivosResp = await supabase
+      .from('empresas')
+      .select('id')
+      .eq('status', 'ativo')
+      .count(CountOption.exact);
+  final totalMotoristasResp = await supabase
+      .from('motoristas')
+      .select('id')
+      .eq('empresa_id', empresaId)
+      .count(CountOption.exact);
   final motoristasAtivosResp = await supabase
       .from('motoristas')
       .select('id')
@@ -272,18 +298,23 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
   // principais que já funcionavam desde a Fase FLT-3.
   var totalPostosProprios = 0;
   try {
-    final totalPostosPropriosResp =
-        await supabase.from('postos_gf').select('cnpj').eq('empresa_id', empresaId).count(CountOption.exact);
+    final totalPostosPropriosResp = await supabase
+        .from('postos_gf')
+        .select('cnpj')
+        .eq('empresa_id', empresaId)
+        .count(CountOption.exact);
     totalPostosProprios = totalPostosPropriosResp.count;
   } catch (_) {
     // Só afeta o 3º passo (opcional) de Primeiros Passos — assume "ainda
     // não carregado" em vez de derrubar o resto do Dashboard.
   }
 
-  final veiculosRaw = await supabase.rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
+  final veiculosRaw = await supabase
+      .rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
   final totalVeiculos = veiculosRaw.length;
-  final veiculosAtivos =
-      veiculosRaw.where((v) => (v as Map<String, dynamic>)['ativo'] == true).length;
+  final veiculosAtivos = veiculosRaw
+      .where((v) => (v as Map<String, dynamic>)['ativo'] == true)
+      .length;
 
   // Abastecimentos do CLIENTE selecionado — alimenta KPIs do mês, meios de
   // pagamento e o gráfico de consumo de 6 meses.
@@ -325,8 +356,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
         .from('ajustes_abastecimentos')
         .select('id')
         .eq('empresa_cliente_id', empresaId)
-        .inFilter('status', ['pendente_posto', 'pendente_cliente'])
-        .count(CountOption.exact);
+        .inFilter('status', ['pendente_posto', 'pendente_cliente']).count(
+            CountOption.exact);
     final aceitosNoPeriodoRaw = await supabase
         .from('ajustes_abastecimentos')
         .select('id, valor_original')
@@ -335,7 +366,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
         .gte('atualizado_em', desdeAjustes.toIso8601String()) as List;
     final ultimosAjustesRaw = await supabase
         .from('ajustes_abastecimentos')
-        .select('id, abastecimento_id, abastecimento_externo_id, status, origem, valor_original, criado_em, atualizado_em')
+        .select(
+            'id, abastecimento_id, abastecimento_externo_id, status, origem, valor_original, criado_em, atualizado_em')
         .eq('empresa_cliente_id', empresaId)
         .order('atualizado_em', ascending: false)
         .limit(5) as List;
@@ -344,7 +376,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     // TicketLog/Veloe) em 1 consulta em lote — a lista é sempre pequena
     // (limit 5), então isso não vira N+1.
     final idsExternos = ultimosAjustesRaw
-        .map((u) => (u as Map<String, dynamic>)['abastecimento_externo_id'] as num?)
+        .map((u) =>
+            (u as Map<String, dynamic>)['abastecimento_externo_id'] as num?)
         .whereType<num>()
         .map((n) => n.toInt())
         .toList();
@@ -356,14 +389,17 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
           .inFilter('id', idsExternos) as List;
       for (final p in provedoresRaw) {
         final m = p as Map<String, dynamic>;
-        provedorPorIdExterno[(m['id'] as num).toInt()] = m['provedor'] as String;
+        provedorPorIdExterno[(m['id'] as num).toInt()] =
+            m['provedor'] as String;
       }
     }
 
     // Impacto financeiro real = valor que FOI de fato aceito em cada ajuste
     // (rodada com decisao='aceita') menos o valor_original — não dá pra usar
     // só o cabeçalho (só guarda o valor de ANTES).
-    final idsAceitos = aceitosNoPeriodoRaw.map((a) => (a as Map<String, dynamic>)['id'] as String).toList();
+    final idsAceitos = aceitosNoPeriodoRaw
+        .map((a) => (a as Map<String, dynamic>)['id'] as String)
+        .toList();
     var impactoFinanceiro = 0.0;
     if (idsAceitos.isNotEmpty) {
       final rodadasAceitasRaw = await supabase
@@ -374,7 +410,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
       final valorAceitoPorAjuste = <String, double?>{};
       for (final r in rodadasAceitasRaw) {
         final m = r as Map<String, dynamic>;
-        valorAceitoPorAjuste[m['ajuste_id'] as String] = (m['item_valor_total'] as num?)?.toDouble();
+        valorAceitoPorAjuste[m['ajuste_id'] as String] =
+            (m['item_valor_total'] as num?)?.toDouble();
       }
       for (final a in aceitosNoPeriodoRaw) {
         final m = a as Map<String, dynamic>;
@@ -404,7 +441,9 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
           valorOriginal: (m['valor_original'] as num?)?.toDouble(),
           criadoEm: m['criado_em'] as String,
           atualizadoEm: m['atualizado_em'] as String,
-          provedor: tipo == 'profrotas' ? 'profrotas' : provedorPorIdExterno[externoId],
+          provedor: tipo == 'profrotas'
+              ? 'profrotas'
+              : provedorPorIdExterno[externoId],
         );
       }).toList(),
     );
@@ -416,7 +455,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
   // topo do arquivo). "Best effort".
   CentroCustoDados? centroCusto;
   try {
-    final centroCustoRaw = await supabase.rpc('indicadores_centro_custo', params: {
+    final centroCustoRaw =
+        await supabase.rpc('indicadores_centro_custo', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': _iso(inicioMesAtual),
       'p_data_fim': _iso(agora),
@@ -435,9 +475,12 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     }).toList();
     centroCusto = CentroCustoDados(
       linhas: linhasCentroCusto,
-      totalVeiculos: linhasCentroCusto.fold<int>(0, (s, l) => s + l.qtdVeiculos),
-      totalAbastecimento: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoAbastecimento),
-      totalManutencao: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoManutencao),
+      totalVeiculos:
+          linhasCentroCusto.fold<int>(0, (s, l) => s + l.qtdVeiculos),
+      totalAbastecimento:
+          linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoAbastecimento),
+      totalManutencao:
+          linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoManutencao),
     );
   } catch (_) {
     centroCusto = null;
@@ -455,7 +498,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
   // resto normalmente) e vale otimizar a RPC em si depois.
   ManutencaoResumo? manutencao;
   try {
-    final manutencaoRaw = await supabase.rpc('manutencao_preditiva_kpis', params: {
+    final manutencaoRaw =
+        await supabase.rpc('manutencao_preditiva_kpis', params: {
       'p_empresa_id': empresaId,
     }) as List;
     if (manutencaoRaw.isNotEmpty) {
@@ -519,7 +563,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     if (data == null) continue;
     final chave = '${data.year}-${data.month.toString().padLeft(2, '0')}';
     final atual = porMes[chave];
-    if (atual == null) continue; // fora da janela de 6 meses (não deve acontecer, já filtrado na query)
+    if (atual == null)
+      continue; // fora da janela de 6 meses (não deve acontecer, já filtrado na query)
     porMes[chave] = (
       litros: atual.litros + ((m['litros'] as num?)?.toDouble() ?? 0),
       valor: atual.valor + ((m['valor_total'] as num?)?.toDouble() ?? 0),
@@ -530,7 +575,10 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     final mesIdx = int.parse(partes[1]) - 1;
     final anoAbrev = partes[0].substring(2);
     final p = porMes[chave]!;
-    return PontoConsumoMensal(mesLabel: '${_mesesAbrev[mesIdx]}/$anoAbrev', litros: p.litros, valor: p.valor);
+    return PontoConsumoMensal(
+        mesLabel: '${_mesesAbrev[mesIdx]}/$anoAbrev',
+        litros: p.litros,
+        valor: p.valor);
   }).toList();
 
   // CNH vencendo.
@@ -549,7 +597,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     final m = a as Map<String, dynamic>;
     final id = m['empresa_id'] as String?;
     if (id == null) continue;
-    gastoPorEmpresa[id] = (gastoPorEmpresa[id] ?? 0) + ((m['valor_total'] as num?)?.toDouble() ?? 0);
+    gastoPorEmpresa[id] = (gastoPorEmpresa[id] ?? 0) +
+        ((m['valor_total'] as num?)?.toDouble() ?? 0);
   }
   final idsTop = gastoPorEmpresa.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
@@ -564,10 +613,12 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
           'p_empresa_ids': top5Ids.map((e) => e.key).toList(),
         }) as List;
   final nomePorId = <String, String?>{
-    for (final r in nomesRows) (r as Map<String, dynamic>)['id'] as String: r['nome'] as String?,
+    for (final r in nomesRows)
+      (r as Map<String, dynamic>)['id'] as String: r['nome'] as String?,
   };
   final topClientes = top5Ids
-      .map((entry) => ClienteGasto(nome: nomePorId[entry.key] ?? entry.key, valor: entry.value))
+      .map((entry) => ClienteGasto(
+          nome: nomePorId[entry.key] ?? entry.key, valor: entry.value))
       .toList();
 
   return DashboardClienteDados(

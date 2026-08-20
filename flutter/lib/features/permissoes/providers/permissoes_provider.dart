@@ -43,12 +43,16 @@ const perfilLabel = {
 // Só formatação pra tela, não muda nada no banco — mesma função da web.
 String formatarFuncionalidade(String nome) {
   if (nome.startsWith('aba_')) return 'Aba: ${_humanizar(nome.substring(4))}';
-  if (nome.startsWith('func_')) return 'Função: ${_humanizar(nome.substring(5))}';
+  if (nome.startsWith('func_'))
+    return 'Função: ${_humanizar(nome.substring(5))}';
   return _humanizar(nome);
 }
 
 String _humanizar(String texto) {
-  return texto.split('_').map((p) => p.isEmpty ? p : '${p[0].toUpperCase()}${p.substring(1)}').join(' ');
+  return texto
+      .split('_')
+      .map((p) => p.isEmpty ? p : '${p[0].toUpperCase()}${p.substring(1)}')
+      .join(' ');
 }
 
 class PermissaoCelula {
@@ -73,16 +77,23 @@ class MatrizPermissoes {
     required this.modoGlobal,
   });
 
-  PermissaoCelula? celula(String funcionalidade, String perfil) => matriz[funcionalidade]?[perfil];
+  PermissaoCelula? celula(String funcionalidade, String perfil) =>
+      matriz[funcionalidade]?[perfil];
 }
 
-final permissoesMatrizProvider = FutureProvider.autoDispose<MatrizPermissoes>((ref) async {
+final permissoesMatrizProvider =
+    FutureProvider.autoDispose<MatrizPermissoes>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final ehAdmin = sessao.ehAdmin;
   final meuPerfil = sessao.perfil ?? 'analista';
 
   if (!ehAdmin && sessao.empresaId == null) {
-    return const MatrizPermissoes(funcionalidades: [], perfisVisiveis: [], matriz: {}, empresaEdicao: '', modoGlobal: false);
+    return const MatrizPermissoes(
+        funcionalidades: [],
+        perfisVisiveis: [],
+        matriz: {},
+        empresaEdicao: '',
+        modoGlobal: false);
   }
 
   // "posto" é uma trilha separada da hierarquia Frota (gestor_frota >
@@ -112,8 +123,10 @@ final permissoesMatrizProvider = FutureProvider.autoDispose<MatrizPermissoes>((r
     final linhasGlobais = await linhasGlobaisFuturo;
     for (final l in linhasGlobais) {
       final m = l as Map<String, dynamic>;
-      final porPerfil = matriz.putIfAbsent(m['funcionalidade'] as String, () => {});
-      porPerfil[m['perfil'] as String] = PermissaoCelula(permitido: m['permitido'] as bool? ?? false, customizado: false);
+      final porPerfil =
+          matriz.putIfAbsent(m['funcionalidade'] as String, () => {});
+      porPerfil[m['perfil'] as String] = PermissaoCelula(
+          permitido: m['permitido'] as bool? ?? false, customizado: false);
     }
   } else {
     final resultados = await Future.wait([
@@ -127,13 +140,17 @@ final permissoesMatrizProvider = FutureProvider.autoDispose<MatrizPermissoes>((r
     final linhasEmpresa = resultados[1] as List;
     for (final l in linhasGlobais) {
       final m = l as Map<String, dynamic>;
-      final porPerfil = matriz.putIfAbsent(m['funcionalidade'] as String, () => {});
-      porPerfil[m['perfil'] as String] = PermissaoCelula(permitido: m['permitido'] as bool? ?? false, customizado: false);
+      final porPerfil =
+          matriz.putIfAbsent(m['funcionalidade'] as String, () => {});
+      porPerfil[m['perfil'] as String] = PermissaoCelula(
+          permitido: m['permitido'] as bool? ?? false, customizado: false);
     }
     for (final l in linhasEmpresa) {
       final m = l as Map<String, dynamic>;
-      final porPerfil = matriz.putIfAbsent(m['funcionalidade'] as String, () => {});
-      porPerfil[m['perfil'] as String] = PermissaoCelula(permitido: m['permitido'] as bool? ?? false, customizado: true);
+      final porPerfil =
+          matriz.putIfAbsent(m['funcionalidade'] as String, () => {});
+      porPerfil[m['perfil'] as String] = PermissaoCelula(
+          permitido: m['permitido'] as bool? ?? false, customizado: true);
     }
   }
 

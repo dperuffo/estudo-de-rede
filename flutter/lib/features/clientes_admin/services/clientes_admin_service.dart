@@ -8,9 +8,11 @@ import '../../../core/services/supabase_service.dart';
 class ClientesAdminService {
   final _supabase = SupabaseService.client;
 
-  Future<String?> alternarAtivo({required String empresaId, required bool ativar}) async {
+  Future<String?> alternarAtivo(
+      {required String empresaId, required bool ativar}) async {
     try {
-      await _supabase.from('empresas').update({'status': ativar ? 'ativo' : 'suspenso'}).eq('id', empresaId);
+      await _supabase.from('empresas').update(
+          {'status': ativar ? 'ativo' : 'suspenso'}).eq('id', empresaId);
       return null;
     } on PostgrestException catch (e) {
       return e.message;

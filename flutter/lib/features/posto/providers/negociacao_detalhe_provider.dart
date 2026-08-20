@@ -35,7 +35,8 @@ class RodadaNegociacao {
         combustivel: m['combustivel'] as String? ?? '',
         vigenciaInicio: m['vigencia_inicio'] as String? ?? '',
         vigenciaFim: m['vigencia_fim'] as String? ?? '',
-        volumeMinimoMensal: (m['volume_minimo_mensal'] as num?)?.toDouble() ?? 0,
+        volumeMinimoMensal:
+            (m['volume_minimo_mensal'] as num?)?.toDouble() ?? 0,
         precoUnitario: (m['preco_unitario'] as num?)?.toDouble() ?? 0,
         decisao: m['decisao'] as String? ?? 'pendente',
       );
@@ -70,15 +71,16 @@ class NegociacaoDetalhe {
     required this.rodadas,
   });
 
-  bool get emAndamento => status == 'pendente_posto' || status == 'pendente_cliente';
+  bool get emAndamento =>
+      status == 'pendente_posto' || status == 'pendente_cliente';
   // Fase FLT-2 — esta tela só existe dentro do shell /posto, então "minha
   // vez de responder" é sempre do ponto de vista do posto.
   bool get minhaVezDeResponder => status == 'pendente_posto';
   RodadaNegociacao? get ultimaRodada => rodadas.isEmpty ? null : rodadas.last;
 }
 
-final negociacaoDetalheProvider =
-    FutureProvider.autoDispose.family<NegociacaoDetalhe, String>((ref, id) async {
+final negociacaoDetalheProvider = FutureProvider.autoDispose
+    .family<NegociacaoDetalhe, String>((ref, id) async {
   final supabase = SupabaseService.client;
 
   final negociacao = await supabase
@@ -98,7 +100,8 @@ final negociacaoDetalheProvider =
         .eq('email', atualizadoPor)
         .maybeSingle();
     final nome = usuario?['nome'] as String?;
-    nomeAtualizadoPor = (nome != null && nome.isNotEmpty) ? nome : atualizadoPor;
+    nomeAtualizadoPor =
+        (nome != null && nome.isNotEmpty) ? nome : atualizadoPor;
   }
 
   final rodadasRaw = await supabase
@@ -119,6 +122,8 @@ final negociacaoDetalheProvider =
     nomeAtualizadoPor: nomeAtualizadoPor,
     clienteNome: negociacao['cliente_nome'] as String?,
     postoNome: negociacao['posto_nome'] as String?,
-    rodadas: rodadasRaw.map((m) => RodadaNegociacao.fromMap(m as Map<String, dynamic>)).toList(),
+    rodadas: rodadasRaw
+        .map((m) => RodadaNegociacao.fromMap(m as Map<String, dynamic>))
+        .toList(),
   );
 });

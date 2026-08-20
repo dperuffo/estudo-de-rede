@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/postos_provider.dart';
 import '../services/postos_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — "Explorar universo ANP": busca no universo nacional de
 // postos (35 mil+) pra ativar um novo na rede negociada do cliente. Sem
 // paginação (a web pagina de 50 em 50 sobre o universo inteiro) — aqui só
@@ -34,7 +36,8 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
     final empresaId = sessao.empresaId;
     if (empresaId == null) return;
     setState(() => _ativando.add(posto.cnpj));
-    final erro = await PostosService().ativarPosto(cnpjAnp: posto.cnpj, empresaId: empresaId);
+    final erro = await PostosService()
+        .ativarPosto(cnpjAnp: posto.cnpj, empresaId: empresaId);
     if (!mounted) return;
     setState(() => _ativando.remove(posto.cnpj));
     if (erro != null) {
@@ -44,7 +47,9 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
     ref.invalidate(postosClienteProvider);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${posto.razaoSocial ?? posto.cnpj} adicionado à sua rede.')),
+        SnackBar(
+            content: Text(
+                '${posto.razaoSocial ?? posto.cnpj} adicionado à sua rede.')),
       );
       context.pop();
     }
@@ -56,7 +61,14 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
     final async = ref.watch(buscaAnpProvider(params));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorar universo ANP')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Explorar universo ANP')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -75,10 +87,15 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
               value: _uf,
-              decoration: const InputDecoration(labelText: 'UF (opcional)', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'UF (opcional)',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
-                ...ufsBrasil.map((uf) => DropdownMenuItem<String?>(value: uf, child: Text(uf))),
+                const DropdownMenuItem<String?>(
+                    value: null, child: Text('Todas')),
+                ...ufsBrasil.map((uf) =>
+                    DropdownMenuItem<String?>(value: uf, child: Text(uf))),
               ],
               onChanged: (v) => setState(() => _uf = v),
             ),
@@ -88,16 +105,20 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(24),
-                        child: Text('Digite ao menos 3 letras para buscar.', style: TextStyle(color: Colors.grey)),
+                        child: Text('Digite ao menos 3 letras para buscar.',
+                            style: TextStyle(color: Colors.grey)),
                       ),
                     )
                   : async.when(
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(child: Text('Erro ao buscar: $e')),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) =>
+                          Center(child: Text('Erro ao buscar: $e')),
                       data: (resultados) {
                         if (resultados.isEmpty) {
                           return const Center(
-                            child: Text('Nenhum posto encontrado.', style: TextStyle(color: Colors.grey)),
+                            child: Text('Nenhum posto encontrado.',
+                                style: TextStyle(color: Colors.grey)),
                           );
                         }
                         return ListView.builder(
@@ -108,18 +129,32 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
                             return Card(
                               margin: const EdgeInsets.only(bottom: 8),
                               child: ListTile(
-                                title: Text(p.razaoSocial ?? p.cnpj, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                title: Text(p.razaoSocial ?? p.cnpj,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14)),
                                 subtitle: Text(
                                   [
                                     p.cnpj,
-                                    [p.municipio, p.uf].where((v) => v != null && v.isNotEmpty).join('/'),
-                                    if (p.bandeira != null && p.bandeira!.isNotEmpty) p.bandeira!,
+                                    [p.municipio, p.uf]
+                                        .where((v) => v != null && v.isNotEmpty)
+                                        .join('/'),
+                                    if (p.bandeira != null &&
+                                        p.bandeira!.isNotEmpty)
+                                      p.bandeira!,
                                   ].where((v) => v.isNotEmpty).join(' · '),
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
                                 ),
                                 trailing: ativando
-                                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                    : OutlinedButton(onPressed: () => _ativar(p), child: const Text('Ativar')),
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2))
+                                    : OutlinedButton(
+                                        onPressed: () => _ativar(p),
+                                        child: const Text('Ativar')),
                               ),
                             );
                           },

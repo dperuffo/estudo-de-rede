@@ -76,7 +76,8 @@ class ClienteCrm {
 const _colunasCliente =
     'id, empresa_id, cnpj_cpf, razao_social, ie, endereco_logradouro, endereco_numero, endereco_bairro, endereco_municipio, endereco_uf, endereco_cep, telefone, email';
 
-final clientesCrmListProvider = FutureProvider.autoDispose<List<ClienteCrm>>((ref) async {
+final clientesCrmListProvider =
+    FutureProvider.autoDispose<List<ClienteCrm>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -86,11 +87,18 @@ final clientesCrmListProvider = FutureProvider.autoDispose<List<ClienteCrm>>((re
       .eq('empresa_id', empresaId)
       .eq('papel', 'tomador')
       .order('razao_social') as List;
-  return rows.map((r) => ClienteCrm.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => ClienteCrm.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final clienteCrmDetalheProvider = FutureProvider.autoDispose.family<ClienteCrm?, String>((ref, id) async {
-  final row = await SupabaseService.client.from('cadastros_parceiros').select(_colunasCliente).eq('id', id).maybeSingle();
+final clienteCrmDetalheProvider =
+    FutureProvider.autoDispose.family<ClienteCrm?, String>((ref, id) async {
+  final row = await SupabaseService.client
+      .from('cadastros_parceiros')
+      .select(_colunasCliente)
+      .eq('id', id)
+      .maybeSingle();
   if (row == null) return null;
   return ClienteCrm.fromMap(row);
 });
@@ -122,13 +130,16 @@ class CotacaoResumo {
       );
 }
 
-final cotacoesClienteProvider = FutureProvider.autoDispose.family<List<CotacaoResumo>, String>((ref, clienteId) async {
+final cotacoesClienteProvider = FutureProvider.autoDispose
+    .family<List<CotacaoResumo>, String>((ref, clienteId) async {
   final rows = await SupabaseService.client
       .from('cotacoes')
       .select('id, origem_label, destino_label, valor_total, status, criado_em')
       .eq('cliente_tomador_id', clienteId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((r) => CotacaoResumo.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => CotacaoResumo.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 class InteracaoCrm {
@@ -158,11 +169,14 @@ class InteracaoCrm {
       );
 }
 
-final interacoesClienteProvider = FutureProvider.autoDispose.family<List<InteracaoCrm>, String>((ref, clienteId) async {
+final interacoesClienteProvider = FutureProvider.autoDispose
+    .family<List<InteracaoCrm>, String>((ref, clienteId) async {
   final rows = await SupabaseService.client
       .from('clientes_interacoes')
       .select('id, tipo, descricao, proxima_acao_data, criado_por, criado_em')
       .eq('cliente_id', clienteId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((r) => InteracaoCrm.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => InteracaoCrm.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

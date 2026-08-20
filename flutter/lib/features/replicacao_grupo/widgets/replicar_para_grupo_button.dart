@@ -34,8 +34,10 @@ class ReplicarParaGrupoButton extends StatelessWidget {
         ),
       ),
       icon: const Icon(Icons.sync, size: 16),
-      label: const Text('Replicar para o grupo', style: TextStyle(fontSize: 12)),
-      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+      label:
+          const Text('Replicar para o grupo', style: TextStyle(fontSize: 12)),
+      style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
     );
   }
 }
@@ -54,7 +56,8 @@ class _DialogReplicarParaGrupo extends StatefulWidget {
   });
 
   @override
-  State<_DialogReplicarParaGrupo> createState() => _DialogReplicarParaGrupoState();
+  State<_DialogReplicarParaGrupo> createState() =>
+      _DialogReplicarParaGrupoState();
 }
 
 class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
@@ -124,7 +127,9 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
       content: SizedBox(
         width: 360,
         child: SingleChildScrollView(
-          child: resultado == null ? _conteudoConfirmacao() : _conteudoResultado(resultado),
+          child: resultado == null
+              ? _conteudoConfirmacao()
+              : _conteudoResultado(resultado),
         ),
       ),
       actions: [
@@ -134,7 +139,9 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
         ),
         if (resultado == null)
           FilledButton(
-            onPressed: (_processando || _carregandoAlvos || _alvos.isEmpty) ? null : _confirmar,
+            onPressed: (_processando || _carregandoAlvos || _alvos.isEmpty)
+                ? null
+                : _confirmar,
             child: Text(_processando ? 'Replicando…' : 'Replicar'),
           ),
       ],
@@ -152,18 +159,23 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
           style: const TextStyle(fontSize: 13),
         ),
         const SizedBox(height: 12),
-        if (_carregandoAlvos) const Text('Buscando empresas do grupo…', style: TextStyle(color: Colors.black45)),
+        if (_carregandoAlvos)
+          const Text('Buscando empresas do grupo…',
+              style: TextStyle(color: Colors.black45)),
         if (!_carregandoAlvos && _alvos.isEmpty)
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8)),
             child: const Text(
               'Não encontramos outras empresas no seu grupo — nada para replicar.',
               style: TextStyle(fontSize: 12, color: Colors.brown),
             ),
           ),
         if (!_carregandoAlvos && _alvos.isNotEmpty) ...[
-          Text('Empresas que vão receber a cópia (${_alvos.length}):', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+          Text('Empresas que vão receber a cópia (${_alvos.length}):',
+              style: const TextStyle(fontSize: 11, color: Colors.black54)),
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 160),
@@ -172,7 +184,8 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
               itemCount: _alvos.length,
               itemBuilder: (_, i) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(_alvos[i].nome, style: const TextStyle(fontSize: 13)),
+                child:
+                    Text(_alvos[i].nome, style: const TextStyle(fontSize: 13)),
               ),
             ),
           ),
@@ -185,8 +198,10 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
     if (resultado.erro != null) {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-        child: Text(resultado.erro!, style: TextStyle(fontSize: 13, color: Colors.red.shade800)),
+        decoration: BoxDecoration(
+            color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+        child: Text(resultado.erro!,
+            style: TextStyle(fontSize: 13, color: Colors.red.shade800)),
       );
     }
 
@@ -203,14 +218,21 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
         ...resultado.itens.map((i) => Container(
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: Text(i.nomeEmpresa, style: const TextStyle(fontSize: 13))),
+                  Expanded(
+                      child: Text(i.nomeEmpresa,
+                          style: const TextStyle(fontSize: 13))),
                   Text(
                     _rotuloStatus(i.status),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _corStatus(i.status)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _corStatus(i.status)),
                   ),
                 ],
               ),

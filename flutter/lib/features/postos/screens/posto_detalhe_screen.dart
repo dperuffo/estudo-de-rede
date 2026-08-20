@@ -6,6 +6,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/postos_provider.dart';
 import '../services/postos_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -39,7 +41,8 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
 
   Future<void> _alternarAtivo(bool ativoAtual) async {
     setState(() => _alternandoAtivo = true);
-    final erro = await PostosService().alternarAtivo(cnpj: widget.cnpj, ativo: !ativoAtual);
+    final erro = await PostosService()
+        .alternarAtivo(cnpj: widget.cnpj, ativo: !ativoAtual);
     if (!mounted) return;
     setState(() => _alternandoAtivo = false);
     if (erro != null) {
@@ -54,9 +57,12 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('Remover posto da rede'),
-        content: const Text('O posto sai da sua rede negociada. Essa ação não pode ser desfeita.'),
+        content: const Text(
+            'O posto sai da sua rede negociada. Essa ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancelar')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(dialogCtx, true),
@@ -98,20 +104,25 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                 if (erroLocal != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(erroLocal!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    child: Text(erroLocal!,
+                        style:
+                            const TextStyle(color: Colors.red, fontSize: 12)),
                   ),
                 DropdownButtonFormField<String>(
                   value: combustivel,
                   decoration: const InputDecoration(labelText: 'Combustível'),
                   items: produtosPostoRevendedor
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 13))))
+                      .map((p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(p, style: const TextStyle(fontSize: 13))))
                       .toList(),
                   onChanged: (v) => setDialogState(() => combustivel = v),
                 ),
                 TextField(
                   controller: precoCtrl,
                   decoration: const InputDecoration(labelText: 'Preço (R\$/L)'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                 ),
                 const SizedBox(height: 8),
                 ListTile(
@@ -126,7 +137,8 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                       lastDate: DateTime.now().add(const Duration(days: 1)),
                     );
                     if (escolhida != null) {
-                      setDialogState(() => dataRef = escolhida.toIso8601String().slice(10));
+                      setDialogState(() =>
+                          dataRef = escolhida.toIso8601String().slice(10));
                     }
                   },
                 ),
@@ -134,10 +146,13 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancelar')),
             FilledButton(
               onPressed: () async {
-                final preco = double.tryParse(precoCtrl.text.replaceAll(',', '.')) ?? 0;
+                final preco =
+                    double.tryParse(precoCtrl.text.replaceAll(',', '.')) ?? 0;
                 if (combustivel == null) {
                   setDialogState(() => erroLocal = 'Selecione o combustível.');
                   return;
@@ -180,12 +195,20 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
     final precosAsync = ref.watch(precosPostoProvider(widget.cnpj));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhe do Posto')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Detalhe do Posto')),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (p) {
-          if (p == null) return const Center(child: Text('Posto não encontrado.'));
+          if (p == null)
+            return const Center(child: Text('Posto não encontrado.'));
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -196,21 +219,33 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.razaoSocial ?? p.cnpj, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(p.razaoSocial ?? p.cnpj,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: 4),
-                      Text(p.cnpj, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                      Text(p.cnpj,
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 13)),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (p.ativo ? const Color(0xFF16A34A) : const Color(0xFFD97706)).withOpacity(0.1),
+                          color: (p.ativo
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFD97706))
+                              .withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          p.ativo ? 'Liberado para abastecimento' : 'Bloqueado pelo gestor',
+                          p.ativo
+                              ? 'Liberado para abastecimento'
+                              : 'Bloqueado pelo gestor',
                           style: TextStyle(
                               fontSize: 12,
-                              color: p.ativo ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                              color: p.ativo
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFD97706),
                               fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -219,7 +254,9 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: _alternandoAtivo ? null : () => _alternarAtivo(p.ativo),
+                              onPressed: _alternandoAtivo
+                                  ? null
+                                  : () => _alternarAtivo(p.ativo),
                               child: Text(_alternandoAtivo
                                   ? 'Salvando...'
                                   : (p.ativo ? 'Bloquear' : 'Desbloquear')),
@@ -228,9 +265,12 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                              style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red),
                               onPressed: _removendo ? null : _remover,
-                              child: Text(_removendo ? 'Removendo...' : 'Remover da rede'),
+                              child: Text(_removendo
+                                  ? 'Removendo...'
+                                  : 'Remover da rede'),
                             ),
                           ),
                         ],
@@ -246,19 +286,43 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Dados de origem', style: Theme.of(context).textTheme.titleSmall),
+                      Text('Dados de origem',
+                          style: Theme.of(context).textTheme.titleSmall),
                       const SizedBox(height: 8),
-                      _linha('Município/UF', [p.municipio, p.uf].where((v) => v != null && v.isNotEmpty).join('/')),
+                      _linha(
+                          'Município/UF',
+                          [p.municipio, p.uf]
+                              .where((v) => v != null && v.isNotEmpty)
+                              .join('/')),
                       _linha('Bandeira', p.bandeira),
                       _linha('Distribuidora', p.distribuidora),
                       _linha('Grupo econômico', p.grupoEconomico),
                       _linha('Rede', p.rede),
-                      _linha('Endereço', p.enderecoCompleto.isEmpty ? null : p.enderecoCompleto),
-                      _linha('Contato', [p.nomeContato, p.telefoneContato].where((v) => v != null && v.isNotEmpty).join(' — ')),
-                      _linha('Responsável',
-                          [p.nomeResponsavel, p.telefoneResponsavel].where((v) => v != null && v.isNotEmpty).join(' — ')),
-                      _linha('Status na origem', [p.statusPdv, p.situacaoPdv].where((v) => v != null && v.isNotEmpty).join(' / ')),
-                      _linha('Habilitado em', p.dataHabilitacao == null ? null : _fmtData(p.dataHabilitacao!)),
+                      _linha(
+                          'Endereço',
+                          p.enderecoCompleto.isEmpty
+                              ? null
+                              : p.enderecoCompleto),
+                      _linha(
+                          'Contato',
+                          [p.nomeContato, p.telefoneContato]
+                              .where((v) => v != null && v.isNotEmpty)
+                              .join(' — ')),
+                      _linha(
+                          'Responsável',
+                          [p.nomeResponsavel, p.telefoneResponsavel]
+                              .where((v) => v != null && v.isNotEmpty)
+                              .join(' — ')),
+                      _linha(
+                          'Status na origem',
+                          [p.statusPdv, p.situacaoPdv]
+                              .where((v) => v != null && v.isNotEmpty)
+                              .join(' / ')),
+                      _linha(
+                          'Habilitado em',
+                          p.dataHabilitacao == null
+                              ? null
+                              : _fmtData(p.dataHabilitacao!)),
                       _linha('Outros serviços', p.outrosServicos),
                       const SizedBox(height: 8),
                       Wrap(
@@ -270,7 +334,9 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                           if (p.possuiEstacionamento) _chip('Estacionamento'),
                           if (p.possuiTrocaOleo) _chip('Troca de óleo'),
                           if (p.possuiInternet) _chip('Internet'),
-                          if (p.arla) _chip('ARLA 32${p.tipoArla != null ? " (${p.tipoArla})" : ""}'),
+                          if (p.arla)
+                            _chip(
+                                'ARLA 32${p.tipoArla != null ? " (${p.tipoArla})" : ""}'),
                         ],
                       ),
                     ],
@@ -287,7 +353,8 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Combustíveis e preços', style: Theme.of(context).textTheme.titleSmall),
+                          Text('Combustíveis e preços',
+                              style: Theme.of(context).textTheme.titleSmall),
                           TextButton.icon(
                             onPressed: _abrirFormularioPreco,
                             icon: const Icon(Icons.add, size: 18),
@@ -297,28 +364,43 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                       ),
                       const SizedBox(height: 8),
                       precosAsync.when(
-                        loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+                        loading: () => const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator())),
                         error: (e, _) => Text('Erro ao carregar preços: $e'),
                         data: (precos) {
                           if (precos.isEmpty) {
-                            return const Text('Nenhum preço registrado ainda para este posto.', style: TextStyle(color: Colors.grey));
+                            return const Text(
+                                'Nenhum preço registrado ainda para este posto.',
+                                style: TextStyle(color: Colors.grey));
                           }
                           return Column(
                             children: precos
                                 .map((preco) => ListTile(
                                       contentPadding: EdgeInsets.zero,
                                       dense: true,
-                                      title: Text(preco.combustivel, style: const TextStyle(fontSize: 13)),
-                                      subtitle: Text('${_fmtData(preco.dataRef)} · ${preco.fonte ?? "—"}',
-                                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                      title: Text(preco.combustivel,
+                                          style: const TextStyle(fontSize: 13)),
+                                      subtitle: Text(
+                                          '${_fmtData(preco.dataRef)} · ${preco.fonte ?? "—"}',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey)),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(_moeda.format(preco.preco),
-                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13)),
                                           IconButton(
-                                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                                            onPressed: () => _excluirPreco(preco.id),
+                                            icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Colors.red),
+                                            onPressed: () =>
+                                                _excluirPreco(preco.id),
                                           ),
                                         ],
                                       ),
@@ -345,7 +427,10 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 130, child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade500))),
+          SizedBox(
+              width: 130,
+              child: Text(label,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500))),
           Expanded(child: Text(valor, style: const TextStyle(fontSize: 13))),
         ],
       ),
@@ -355,8 +440,14 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
   Widget _chip(String texto) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: const Color(0xFF16A34A).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text(texto, style: const TextStyle(fontSize: 11, color: Color(0xFF16A34A), fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+          color: const Color(0xFF16A34A).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12)),
+      child: Text(texto,
+          style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF16A34A),
+              fontWeight: FontWeight.w600)),
     );
   }
 }

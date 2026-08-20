@@ -28,24 +28,58 @@ import '../services/roteirizacao_algoritmo.dart';
 // interativo (flutter_map + tiles OSM) incluído nos 3 modos — ver
 // mapa_postos.dart.
 final ufParaEstadoAnp = {
-  'AC': 'ACRE', 'AL': 'ALAGOAS', 'AP': 'AMAPA', 'AM': 'AMAZONAS', 'BA': 'BAHIA',
-  'CE': 'CEARA', 'DF': 'DISTRITO FEDERAL', 'ES': 'ESPIRITO SANTO', 'GO': 'GOIAS',
-  'MA': 'MARANHAO', 'MT': 'MATO GROSSO', 'MS': 'MATO GROSSO DO SUL', 'MG': 'MINAS GERAIS',
-  'PA': 'PARA', 'PB': 'PARAIBA', 'PR': 'PARANA', 'PE': 'PERNAMBUCO', 'PI': 'PIAUI',
-  'RJ': 'RIO DE JANEIRO', 'RN': 'RIO GRANDE DO NORTE', 'RS': 'RIO GRANDE DO SUL',
-  'RO': 'RONDONIA', 'RR': 'RORAIMA', 'SC': 'SANTA CATARINA', 'SP': 'SAO PAULO',
-  'SE': 'SERGIPE', 'TO': 'TOCANTINS',
+  'AC': 'ACRE',
+  'AL': 'ALAGOAS',
+  'AP': 'AMAPA',
+  'AM': 'AMAZONAS',
+  'BA': 'BAHIA',
+  'CE': 'CEARA',
+  'DF': 'DISTRITO FEDERAL',
+  'ES': 'ESPIRITO SANTO',
+  'GO': 'GOIAS',
+  'MA': 'MARANHAO',
+  'MT': 'MATO GROSSO',
+  'MS': 'MATO GROSSO DO SUL',
+  'MG': 'MINAS GERAIS',
+  'PA': 'PARA',
+  'PB': 'PARAIBA',
+  'PR': 'PARANA',
+  'PE': 'PERNAMBUCO',
+  'PI': 'PIAUI',
+  'RJ': 'RIO DE JANEIRO',
+  'RN': 'RIO GRANDE DO NORTE',
+  'RS': 'RIO GRANDE DO SUL',
+  'RO': 'RONDONIA',
+  'RR': 'RORAIMA',
+  'SC': 'SANTA CATARINA',
+  'SP': 'SAO PAULO',
+  'SE': 'SERGIPE',
+  'TO': 'TOCANTINS',
 };
 
 // Só os valores (categorias ANP) importam aqui — usados pra buscar preços
 // de referência em lote, igual a CATEGORIAS_ANP (actions.ts).
 const categoriasAnp = [
-  'OLEO DIESEL', 'OLEO DIESEL S10', 'ETANOL HIDRATADO', 'GASOLINA COMUM', 'GASOLINA ADITIVADA', 'GNV', 'GLP',
+  'OLEO DIESEL',
+  'OLEO DIESEL S10',
+  'ETANOL HIDRATADO',
+  'GASOLINA COMUM',
+  'GASOLINA ADITIVADA',
+  'GNV',
+  'GLP',
 ];
 
 const _camposServico = [
-  'funciona_24h', 'pista_caminhao', 'arla', 'conveniencia', 'conveniencia_am_pm',
-  'possui_restaurante', 'possui_banheiro', 'possui_estacionamento', 'possui_troca_oleo', 'possui_internet',
+  'funciona_24h',
+  'pista_caminhao',
+  'arla',
+  'conveniencia',
+  'conveniencia_am_pm',
+  'possui_restaurante',
+  'possui_banheiro',
+  'possui_estacionamento',
+  'possui_troca_oleo',
+  'possui_internet',
 ];
 
 String normalizarTexto(String? v) {
@@ -87,10 +121,14 @@ ScorePosto calcularScorePosto({
 }) {
   double scorePreco = 50;
   String detalhePreco = 'Sem referência ANP';
-  if (precoReferenciaAnp != null && precoReferenciaAnp > 0 && precoPosto != null && precoPosto > 0) {
+  if (precoReferenciaAnp != null &&
+      precoReferenciaAnp > 0 &&
+      precoPosto != null &&
+      precoPosto > 0) {
     final diff = (precoPosto - precoReferenciaAnp) / precoReferenciaAnp;
     scorePreco = (50 - diff * 500).clamp(0, 100);
-    detalhePreco = '${diff >= 0 ? '+' : ''}${(diff * 100).toStringAsFixed(1)}% vs ANP (${precoReferenciaAnp.toStringAsFixed(3)})';
+    detalhePreco =
+        '${diff >= 0 ? '+' : ''}${(diff * 100).toStringAsFixed(1)}% vs ANP (${precoReferenciaAnp.toStringAsFixed(3)})';
   }
 
   double scoreServicos = 0;
@@ -104,7 +142,13 @@ ScorePosto calcularScorePosto({
   const detalheDistancia = 'Sem ponto de referência';
 
   final score = 0.5 * scorePreco + 0.3 * scoreServicos + 0.2 * scoreDistancia;
-  final grade = score >= 75 ? 'A' : score >= 55 ? 'B' : score >= 35 ? 'C' : 'D';
+  final grade = score >= 75
+      ? 'A'
+      : score >= 55
+          ? 'B'
+          : score >= 35
+              ? 'C'
+              : 'D';
 
   return ScorePosto(
     score: (score * 10).round() / 10,
@@ -119,7 +163,8 @@ class PrecoPosto {
   final String combustivel;
   final double preco;
   final String? dataRef;
-  const PrecoPosto({required this.combustivel, required this.preco, this.dataRef});
+  const PrecoPosto(
+      {required this.combustivel, required this.preco, this.dataRef});
 }
 
 class PostoComScore {
@@ -173,12 +218,14 @@ class RoteirizacaoService {
         .not('lat', 'is', null)
         .not('lon', 'is', null);
     if (uf != null && uf.isNotEmpty) query = query.eq('uf', uf);
-    if (municipioContem != null && municipioContem.isNotEmpty) query = query.ilike('municipio', '%$municipioContem%');
+    if (municipioContem != null && municipioContem.isNotEmpty)
+      query = query.ilike('municipio', '%$municipioContem%');
     final rows = await query.limit(5000);
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, List<PrecoPosto>>> _carregarPrecosPorCnpj(List<String> cnpjs) async {
+  Future<Map<String, List<PrecoPosto>>> _carregarPrecosPorCnpj(
+      List<String> cnpjs) async {
     final mapa = <String, List<PrecoPosto>>{};
     if (cnpjs.isEmpty) return mapa;
     final rows = await _supabase
@@ -204,22 +251,29 @@ class RoteirizacaoService {
     return mapa;
   }
 
-  Future<List<Map<String, dynamic>>> _carregarPostosAnpPorFiltro({String? uf, String? municipioContem}) async {
+  Future<List<Map<String, dynamic>>> _carregarPostosAnpPorFiltro(
+      {String? uf, String? municipioContem}) async {
     var query = _supabase
         .from('anp_postos')
-        .select('cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
+        .select(
+            'cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
         .eq('ativo', true)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
         .not('cnpj', 'is', null);
     if (uf != null && uf.isNotEmpty) query = query.eq('uf', uf);
-    if (municipioContem != null && municipioContem.isNotEmpty) query = query.ilike('municipio', '%$municipioContem%');
+    if (municipioContem != null && municipioContem.isNotEmpty)
+      query = query.ilike('municipio', '%$municipioContem%');
     final rows = await query.limit(6000);
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
-  Future<({Map<String, Map<String, double>> porMunicipio, Map<String, Map<String, double>> porEstado, Map<String, double> brasil})>
-      _carregarPrecosAnpEmLote(List<String> estadosAnp) async {
+  Future<
+      ({
+        Map<String, Map<String, double>> porMunicipio,
+        Map<String, Map<String, double>> porEstado,
+        Map<String, double> brasil
+      })> _carregarPrecosAnpEmLote(List<String> estadosAnp) async {
     final porMunicipio = <String, Map<String, double>>{};
     final porEstado = <String, Map<String, double>>{};
     final brasil = <String, double>{};
@@ -237,7 +291,8 @@ class RoteirizacaoService {
         if (m['preco_medio'] == null) continue;
         final chave = '${m['municipio']}__${m['estado']}';
         final mapa = porMunicipio[chave] ?? {};
-        mapa.putIfAbsent(m['produto'] as String, () => (m['preco_medio'] as num).toDouble());
+        mapa.putIfAbsent(
+            m['produto'] as String, () => (m['preco_medio'] as num).toDouble());
         porMunicipio[chave] = mapa;
       }
 
@@ -252,7 +307,8 @@ class RoteirizacaoService {
         final m = r as Map<String, dynamic>;
         if (m['preco_medio'] == null) continue;
         final mapa = porEstado[m['estado'] as String] ?? {};
-        mapa.putIfAbsent(m['produto'] as String, () => (m['preco_medio'] as num).toDouble());
+        mapa.putIfAbsent(
+            m['produto'] as String, () => (m['preco_medio'] as num).toDouble());
         porEstado[m['estado'] as String] = mapa;
       }
     }
@@ -266,7 +322,8 @@ class RoteirizacaoService {
     for (final r in brasilRows) {
       final m = r as Map<String, dynamic>;
       if (m['preco_medio'] == null) continue;
-      brasil.putIfAbsent(m['produto'] as String, () => (m['preco_medio'] as num).toDouble());
+      brasil.putIfAbsent(
+          m['produto'] as String, () => (m['preco_medio'] as num).toDouble());
     }
 
     return (porMunicipio: porMunicipio, porEstado: porEstado, brasil: brasil);
@@ -275,12 +332,17 @@ class RoteirizacaoService {
   List<PostoComScore> _montarPostosAnp(
     List<Map<String, dynamic>> postosAnp,
     Set<String> cnpjsJaPresentes,
-    ({Map<String, Map<String, double>> porMunicipio, Map<String, Map<String, double>> porEstado, Map<String, double> brasil}) precosAnp,
+    ({
+      Map<String, Map<String, double>> porMunicipio,
+      Map<String, Map<String, double>> porEstado,
+      Map<String, double> brasil
+    }) precosAnp,
   ) {
     final resultado = <PostoComScore>[];
     for (final p in postosAnp) {
       final cnpjBruto = p['cnpj'] as String?;
-      if (cnpjBruto == null || p['latitude'] == null || p['longitude'] == null) continue;
+      if (cnpjBruto == null || p['latitude'] == null || p['longitude'] == null)
+        continue;
       final cnpjNorm = cnpjBruto.replaceAll(RegExp(r'\D'), '');
       if (cnpjNorm.isEmpty || cnpjsJaPresentes.contains(cnpjNorm)) continue;
       cnpjsJaPresentes.add(cnpjNorm);
@@ -288,15 +350,23 @@ class RoteirizacaoService {
       final uf = p['uf'] as String?;
       final estadoAnp = uf != null ? ufParaEstadoAnp[uf.toUpperCase()] : null;
       final municipioNorm = normalizarTexto(p['municipio'] as String?);
-      final mapaMunicipio = estadoAnp != null ? precosAnp.porMunicipio['${municipioNorm}__$estadoAnp'] : null;
-      final mapaEstado = estadoAnp != null ? precosAnp.porEstado[estadoAnp] : null;
+      final mapaMunicipio = estadoAnp != null
+          ? precosAnp.porMunicipio['${municipioNorm}__$estadoAnp']
+          : null;
+      final mapaEstado =
+          estadoAnp != null ? precosAnp.porEstado[estadoAnp] : null;
 
       final precos = <PrecoPosto>[];
       for (final categoria in categoriasAnp) {
-        final achado = mapaMunicipio?[categoria] ?? mapaEstado?[categoria] ?? precosAnp.brasil[categoria];
-        if (achado != null) precos.add(PrecoPosto(combustivel: categoria, preco: achado));
+        final achado = mapaMunicipio?[categoria] ??
+            mapaEstado?[categoria] ??
+            precosAnp.brasil[categoria];
+        if (achado != null)
+          precos.add(PrecoPosto(combustivel: categoria, preco: achado));
       }
-      final precoMedio = precos.isEmpty ? null : precos.map((e) => e.preco).reduce((a, b) => a + b) / precos.length;
+      final precoMedio = precos.isEmpty
+          ? null
+          : precos.map((e) => e.preco).reduce((a, b) => a + b) / precos.length;
 
       resultado.add(PostoComScore(
         cnpj: cnpjNorm,
@@ -307,14 +377,18 @@ class RoteirizacaoService {
         lat: (p['latitude'] as num).toDouble(),
         lon: (p['longitude'] as num).toDouble(),
         precos: precos,
-        score: calcularScorePosto(precoPosto: precoMedio, servicosAtivos: 0, servicosTotal: _camposServico.length),
+        score: calcularScorePosto(
+            precoPosto: precoMedio,
+            servicosAtivos: 0,
+            servicosTotal: _camposServico.length),
         origem: 'anp',
       ));
     }
     return resultado;
   }
 
-  List<String> _estadosAnpDePostos(List<Map<String, dynamic>> postos, {String Function(Map<String, dynamic>)? ufKey}) {
+  List<String> _estadosAnpDePostos(List<Map<String, dynamic>> postos,
+      {String Function(Map<String, dynamic>)? ufKey}) {
     final set = <String>{};
     for (final p in postos) {
       final uf = (ufKey != null ? ufKey(p) : p['uf']) as String?;
@@ -326,13 +400,18 @@ class RoteirizacaoService {
   }
 
   // ── Modo "Por UF/Município" ──────────────────────────────────────────
-  Future<List<PostoComScore>> buscarPostosPorUf({required String empresaId, String? uf, String? municipio}) async {
-    final postos = await _carregarPostosComCoordenadas(empresaId, uf: uf, municipioContem: municipio);
-    final precosPorCnpj = await _carregarPrecosPorCnpj(postos.map((p) => p['cnpj'] as String).toList());
+  Future<List<PostoComScore>> buscarPostosPorUf(
+      {required String empresaId, String? uf, String? municipio}) async {
+    final postos = await _carregarPostosComCoordenadas(empresaId,
+        uf: uf, municipioContem: municipio);
+    final precosPorCnpj = await _carregarPrecosPorCnpj(
+        postos.map((p) => p['cnpj'] as String).toList());
 
     final resultadoGf = postos.map((p) {
       final precos = precosPorCnpj[p['cnpj']] ?? <PrecoPosto>[];
-      final precoMedio = precos.isEmpty ? null : precos.map((e) => e.preco).reduce((a, b) => a + b) / precos.length;
+      final precoMedio = precos.isEmpty
+          ? null
+          : precos.map((e) => e.preco).reduce((a, b) => a + b) / precos.length;
       return PostoComScore(
         cnpj: p['cnpj'] as String,
         razaoSocial: p['razao_social'] as String?,
@@ -342,17 +421,24 @@ class RoteirizacaoService {
         lat: (p['lat'] as num?)?.toDouble(),
         lon: (p['lon'] as num?)?.toDouble(),
         precos: precos,
-        score: calcularScorePosto(precoPosto: precoMedio, servicosAtivos: _contarServicos(p), servicosTotal: _camposServico.length),
+        score: calcularScorePosto(
+            precoPosto: precoMedio,
+            servicosAtivos: _contarServicos(p),
+            servicosTotal: _camposServico.length),
         origem: 'proprio',
       );
     }).toList();
 
-    if ((uf != null && uf.isNotEmpty) || (municipio != null && municipio.isNotEmpty)) {
-      final cnpjsJaPresentes = resultadoGf.map((p) => p.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
-      final postosAnpBrutos = await _carregarPostosAnpPorFiltro(uf: uf, municipioContem: municipio);
+    if ((uf != null && uf.isNotEmpty) ||
+        (municipio != null && municipio.isNotEmpty)) {
+      final cnpjsJaPresentes =
+          resultadoGf.map((p) => p.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
+      final postosAnpBrutos =
+          await _carregarPostosAnpPorFiltro(uf: uf, municipioContem: municipio);
       final estadosAnp = _estadosAnpDePostos(postosAnpBrutos);
       final precosAnp = await _carregarPrecosAnpEmLote(estadosAnp);
-      final resultadoAnp = _montarPostosAnp(postosAnpBrutos, cnpjsJaPresentes, precosAnp);
+      final resultadoAnp =
+          _montarPostosAnp(postosAnpBrutos, cnpjsJaPresentes, precosAnp);
       return [...resultadoGf, ...resultadoAnp];
     }
 
@@ -360,7 +446,8 @@ class RoteirizacaoService {
   }
 
   // ── Modo "Consulta por Posto" ────────────────────────────────────────
-  Future<List<PostoComScore>> buscarPostoPorTermo({required String empresaId, required String termo}) async {
+  Future<List<PostoComScore>> buscarPostoPorTermo(
+      {required String empresaId, required String termo}) async {
     final termoDigitos = termo.replaceAll(RegExp(r'\D'), '');
     final ehCnpj = termoDigitos.length >= 11;
 
@@ -371,13 +458,19 @@ class RoteirizacaoService {
         .eq('empresa_id', empresaId)
         .not('lat', 'is', null)
         .not('lon', 'is', null);
-    query = ehCnpj ? query.ilike('cnpj', '%$termoDigitos%') : query.ilike('razao_social', '%$termo%');
-    final postos = ((await query.limit(30)) as List).cast<Map<String, dynamic>>();
+    query = ehCnpj
+        ? query.ilike('cnpj', '%$termoDigitos%')
+        : query.ilike('razao_social', '%$termo%');
+    final postos =
+        ((await query.limit(30)) as List).cast<Map<String, dynamic>>();
 
-    final precosPorCnpj = await _carregarPrecosPorCnpj(postos.map((p) => p['cnpj'] as String).toList());
+    final precosPorCnpj = await _carregarPrecosPorCnpj(
+        postos.map((p) => p['cnpj'] as String).toList());
     final resultadoGf = postos.map((p) {
       final precos = precosPorCnpj[p['cnpj']] ?? <PrecoPosto>[];
-      final precoMedio = precos.isEmpty ? null : precos.map((e) => e.preco).reduce((a, b) => a + b) / precos.length;
+      final precoMedio = precos.isEmpty
+          ? null
+          : precos.map((e) => e.preco).reduce((a, b) => a + b) / precos.length;
       return PostoComScore(
         cnpj: p['cnpj'] as String,
         razaoSocial: p['razao_social'] as String?,
@@ -387,31 +480,41 @@ class RoteirizacaoService {
         lat: (p['lat'] as num?)?.toDouble(),
         lon: (p['lon'] as num?)?.toDouble(),
         precos: precos,
-        score: calcularScorePosto(precoPosto: precoMedio, servicosAtivos: _contarServicos(p), servicosTotal: _camposServico.length),
+        score: calcularScorePosto(
+            precoPosto: precoMedio,
+            servicosAtivos: _contarServicos(p),
+            servicosTotal: _camposServico.length),
         origem: 'proprio',
       );
     }).toList();
 
     var queryAnp = _supabase
         .from('anp_postos')
-        .select('cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
+        .select(
+            'cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
         .eq('ativo', true)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
         .not('cnpj', 'is', null);
-    queryAnp = ehCnpj ? queryAnp.ilike('cnpj', '%$termoDigitos%') : queryAnp.ilike('razao_social', '%$termo%');
-    final postosAnpBrutos = ((await queryAnp.limit(30)) as List).cast<Map<String, dynamic>>();
+    queryAnp = ehCnpj
+        ? queryAnp.ilike('cnpj', '%$termoDigitos%')
+        : queryAnp.ilike('razao_social', '%$termo%');
+    final postosAnpBrutos =
+        ((await queryAnp.limit(30)) as List).cast<Map<String, dynamic>>();
 
-    final cnpjsJaPresentes = resultadoGf.map((p) => p.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
+    final cnpjsJaPresentes =
+        resultadoGf.map((p) => p.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
     final estadosAnp = _estadosAnpDePostos(postosAnpBrutos);
     final precosAnp = await _carregarPrecosAnpEmLote(estadosAnp);
-    final resultadoAnp = _montarPostosAnp(postosAnpBrutos, cnpjsJaPresentes, precosAnp);
+    final resultadoAnp =
+        _montarPostosAnp(postosAnpBrutos, cnpjsJaPresentes, precosAnp);
 
     return [...resultadoGf, ...resultadoAnp];
   }
 
   // ── Modo "Roteirizador Inteligente" ────────────────────────────────
-  Future<List<Map<String, dynamic>>> _carregarPostosGfPorBoxes(String empresaId, List<geo.BoundingBox> boxes) async {
+  Future<List<Map<String, dynamic>>> _carregarPostosGfPorBoxes(
+      String empresaId, List<geo.BoundingBox> boxes) async {
     final porCnpj = <String, Map<String, dynamic>>{};
     for (final box in boxes) {
       final rows = await _supabase
@@ -435,12 +538,14 @@ class RoteirizacaoService {
     return porCnpj.values.toList();
   }
 
-  Future<List<Map<String, dynamic>>> _carregarAnpPostosPorBoxes(List<geo.BoundingBox> boxes) async {
+  Future<List<Map<String, dynamic>>> _carregarAnpPostosPorBoxes(
+      List<geo.BoundingBox> boxes) async {
     final porCnpj = <String, Map<String, dynamic>>{};
     for (final box in boxes) {
       final rows = await _supabase
           .from('anp_postos')
-          .select('cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
+          .select(
+              'cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
           .eq('ativo', true)
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
@@ -483,32 +588,40 @@ class RoteirizacaoService {
     geo.ResultadoRota? rotaEscolhida,
   }) async {
     const raioCorredorKm = 5.0;
-    final rota = rotaEscolhida ?? await geo.calcularRotaOsrm(origem, destino, paradas: paradas);
+    final rota = rotaEscolhida ??
+        await geo.calcularRotaOsrm(origem, destino, paradas: paradas);
     final acumuladas = geo.distanciasAcumuladas(rota.coordenadas);
     final margem = raioCorredorKm / 100;
-    final boxesRota = geo.construirBoundingBoxesDaRota(rota.coordenadas, acumuladas, margem);
+    final boxesRota =
+        geo.construirBoundingBoxesDaRota(rota.coordenadas, acumuladas, margem);
 
     final postosBrutos = await _carregarPostosGfPorBoxes(empresaId, boxesRota);
     final candidatosBrutosGf = postosBrutos
         .map((p) {
-          final pos = geo.posicaoNaRotaKm(geo.Ponto((p['lat'] as num).toDouble(), (p['lon'] as num).toDouble()),
-              rota.coordenadas, acumuladas);
+          final pos = geo.posicaoNaRotaKm(
+              geo.Ponto(
+                  (p['lat'] as num).toDouble(), (p['lon'] as num).toDouble()),
+              rota.coordenadas,
+              acumuladas);
           return (p: p, km: pos.km, desvioKm: pos.desvioKm);
         })
         .where((x) => x.desvioKm <= raioCorredorKm)
         .toList();
 
-    final precosPorCnpj =
-        await _carregarPrecosPorCnpj(candidatosBrutosGf.map((x) => x.p['cnpj'] as String).toList());
+    final precosPorCnpj = await _carregarPrecosPorCnpj(
+        candidatosBrutosGf.map((x) => x.p['cnpj'] as String).toList());
 
     var candidatos = <CandidatoAbastecimento>[];
     for (final x in candidatosBrutosGf) {
       final precoRegistrado = (precosPorCnpj[x.p['cnpj']] ?? [])
-          .where((pr) => pr.combustivel.toLowerCase() == combustivel.toLowerCase())
+          .where(
+              (pr) => pr.combustivel.toLowerCase() == combustivel.toLowerCase())
           .toList();
       if (precoRegistrado.isEmpty) continue;
-      final score =
-          calcularScorePosto(precoPosto: precoRegistrado.first.preco, servicosAtivos: _contarServicos(x.p), servicosTotal: _camposServico.length);
+      final score = calcularScorePosto(
+          precoPosto: precoRegistrado.first.preco,
+          servicosAtivos: _contarServicos(x.p),
+          servicosTotal: _camposServico.length);
       candidatos.add(CandidatoAbastecimento(
         cnpj: x.p['cnpj'] as String,
         km: x.km,
@@ -530,13 +643,16 @@ class RoteirizacaoService {
     var usouFallbackAnp = false;
     final categoriaAnp = produtoParaCategoriaAnp[combustivel];
     if (categoriaAnp != null) {
-      final cnpjsProprios = candidatos.map((c) => c.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
+      final cnpjsProprios =
+          candidatos.map((c) => c.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
       final anpBrutos = await _carregarAnpPostosPorBoxes(boxesRota);
       final anpNoCorredor = anpBrutos
-          .where((p) => !cnpjsProprios.contains((p['cnpj'] as String).replaceAll(RegExp(r'\D'), '')))
+          .where((p) => !cnpjsProprios
+              .contains((p['cnpj'] as String).replaceAll(RegExp(r'\D'), '')))
           .map((p) {
             final pos = geo.posicaoNaRotaKm(
-                geo.Ponto((p['latitude'] as num).toDouble(), (p['longitude'] as num).toDouble()),
+                geo.Ponto((p['latitude'] as num).toDouble(),
+                    (p['longitude'] as num).toDouble()),
                 rota.coordenadas,
                 acumuladas);
             return (p: p, km: pos.km, desvioKm: pos.desvioKm);
@@ -544,7 +660,8 @@ class RoteirizacaoService {
           .where((x) => x.desvioKm <= raioCorredorKm)
           .toList();
 
-      final estadosNoCorredor = _estadosAnpDePostos(anpNoCorredor.map((x) => x.p).toList());
+      final estadosNoCorredor =
+          _estadosAnpDePostos(anpNoCorredor.map((x) => x.p).toList());
       final precoPorMunicipio = <String, double>{};
       final precoPorEstado = <String, double>{};
       double? precoBrasil;
@@ -560,7 +677,8 @@ class RoteirizacaoService {
         for (final r in municRows) {
           final m = r as Map<String, dynamic>;
           final chave = '${m['municipio']}__${m['estado']}';
-          if (!precoPorMunicipio.containsKey(chave) && m['preco_medio'] != null) {
+          if (!precoPorMunicipio.containsKey(chave) &&
+              m['preco_medio'] != null) {
             precoPorMunicipio[chave] = (m['preco_medio'] as num).toDouble();
           }
         }
@@ -573,8 +691,10 @@ class RoteirizacaoService {
             .order('data_final', ascending: false) as List;
         for (final r in estRows) {
           final m = r as Map<String, dynamic>;
-          if (!precoPorEstado.containsKey(m['estado']) && m['preco_medio'] != null) {
-            precoPorEstado[m['estado'] as String] = (m['preco_medio'] as num).toDouble();
+          if (!precoPorEstado.containsKey(m['estado']) &&
+              m['preco_medio'] != null) {
+            precoPorEstado[m['estado'] as String] =
+                (m['preco_medio'] as num).toDouble();
           }
         }
       }
@@ -593,11 +713,16 @@ class RoteirizacaoService {
         final uf = x.p['uf'] as String?;
         final estadoAnp = uf != null ? ufParaEstadoAnp[uf.toUpperCase()] : null;
         final municipioNorm = normalizarTexto(x.p['municipio'] as String?);
-        final preco = (estadoAnp != null ? precoPorMunicipio['${municipioNorm}__$estadoAnp'] : null) ??
+        final preco = (estadoAnp != null
+                ? precoPorMunicipio['${municipioNorm}__$estadoAnp']
+                : null) ??
             (estadoAnp != null ? precoPorEstado[estadoAnp] : null) ??
             precoBrasil;
         if (preco == null) continue;
-        final score = calcularScorePosto(precoPosto: preco, servicosAtivos: 0, servicosTotal: _camposServico.length);
+        final score = calcularScorePosto(
+            precoPosto: preco,
+            servicosAtivos: 0,
+            servicosTotal: _camposServico.length);
         candidatosAnp.add(CandidatoAbastecimento(
           cnpj: x.p['cnpj'] as String,
           km: x.km,
@@ -629,8 +754,10 @@ class RoteirizacaoService {
     // Fase FLT-Pedagios — mesmo corredor da rota já calculado acima (boxesRota
     // + acumuladas), reaproveitado pra achar as praças de pedágio no trajeto
     // e somar o custo estimado (categoria "carro" — mesmo padrão da web).
-    final pracasPedagio = await pedagio.buscarPracasPedagioNaRota(rota.coordenadas, acumuladas);
-    final custoPedagioEstimado = pedagio.custoPedagioTotal(pracasPedagio, pedagio.CategoriaVeiculoPedagio.carro);
+    final pracasPedagio =
+        await pedagio.buscarPracasPedagioNaRota(rota.coordenadas, acumuladas);
+    final custoPedagioEstimado = pedagio.custoPedagioTotal(
+        pracasPedagio, pedagio.CategoriaVeiculoPedagio.carro);
 
     return ResultadoRoteirizacaoInteligente(
       coordenadas: rota.coordenadas,
@@ -640,7 +767,10 @@ class RoteirizacaoService {
       candidatos: candidatos,
       paradas: paradas2,
       litrosTotal: paradas2.fold(0.0, (s, p) => s + p.litrosSugeridos),
-      custoTotal: ((paradas2.fold(0.0, (s, p) => s + p.custoAbastecimento)) * 100).round() / 100,
+      custoTotal:
+          ((paradas2.fold(0.0, (s, p) => s + p.custoAbastecimento)) * 100)
+                  .round() /
+              100,
       candidatosEncontrados: candidatos.length,
       usouFallbackAnp: usouFallbackAnp,
       pracasPedagio: pracasPedagio,
@@ -721,10 +851,19 @@ const produtosPosto = [
 const produtosPorTipoVeiculo = {
   'diesel s10': ['Diesel S-10 Comum', 'Diesel S-10 Aditivado'],
   'diesel s500': ['Diesel S-500 Comum', 'Diesel S-500 Aditivado'],
-  'gasolina': ['Gasolina Comum', 'Gasolina Aditivada', 'Gasolina Alta Octanagem'],
+  'gasolina': [
+    'Gasolina Comum',
+    'Gasolina Aditivada',
+    'Gasolina Alta Octanagem'
+  ],
   'etanol': ['Etanol Comum', 'Etanol Aditivado'],
   'gnv': ['GNV'],
-  'flex': ['Gasolina Comum', 'Gasolina Aditivada', 'Etanol Comum', 'Etanol Aditivado'],
+  'flex': [
+    'Gasolina Comum',
+    'Gasolina Aditivada',
+    'Etanol Comum',
+    'Etanol Aditivado'
+  ],
 };
 
 // Reexportado pra tela não precisar importar postos_provider.dart só por

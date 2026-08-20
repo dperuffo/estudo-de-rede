@@ -30,7 +30,9 @@ class FinanceiroPostoService {
         'valor': valor,
         'competencia': competencia,
         'vencimento': vencimento,
-        'descricao': (descricao == null || descricao.trim().isEmpty) ? null : descricao.trim(),
+        'descricao': (descricao == null || descricao.trim().isEmpty)
+            ? null
+            : descricao.trim(),
         'recorrente': recorrente,
         'criado_por': email,
         'atualizado_por': email,
@@ -43,12 +45,16 @@ class FinanceiroPostoService {
 
   Future<String?> marcarDespesaPaga(String despesaId) async {
     try {
-      await _supabase.from('despesas_postos').update({
-        'status': 'paga',
-        'pago_em': DateTime.now().toUtc().toIso8601String(),
-        'atualizado_em': DateTime.now().toUtc().toIso8601String(),
-        'atualizado_por': AuthService().emailAtual,
-      }).eq('id', despesaId).eq('status', 'aberta');
+      await _supabase
+          .from('despesas_postos')
+          .update({
+            'status': 'paga',
+            'pago_em': DateTime.now().toUtc().toIso8601String(),
+            'atualizado_em': DateTime.now().toUtc().toIso8601String(),
+            'atualizado_por': AuthService().emailAtual,
+          })
+          .eq('id', despesaId)
+          .eq('status', 'aberta');
       return null;
     } on PostgrestException catch (e) {
       return e.message;

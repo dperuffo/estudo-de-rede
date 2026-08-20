@@ -27,7 +27,8 @@ class PontoVendaDiaria {
   final String dia; // yyyy-MM-dd
   final String combustivel;
   final double volume;
-  const PontoVendaDiaria({required this.dia, required this.combustivel, required this.volume});
+  const PontoVendaDiaria(
+      {required this.dia, required this.combustivel, required this.volume});
 }
 
 class DesempenhoCombustivel {
@@ -123,7 +124,8 @@ class DashboardPostoDados {
   );
 }
 
-final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((ref) async {
+final dashboardPostoProvider =
+    FutureProvider.autoDispose<DashboardPostoDados>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return DashboardPostoDados.vazio;
@@ -133,7 +135,9 @@ final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((
   // DashboardPosto.tsx (JS toISOString() é sempre UTC).
   final agoraUtc = DateTime.now().toUtc();
   final hojeIso = DateFormat('yyyy-MM-dd').format(agoraUtc);
-  final desdeIso = agoraUtc.subtract(const Duration(days: janelaDesempenhoDias)).toIso8601String();
+  final desdeIso = agoraUtc
+      .subtract(const Duration(days: janelaDesempenhoDias))
+      .toIso8601String();
 
   // Fase FLT-2 — chamadas sequenciais (não Future.wait): os 4 retornos têm
   // tipos diferentes (PostgrestResponse dos counts, List do select, Map? do
@@ -164,8 +168,11 @@ final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((
       .order('atualizado_em', ascending: false)
       .limit(200);
 
-  final empresaPosto =
-      await supabase.from('empresas').select('cnpj').eq('id', empresaId).maybeSingle();
+  final empresaPosto = await supabase
+      .from('empresas')
+      .select('cnpj')
+      .eq('id', empresaId)
+      .maybeSingle();
 
   final pendentes = pendentesResp.count;
   final vigentes = vigentesResp.count;
@@ -192,8 +199,10 @@ final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((
       .fold<double>(0, (soma, n) => soma + (n.volumeMinimoMensal ?? 0));
 
   final vigentesLista = listaNegociacoes.where(vigenteAgora).take(10).toList();
-  final pendentesLista =
-      listaNegociacoes.where((n) => n.status == 'pendente_posto').take(10).toList();
+  final pendentesLista = listaNegociacoes
+      .where((n) => n.status == 'pendente_posto')
+      .take(10)
+      .toList();
 
   // Desempenho de vendas via resumo_vendas_diarias_posto (mesma RPC da web
   // — agrega dia+combustível direto no banco, evita o corte de 1000 linhas
@@ -226,23 +235,26 @@ final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((
       receita: acumulado.receita + receita,
     );
   }
-  final precoMedioGeral = volumeVendido > 0 ? receitaVendida / volumeVendido : 0.0;
-  final ticketMedio = totalAbastecimentos > 0 ? receitaVendida / totalAbastecimentos : 0.0;
+  final precoMedioGeral =
+      volumeVendido > 0 ? receitaVendida / volumeVendido : 0.0;
+  final ticketMedio =
+      totalAbastecimentos > 0 ? receitaVendida / totalAbastecimentos : 0.0;
 
   final desempenhoPorCombustivel = porCombustivel.entries
       .map((e) => DesempenhoCombustivel(
             combustivel: e.key,
             volume: e.value.volume,
             receita: e.value.receita,
-            participacao: volumeVendido > 0 ? (e.value.volume / volumeVendido) * 100 : 0,
+            participacao:
+                volumeVendido > 0 ? (e.value.volume / volumeVendido) * 100 : 0,
           ))
       .toList()
     ..sort((a, b) => b.volume.compareTo(a.volume));
 
   // Série diária do gráfico — recorte de janelaGraficoDias sobre o mesmo
   // resumoDiario acima (que já cobre janelaDesempenhoDias inteiros).
-  final desdeGraficoIso =
-      DateFormat('yyyy-MM-dd').format(agoraUtc.subtract(const Duration(days: janelaGraficoDias)));
+  final desdeGraficoIso = DateFormat('yyyy-MM-dd')
+      .format(agoraUtc.subtract(const Duration(days: janelaGraficoDias)));
   final serieDiariaPorCombustivel = resumoDiario
       .where((r) => (r['dia'] as String? ?? '').compareTo(desdeGraficoIso) >= 0)
       .map((r) => PontoVendaDiaria(

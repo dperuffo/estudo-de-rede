@@ -25,14 +25,17 @@ class ItemFavoritoMenu {
 // vinda direto da RPC — mesmo contrato usado na web
 // (favoritos_menu_do_usuario). autoDispose: refeita sempre que a tela que a
 // usa (shell do cliente ou do posto) volta a ficar visível.
-final favoritosMenuProvider = FutureProvider.autoDispose<List<ItemFavoritoMenu>>((ref) async {
+final favoritosMenuProvider =
+    FutureProvider.autoDispose<List<ItemFavoritoMenu>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   if (sessao.email.isEmpty) return [];
   try {
-    final linhas = await SupabaseService.client.rpc('favoritos_menu_do_usuario', params: {'p_limite': 8}) as List;
+    final linhas = await SupabaseService.client
+        .rpc('favoritos_menu_do_usuario', params: {'p_limite': 8}) as List;
     return linhas.map((l) {
       final m = l as Map<String, dynamic>;
-      return ItemFavoritoMenu(href: m['href'] as String, fixado: m['fixado'] as bool);
+      return ItemFavoritoMenu(
+          href: m['href'] as String, fixado: m['fixado'] as bool);
     }).toList();
   } catch (_) {
     // Best-effort — mesmo espírito das demais listas do menu (badges,
@@ -55,7 +58,8 @@ final ultimaRotaRegistradaProvider = StateProvider<String?>((ref) => null);
 // silencioso — nunca deve interferir na navegação em si.
 Future<void> registrarAcessoMenu(String href) async {
   try {
-    await SupabaseService.client.rpc('registrar_acesso_menu', params: {'p_href': href});
+    await SupabaseService.client
+        .rpc('registrar_acesso_menu', params: {'p_href': href});
   } catch (_) {}
 }
 
@@ -63,9 +67,11 @@ Future<void> registrarAcessoMenu(String href) async {
 // Devolve `true` em caso de sucesso — quem chama usa isso pra reverter
 // estado otimista em caso de falha, mesmo padrão de
 // `alternarFavoritoMenuAcao` na web.
-Future<bool> alternarFavoritoMenu(WidgetRef ref, String href, bool fixar) async {
+Future<bool> alternarFavoritoMenu(
+    WidgetRef ref, String href, bool fixar) async {
   try {
-    await SupabaseService.client.rpc('alternar_favorito_menu', params: {'p_href': href, 'p_fixar': fixar});
+    await SupabaseService.client.rpc('alternar_favorito_menu',
+        params: {'p_href': href, 'p_fixar': fixar});
     ref.invalidate(favoritosMenuProvider);
     return true;
   } catch (_) {

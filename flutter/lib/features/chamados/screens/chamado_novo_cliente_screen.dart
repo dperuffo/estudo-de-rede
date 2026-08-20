@@ -6,6 +6,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../../posto/providers/chamados_provider.dart';
 import '../../posto/services/chamados_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — abrir novo chamado (cliente): cópia quase 1:1 de
 // chamado_novo_screen.dart (FLT-2), reaproveitando DIRETO
 // `ChamadosService`/`chamadosPostoProvider`/`tiposTicket`/
@@ -16,10 +18,12 @@ class ChamadoNovoClienteScreen extends ConsumerStatefulWidget {
   const ChamadoNovoClienteScreen({super.key});
 
   @override
-  ConsumerState<ChamadoNovoClienteScreen> createState() => _ChamadoNovoClienteScreenState();
+  ConsumerState<ChamadoNovoClienteScreen> createState() =>
+      _ChamadoNovoClienteScreenState();
 }
 
-class _ChamadoNovoClienteScreenState extends ConsumerState<ChamadoNovoClienteScreen> {
+class _ChamadoNovoClienteScreenState
+    extends ConsumerState<ChamadoNovoClienteScreen> {
   final _tituloCtrl = TextEditingController();
   final _descricaoCtrl = TextEditingController();
   String _tipo = 'incidente';
@@ -98,7 +102,14 @@ class _ChamadoNovoClienteScreenState extends ConsumerState<ChamadoNovoClienteScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo chamado')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Novo chamado')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -106,10 +117,15 @@ class _ChamadoNovoClienteScreenState extends ConsumerState<ChamadoNovoClienteScr
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
-          const Text('Tipo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const Text('Tipo',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -143,9 +159,11 @@ class _ChamadoNovoClienteScreenState extends ConsumerState<ChamadoNovoClienteScr
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _prioridade,
-            decoration: const InputDecoration(labelText: 'Prioridade', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Prioridade', border: OutlineInputBorder()),
             items: prioridadesTicket.entries
-                .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                .map(
+                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                 .toList(),
             onChanged: (v) => setState(() => _prioridade = v ?? 'media'),
           ),
@@ -160,7 +178,9 @@ class _ChamadoNovoClienteScreenState extends ConsumerState<ChamadoNovoClienteScr
               const SizedBox(width: 8),
               if (_anexo != null)
                 Expanded(
-                  child: Text(_anexo!.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+                  child: Text(_anexo!.name,
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis),
                 ),
             ],
           ),

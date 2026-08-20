@@ -38,8 +38,12 @@ class AbaCoberturaDemanda extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = dados;
     final ufs = ufCentroides.keys.toList();
-    final demandaMax = ufs.fold<int>(1, (m, uf) => (d.demandaPorUf[uf] ?? 0) > m ? (d.demandaPorUf[uf] ?? 0) : m);
-    final coberturaMax = ufs.fold<int>(1, (m, uf) => (d.postosPorUf[uf] ?? 0) > m ? (d.postosPorUf[uf] ?? 0) : m);
+    final demandaMax = ufs.fold<int>(
+        1,
+        (m, uf) =>
+            (d.demandaPorUf[uf] ?? 0) > m ? (d.demandaPorUf[uf] ?? 0) : m);
+    final coberturaMax = ufs.fold<int>(1,
+        (m, uf) => (d.postosPorUf[uf] ?? 0) > m ? (d.postosPorUf[uf] ?? 0) : m);
 
     final linhas = ufs.map((uf) {
       final demanda = d.demandaPorUf[uf] ?? 0;
@@ -70,21 +74,31 @@ class AbaCoberturaDemanda extends StatelessWidget {
     final ufPrioritaria = linhas.first.uf;
     final totalPostosGf = linhas.fold<int>(0, (s, l) => s + l.postosGf);
     final top15 = linhas.take(15).toList();
-    final criticos = linhas.where((l) => l.gap >= 0.6).map((l) => l.uf).toList();
-    final altos = linhas.where((l) => l.gap >= 0.35 && l.gap < 0.6).map((l) => l.uf).toList();
-    final semGf = linhas.where((l) => l.postosGf == 0).map((l) => l.uf).toList();
+    final criticos =
+        linhas.where((l) => l.gap >= 0.6).map((l) => l.uf).toList();
+    final altos = linhas
+        .where((l) => l.gap >= 0.35 && l.gap < 0.6)
+        .map((l) => l.uf)
+        .toList();
+    final semGf =
+        linhas.where((l) => l.postosGf == 0).map((l) => l.uf).toList();
 
     final insights = <String>[];
     if (criticos.isNotEmpty) {
-      insights.add('🔴 Expansão urgente: as UFs ${criticos.take(5).join(", ")} têm alta demanda real e baixíssima cobertura GF — candidatas prioritárias para abertura imediata de novos postos.');
+      insights.add(
+          '🔴 Expansão urgente: as UFs ${criticos.take(5).join(", ")} têm alta demanda real e baixíssima cobertura GF — candidatas prioritárias para abertura imediata de novos postos.');
     }
     if (altos.isNotEmpty) {
-      insights.add('🟠 Avaliação estratégica: ${altos.take(4).join(", ")} têm gap relevante — vale avaliar parceiros/franquias locais.');
+      insights.add(
+          '🟠 Avaliação estratégica: ${altos.take(4).join(", ")} têm gap relevante — vale avaliar parceiros/franquias locais.');
     }
     if (semGf.isNotEmpty) {
-      insights.add('⚠️ Sem nenhum posto GF: ${semGf.take(6).join(", ")} não têm cobertura GF cadastrada.');
+      insights.add(
+          '⚠️ Sem nenhum posto GF: ${semGf.take(6).join(", ")} não têm cobertura GF cadastrada.');
     }
-    if (insights.isEmpty) insights.add('✅ Cobertura equilibrada: não foram identificados gaps críticos com os dados atuais.');
+    if (insights.isEmpty)
+      insights.add(
+          '✅ Cobertura equilibrada: não foram identificados gaps críticos com os dados atuais.');
 
     final pontosMapa = linhas.where((l) => l.demanda > 0).map((l) {
       final centro = ufCentroides[l.uf]!;
@@ -94,7 +108,8 @@ class AbaCoberturaDemanda extends StatelessWidget {
         lon: centro[1],
         cor: _corGap(l.gap),
         raio: raio,
-        tooltip: '${l.uf}\nDemanda: ${l.demanda}\nPostos GF: ${l.postosGf}\nGap: ${l.gap.toStringAsFixed(3)}',
+        tooltip:
+            '${l.uf}\nDemanda: ${l.demanda}\nPostos GF: ${l.postosGf}\nGap: ${l.gap.toStringAsFixed(3)}',
       );
     }).toList();
 
@@ -106,12 +121,15 @@ class AbaCoberturaDemanda extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Cobertura × Demanda — Expansão Estratégica da Rede', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const Text('Cobertura × Demanda — Expansão Estratégica da Rede',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(8)),
                 child: const Text(
                   '⚠️ Demanda aqui = abastecimentos reais da frota (integração PróFrotas). Não inclui rotas planejadas/sugeridas pelo otimizador.',
                   style: TextStyle(fontSize: 11),
@@ -126,59 +144,114 @@ class AbaCoberturaDemanda extends StatelessWidget {
                 crossAxisSpacing: 8,
                 childAspectRatio: 1.7,
                 children: [
-                  CartaoIndicador(label: '⛽ Abastecimentos analisados', valor: formatarInt(demandaTotal), mini: true),
-                  CartaoIndicador(label: '⚠️ UFs com gap alto/crítico', valor: formatarInt(nGapAlto), mini: true),
-                  CartaoIndicador(label: '🥇 UF prioritária', valor: ufPrioritaria, mini: true),
-                  CartaoIndicador(label: '⛽ Total postos GF', valor: formatarInt(totalPostosGf), mini: true),
+                  CartaoIndicador(
+                      label: '⛽ Abastecimentos analisados',
+                      valor: formatarInt(demandaTotal),
+                      mini: true),
+                  CartaoIndicador(
+                      label: '⚠️ UFs com gap alto/crítico',
+                      valor: formatarInt(nGapAlto),
+                      mini: true),
+                  CartaoIndicador(
+                      label: '🥇 UF prioritária',
+                      valor: ufPrioritaria,
+                      mini: true),
+                  CartaoIndicador(
+                      label: '⛽ Total postos GF',
+                      valor: formatarInt(totalPostosGf),
+                      mini: true),
                 ],
               ),
               const SizedBox(height: 12),
-              Text('🗺️ Mapa de Gaps — tamanho = demanda, cor = severidade', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text('🗺️ Mapa de Gaps — tamanho = demanda, cor = severidade',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               const SizedBox(height: 6),
-              MapaCirculos(pontos: pontosMapa, height: 380, mensagemVazio: 'Sem abastecimentos reais registrados para gerar o mapa de demanda.'),
+              MapaCirculos(
+                  pontos: pontosMapa,
+                  height: 380,
+                  mensagemVazio:
+                      'Sem abastecimentos reais registrados para gerar o mapa de demanda.'),
               const SizedBox(height: 16),
-              Text('📊 Top 15 UFs — Prioridade de Expansão', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+              Text('📊 Top 15 UFs — Prioridade de Expansão',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               SizedBox(
                 height: 260,
                 child: BarChart(
                   BarChartData(
                     maxY: 1.1,
-                    barTouchData: barTouchPadrao(formatarY: (v) => 'Gap ${v.toStringAsFixed(3)}'),
+                    barTouchData: barTouchPadrao(
+                        formatarY: (v) => 'Gap ${v.toStringAsFixed(3)}'),
                     barGroups: top15.asMap().entries.map((e) {
                       return BarChartGroupData(x: e.key, barRods: [
-                        BarChartRodData(toY: e.value.gap, color: _corGap(e.value.gap), width: 16, borderRadius: const BorderRadius.vertical(top: Radius.circular(3))),
+                        BarChartRodData(
+                            toY: e.value.gap,
+                            color: _corGap(e.value.gap),
+                            width: 16,
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(3))),
                       ]);
                     }).toList(),
                     titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 32, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(1), style: const TextStyle(fontSize: 9)))),
+                      leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 32,
+                              getTitlesWidget: (v, _) => Text(
+                                  v.toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 9)))),
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
                           reservedSize: 24,
                           getTitlesWidget: (v, _) {
                             final i = v.toInt();
-                            if (i < 0 || i >= top15.length) return const SizedBox.shrink();
-                            return Text(top15[i].uf, style: const TextStyle(fontSize: 10));
+                            if (i < 0 || i >= top15.length)
+                              return const SizedBox.shrink();
+                            return Text(top15[i].uf,
+                                style: const TextStyle(fontSize: 10));
                           },
                         ),
                       ),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
                     ),
                     gridData: const FlGridData(drawVerticalLine: false),
                     borderData: FlBorderData(show: false),
                   ),
                 ),
               ),
-              Text('🔴 Crítico ≥0,60 · 🟠 Alto ≥0,35 · 🟡 Médio ≥0,15 · 🟢 Baixo <0,15', style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+              Text(
+                  '🔴 Crítico ≥0,60 · 🟠 Alto ≥0,35 · 🟡 Médio ≥0,15 · 🟢 Baixo <0,15',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
               const SizedBox(height: 16),
               ...insights.map((texto) => BlocoInsight(texto: texto)),
               const SizedBox(height: 8),
               TabelaSimples(
-                colunas: const ['UF', 'Demanda', 'Postos', 'Gap', 'Prioridade', 'Ação'],
+                colunas: const [
+                  'UF',
+                  'Demanda',
+                  'Postos',
+                  'Gap',
+                  'Prioridade',
+                  'Ação'
+                ],
                 flexColunas: const [1, 2, 1, 2, 2, 3],
-                linhas: linhas.map((l) => [l.uf, '${l.demanda}', '${l.postosGf}', l.gap.toStringAsFixed(3), _prioridade(l.gap), _acao(l.gap)]).toList(),
+                linhas: linhas
+                    .map((l) => [
+                          l.uf,
+                          '${l.demanda}',
+                          '${l.postosGf}',
+                          l.gap.toStringAsFixed(3),
+                          _prioridade(l.gap),
+                          _acao(l.gap)
+                        ])
+                    .toList(),
                 maxHeight: 420,
               ),
             ],

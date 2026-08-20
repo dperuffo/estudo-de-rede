@@ -7,6 +7,8 @@ import '../providers/negociacao_detalhe_provider.dart';
 import '../providers/negociacoes_provider.dart';
 import '../services/negociacoes_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — cria a rodada 1 de uma negociação nova, espelhando
 // negociacoes/novo/page.tsx + FormularioNovaNegociacao.tsx da web (lado
 // posto: informa o CNPJ do cliente-alvo, que precisa já existir na FNI).
@@ -14,7 +16,8 @@ class CriarNegociacaoScreen extends ConsumerStatefulWidget {
   const CriarNegociacaoScreen({super.key});
 
   @override
-  ConsumerState<CriarNegociacaoScreen> createState() => _CriarNegociacaoScreenState();
+  ConsumerState<CriarNegociacaoScreen> createState() =>
+      _CriarNegociacaoScreenState();
 }
 
 class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
@@ -56,7 +59,8 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
     final sessao = ref.read(sessaoProvider).valueOrNull;
     final empresaPostoId = sessao?.empresaId;
     if (empresaPostoId == null) {
-      setState(() => _erro = 'Não foi possível identificar seu posto nesta sessão.');
+      setState(
+          () => _erro = 'Não foi possível identificar seu posto nesta sessão.');
       return;
     }
     if (_cnpjCliente.text.trim().isEmpty) {
@@ -70,11 +74,13 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
     final volume = double.tryParse(_volume.text.trim().replaceAll(',', '.'));
     final preco = double.tryParse(_preco.text.trim().replaceAll(',', '.'));
     if (volume == null || volume <= 0) {
-      setState(() => _erro = 'Volume mínimo mensal precisa ser um número maior que zero.');
+      setState(() =>
+          _erro = 'Volume mínimo mensal precisa ser um número maior que zero.');
       return;
     }
     if (preco == null || preco <= 0) {
-      setState(() => _erro = 'Preço por litro precisa ser um número maior que zero.');
+      setState(() =>
+          _erro = 'Preço por litro precisa ser um número maior que zero.');
       return;
     }
     if (_inicio.text.trim().isEmpty || _fim.text.trim().isEmpty) {
@@ -120,13 +126,21 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Nova negociação'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop() (padrão já usado
         // em cliente_posto_detalhe_screen.dart): sem isso, deep link/refresh
         // do PWA direto nesta rota deixava o botão sem nada pra dar pop.
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/negociacoes'),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go('/posto/negociacoes'),
         ),
       ),
       body: ListView(
@@ -141,8 +155,12 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],
@@ -164,8 +182,13 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _combustivel,
-            decoration: const InputDecoration(labelText: 'Combustível', border: OutlineInputBorder(), isDense: true),
-            items: produtosPosto.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+            decoration: const InputDecoration(
+                labelText: 'Combustível',
+                border: OutlineInputBorder(),
+                isDense: true),
+            items: produtosPosto
+                .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                .toList(),
             onChanged: (v) => setState(() => _combustivel = v),
           ),
           const SizedBox(height: 12),
@@ -222,7 +245,10 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
             child: ElevatedButton(
               onPressed: _enviando ? null : _enviar,
               child: _enviando
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Enviar negociação'),
             ),
           ),

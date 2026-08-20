@@ -49,15 +49,19 @@ class VeiculoChecklist {
       );
 }
 
-final checklistVeiculosListProvider = FutureProvider.autoDispose.family<List<VeiculoChecklist>, String?>((ref, busca) async {
+final checklistVeiculosListProvider = FutureProvider.autoDispose
+    .family<List<VeiculoChecklist>, String?>((ref, busca) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('checklist_veiculos_resumo', params: {
+  final rows =
+      await SupabaseService.client.rpc('checklist_veiculos_resumo', params: {
     'p_empresa_id': empresaId,
     'p_busca': busca,
   }) as List;
-  return rows.map((r) => VeiculoChecklist.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => VeiculoChecklist.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 class ItemInspecao {
@@ -114,14 +118,16 @@ class Inspecao {
         hodometro: (m['hodometro'] as num?)?.toDouble(),
         responsavel: m['responsavel'] as String?,
         origem: m['origem'] as String?,
-        motoristaNome: (m['motoristas'] as Map<String, dynamic>?)?['nome_completo'] as String?,
+        motoristaNome: (m['motoristas']
+            as Map<String, dynamic>?)?['nome_completo'] as String?,
         itens: ((m['inspecoes_veiculos_itens'] as List?) ?? [])
             .map((i) => ItemInspecao.fromMap(i as Map<String, dynamic>))
             .toList(),
       );
 }
 
-final inspecoesVeiculoProvider = FutureProvider.autoDispose.family<List<Inspecao>, String>((ref, placa) async {
+final inspecoesVeiculoProvider = FutureProvider.autoDispose
+    .family<List<Inspecao>, String>((ref, placa) async {
   final rows = await SupabaseService.client
       .from('inspecoes_veiculos')
       .select(
@@ -132,7 +138,8 @@ final inspecoesVeiculoProvider = FutureProvider.autoDispose.family<List<Inspecao
   return rows.map((r) => Inspecao.fromMap(r as Map<String, dynamic>)).toList();
 });
 
-final ultimoHodometroProvider = FutureProvider.autoDispose.family<double?, String>((ref, placa) async {
+final ultimoHodometroProvider =
+    FutureProvider.autoDispose.family<double?, String>((ref, placa) async {
   final row = await SupabaseService.client
       .from('abastecimentos_unificado')
       .select('hodometro')

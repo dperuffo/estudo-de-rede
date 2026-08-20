@@ -6,19 +6,27 @@ class MotoristaEncontrado {
   final String nomeCompleto;
   final String? telefone;
 
-  const MotoristaEncontrado({required this.motoristaId, required this.nomeCompleto, this.telefone});
+  const MotoristaEncontrado(
+      {required this.motoristaId, required this.nomeCompleto, this.telefone});
 }
 
 class MotoristasParceirosService {
   final _supabase = SupabaseService.client;
 
-  Future<({MotoristaEncontrado? encontrado, String? erro})> buscarMotoristaPorDocumento(String documento) async {
-    if (documento.trim().isEmpty) return (encontrado: null, erro: 'Digite o CPF ou telefone do motorista.');
+  Future<({MotoristaEncontrado? encontrado, String? erro})>
+      buscarMotoristaPorDocumento(String documento) async {
+    if (documento.trim().isEmpty)
+      return (encontrado: null, erro: 'Digite o CPF ou telefone do motorista.');
     try {
-      final rows = await _supabase.rpc('buscar_motorista_documento', params: {'p_documento': documento.trim()});
+      final rows = await _supabase.rpc('buscar_motorista_documento',
+          params: {'p_documento': documento.trim()});
       final lista = rows as List;
       if (lista.isEmpty) {
-        return (encontrado: null, erro: 'Nenhum motorista encontrado com esse CPF/telefone. Ele precisa já ter conta no app.');
+        return (
+          encontrado: null,
+          erro:
+              'Nenhum motorista encontrado com esse CPF/telefone. Ele precisa já ter conta no app.'
+        );
       }
       final m = lista.first as Map<String, dynamic>;
       return (
@@ -34,7 +42,8 @@ class MotoristasParceirosService {
     }
   }
 
-  Future<String?> convidarParceiro({required String empresaId, required String motoristaId}) async {
+  Future<String?> convidarParceiro(
+      {required String empresaId, required String motoristaId}) async {
     try {
       await _supabase.rpc('convidar_motorista_parceiro', params: {
         'p_empresa_id': empresaId,

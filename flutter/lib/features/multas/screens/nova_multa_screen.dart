@@ -6,6 +6,8 @@ import '../../veiculos/providers/veiculos_provider.dart';
 import '../providers/multas_provider.dart';
 import '../services/multas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Onda-2 (benchmark TicketLog, item #4) — captura manual da multa
 // (primeira versão, sem integração Detran/Renainf), porta de
 // multas/nova/page.tsx + NovaMultaForm.tsx.
@@ -18,7 +20,8 @@ class NovaMultaScreen extends ConsumerStatefulWidget {
 
 class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
   String? _placa;
-  final _dataInfracaoCtrl = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
+  final _dataInfracaoCtrl = TextEditingController(
+      text: DateTime.now().toIso8601String().substring(0, 10));
   final _dataLimiteCtrl = TextEditingController();
   final _numeroAitCtrl = TextEditingController();
   final _orgaoCtrl = TextEditingController();
@@ -62,7 +65,8 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
   }
 
   Future<void> _selecionarAnexo() async {
-    final resultado = await FilePicker.pickFiles(withData: true, type: FileType.any);
+    final resultado =
+        await FilePicker.pickFiles(withData: true, type: FileType.any);
     if (resultado == null || resultado.files.isEmpty) return;
     setState(() => _anexo = resultado.files.first);
   }
@@ -90,18 +94,36 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
         empresaId: empresaId,
         placa: _placa!,
         dataInfracao: _dataInfracaoCtrl.text.trim(),
-        dataLimiteIndicacao: _dataLimiteCtrl.text.trim().isEmpty ? null : _dataLimiteCtrl.text.trim(),
-        numeroAit: _numeroAitCtrl.text.trim().isEmpty ? null : _numeroAitCtrl.text.trim(),
-        orgaoAutuador: _orgaoCtrl.text.trim().isEmpty ? null : _orgaoCtrl.text.trim(),
-        localInfracao: _localCtrl.text.trim().isEmpty ? null : _localCtrl.text.trim(),
-        descricao: _descricaoCtrl.text.trim().isEmpty ? null : _descricaoCtrl.text.trim(),
+        dataLimiteIndicacao: _dataLimiteCtrl.text.trim().isEmpty
+            ? null
+            : _dataLimiteCtrl.text.trim(),
+        numeroAit: _numeroAitCtrl.text.trim().isEmpty
+            ? null
+            : _numeroAitCtrl.text.trim(),
+        orgaoAutuador:
+            _orgaoCtrl.text.trim().isEmpty ? null : _orgaoCtrl.text.trim(),
+        localInfracao:
+            _localCtrl.text.trim().isEmpty ? null : _localCtrl.text.trim(),
+        descricao: _descricaoCtrl.text.trim().isEmpty
+            ? null
+            : _descricaoCtrl.text.trim(),
         gravidade: _gravidade,
         pontos: int.tryParse(_pontosCtrl.text.trim()),
-        valorOriginal: double.tryParse(_valorOriginalCtrl.text.replaceAll(',', '.')),
-        valorDesconto: double.tryParse(_valorDescontoCtrl.text.replaceAll(',', '.')),
-        observacoes: _observacoesCtrl.text.trim().isEmpty ? null : _observacoesCtrl.text.trim(),
+        valorOriginal:
+            double.tryParse(_valorOriginalCtrl.text.replaceAll(',', '.')),
+        valorDesconto:
+            double.tryParse(_valorDescontoCtrl.text.replaceAll(',', '.')),
+        observacoes: _observacoesCtrl.text.trim().isEmpty
+            ? null
+            : _observacoesCtrl.text.trim(),
         criadoPor: sessao.email,
-        anexo: _anexo?.bytes != null ? (bytes: _anexo!.bytes!, nome: _anexo!.name, mimeType: null as String?) : null,
+        anexo: _anexo?.bytes != null
+            ? (
+                bytes: _anexo!.bytes!,
+                nome: _anexo!.name,
+                mimeType: null as String?
+              )
+            : null,
       );
       if (!mounted) return;
       ref.invalidate(multasListProvider);
@@ -120,7 +142,14 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
     final veiculosAsync = ref.watch(veiculosClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova Multa')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Nova Multa')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -129,18 +158,30 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
             ),
           veiculosAsync.when(
             data: (lista) => DropdownButtonFormField<String>(
               value: _placa,
-              decoration: const InputDecoration(labelText: 'Placa *', border: OutlineInputBorder(), isDense: true),
-              items: lista.map((v) => DropdownMenuItem(value: v.placa, child: Text(v.placa))).toList(),
+              decoration: const InputDecoration(
+                  labelText: 'Placa *',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              items: lista
+                  .map((v) =>
+                      DropdownMenuItem(value: v.placa, child: Text(v.placa)))
+                  .toList(),
               onChanged: (v) => setState(() => _placa = v),
             ),
             loading: () => const LinearProgressIndicator(),
-            error: (_, __) => const Text('Não foi possível carregar os veículos.', style: TextStyle(color: Colors.red, fontSize: 12)),
+            error: (_, __) => const Text(
+                'Não foi possível carregar os veículos.',
+                style: TextStyle(color: Colors.red, fontSize: 12)),
           ),
           const SizedBox(height: 10),
           Row(
@@ -175,18 +216,35 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          TextField(controller: _numeroAitCtrl, decoration: const InputDecoration(labelText: 'Nº do AIT', border: OutlineInputBorder(), isDense: true)),
+          TextField(
+              controller: _numeroAitCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Nº do AIT',
+                  border: OutlineInputBorder(),
+                  isDense: true)),
           const SizedBox(height: 10),
           TextField(
             controller: _orgaoCtrl,
-            decoration: const InputDecoration(labelText: 'Órgão autuador', hintText: 'DETRAN-SP, PRF...', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Órgão autuador',
+                hintText: 'DETRAN-SP, PRF...',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
-          TextField(controller: _localCtrl, decoration: const InputDecoration(labelText: 'Local da infração', border: OutlineInputBorder(), isDense: true)),
+          TextField(
+              controller: _localCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Local da infração',
+                  border: OutlineInputBorder(),
+                  isDense: true)),
           const SizedBox(height: 10),
           DropdownButtonFormField<String?>(
             value: _gravidade,
-            decoration: const InputDecoration(labelText: 'Gravidade', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Gravidade',
+                border: OutlineInputBorder(),
+                isDense: true),
             items: const [
               DropdownMenuItem(value: null, child: Text('Selecione...')),
               DropdownMenuItem(value: 'leve', child: Text('Leve')),
@@ -203,15 +261,22 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
                 child: TextField(
                   controller: _pontosCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Pontos na CNH', border: OutlineInputBorder(), isDense: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Pontos na CNH',
+                      border: OutlineInputBorder(),
+                      isDense: true),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: _valorOriginalCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Valor original (R\$)', border: OutlineInputBorder(), isDense: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Valor original (R\$)',
+                      border: OutlineInputBorder(),
+                      isDense: true),
                 ),
               ),
             ],
@@ -220,33 +285,44 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
           TextField(
             controller: _valorDescontoCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Valor c/ desconto (R\$)', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Valor c/ desconto (R\$)',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _descricaoCtrl,
-            decoration: const InputDecoration(labelText: 'Descrição da infração', hintText: 'Ex.: Excesso de velocidade até 20%', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Descrição da infração',
+                hintText: 'Ex.: Excesso de velocidade até 20%',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _observacoesCtrl,
             maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Observações', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Observações', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 14),
-          const Text('Anexo da notificação (opcional — PDF ou foto)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const Text('Anexo da notificação (opcional — PDF ou foto)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 6,
             children: [
               if (_anexo != null)
                 Chip(
-                  label: Text(_anexo!.name, style: const TextStyle(fontSize: 11)),
+                  label:
+                      Text(_anexo!.name, style: const TextStyle(fontSize: 11)),
                   onDeleted: () => setState(() => _anexo = null),
                 ),
               ActionChip(
                 avatar: const Icon(Icons.attach_file, size: 16),
-                label: const Text('Selecionar arquivo', style: TextStyle(fontSize: 11)),
+                label: const Text('Selecionar arquivo',
+                    style: TextStyle(fontSize: 11)),
                 onPressed: _selecionarAnexo,
               ),
             ],

@@ -13,14 +13,22 @@ import '../../../core/services/supabase_service.dart';
 const ticketBucketAnexos = 'ticket-anexos';
 const ticketTamanhoMaxAnexoBytes = 20 * 1024 * 1024;
 
-const tiposTicket = <String, String>{'incidente': 'Incidente', 'melhoria': 'Melhoria'};
+const tiposTicket = <String, String>{
+  'incidente': 'Incidente',
+  'melhoria': 'Melhoria'
+};
 const statusTicket = <String, String>{
   'aberto': 'Aberto',
   'em_analise': 'Em análise',
   'resolvido': 'Resolvido',
   'fechado': 'Fechado',
 };
-const prioridadesTicket = <String, String>{'baixa': 'Baixa', 'media': 'Média', 'alta': 'Alta', 'critica': 'Crítica'};
+const prioridadesTicket = <String, String>{
+  'baixa': 'Baixa',
+  'media': 'Média',
+  'alta': 'Alta',
+  'critica': 'Crítica'
+};
 
 String formatarTamanhoAnexo(int? bytes) {
   if (bytes == null) return '—';
@@ -82,11 +90,13 @@ class Ticket {
   bool get naoVisto {
     if (atualizadoEm == null) return false;
     if (usuarioVistoEm == null) return true;
-    return DateTime.parse(atualizadoEm!).isAfter(DateTime.parse(usuarioVistoEm!));
+    return DateTime.parse(atualizadoEm!)
+        .isAfter(DateTime.parse(usuarioVistoEm!));
   }
 }
 
-final chamadosPostoProvider = FutureProvider.autoDispose<List<Ticket>>((ref) async {
+final chamadosPostoProvider =
+    FutureProvider.autoDispose<List<Ticket>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -157,11 +167,12 @@ class ChamadoDetalhe {
   final List<TicketComentario> comentarios;
   final List<TicketAnexo> anexos;
 
-  const ChamadoDetalhe({required this.ticket, required this.comentarios, required this.anexos});
+  const ChamadoDetalhe(
+      {required this.ticket, required this.comentarios, required this.anexos});
 }
 
-final chamadoDetalheProvider =
-    FutureProvider.autoDispose.family<ChamadoDetalhe?, String>((ref, ticketId) async {
+final chamadoDetalheProvider = FutureProvider.autoDispose
+    .family<ChamadoDetalhe?, String>((ref, ticketId) async {
   final supabase = SupabaseService.client;
 
   final ticketRaw = await supabase
@@ -177,7 +188,8 @@ final chamadoDetalheProvider =
       .select('id, autor_email, autor_tipo, texto, criado_em')
       .eq('ticket_id', ticketId)
       .order('criado_em', ascending: true);
-  final comentarios = comentariosRaw.map((m) => TicketComentario.fromMap(m)).toList();
+  final comentarios =
+      comentariosRaw.map((m) => TicketComentario.fromMap(m)).toList();
 
   final anexosRaw = await supabase
       .from('ticket_anexos')
@@ -188,12 +200,17 @@ final chamadoDetalheProvider =
   for (final a in anexos) {
     if (a.url == null) continue;
     try {
-      a.urlAssinada = await supabase.storage.from(ticketBucketAnexos).createSignedUrl(a.url!, 3600);
+      a.urlAssinada = await supabase.storage
+          .from(ticketBucketAnexos)
+          .createSignedUrl(a.url!, 3600);
     } catch (_) {
       // Anexo com objeto ausente/corrompido no Storage não pode derrubar a
       // tela — mesmo tratamento da web (chamados/[id]/page.tsx).
     }
   }
 
-  return ChamadoDetalhe(ticket: Ticket.fromMap(ticketRaw), comentarios: comentarios, anexos: anexos);
+  return ChamadoDetalhe(
+      ticket: Ticket.fromMap(ticketRaw),
+      comentarios: comentarios,
+      anexos: anexos);
 });

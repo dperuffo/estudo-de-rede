@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/documentos_provider.dart';
 import '../services/documentos_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 const _statusCor = <String, Color>{
   'nao_iniciada': Color(0xFF64748B),
   'pendente': Color(0xFFB45309),
@@ -47,12 +49,15 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
   }
 
   Future<void> _escolherEEnviar({required String tipo, String? socioId}) async {
-    final resultado = await FilePicker.pickFiles(withData: true, type: FileType.custom, allowedExtensions: [
-      'pdf',
-      'jpg',
-      'jpeg',
-      'png',
-    ]);
+    final resultado = await FilePicker.pickFiles(
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+        ]);
     if (resultado == null || resultado.files.isEmpty) return;
     final arquivo = resultado.files.first;
     if (arquivo.bytes == null) return;
@@ -110,7 +115,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
       _erroGeral = null;
       _sucessoGeral = null;
     });
-    final erro = await DocumentosService().removerDocumento(doc.id, doc.storagePath);
+    final erro =
+        await DocumentosService().removerDocumento(doc.id, doc.storagePath);
     if (!mounted) return;
     setState(() {
       _ocupado = false;
@@ -185,12 +191,20 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     final async = ref.watch(documentosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Documentos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Documentos')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (dados) {
-          if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+          if (dados == null)
+            return const Center(child: Text('Nenhuma empresa selecionada.'));
           return _buildConteudo(context, dados);
         },
       ),
@@ -211,25 +225,32 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
               ),
               child: Text(
                 statusDocumentacaoLabel[dados.status] ?? dados.status,
-                style: TextStyle(color: _statusCor[dados.status], fontWeight: FontWeight.w600, fontSize: 12),
+                style: TextStyle(
+                    color: _statusCor[dados.status],
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12),
               ),
             ),
           ],
         ),
         if (dados.status == 'rejeitada' && dados.motivoRejeicao != null) ...[
           const SizedBox(height: 10),
-          _banner('Motivo da rejeição: ${dados.motivoRejeicao}', const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
+          _banner('Motivo da rejeição: ${dados.motivoRejeicao}',
+              const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
         ],
         if (dados.status == 'pendente') ...[
           const SizedBox(height: 10),
-          _banner('Documentação enviada, aguardando análise do admin.', const Color(0xFFFFFBEB), const Color(0xFF92400E)),
+          _banner('Documentação enviada, aguardando análise do admin.',
+              const Color(0xFFFFFBEB), const Color(0xFF92400E)),
         ],
         if (dados.status == 'aprovada') ...[
           const SizedBox(height: 10),
-          _banner('Documentação aprovada — nenhuma pendência.', const Color(0xFFF0FDF4), const Color(0xFF15803D)),
+          _banner('Documentação aprovada — nenhuma pendência.',
+              const Color(0xFFF0FDF4), const Color(0xFF15803D)),
         ],
         const SizedBox(height: 16),
-        const Text('Documentos da empresa', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text('Documentos da empresa',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 8),
         ...tiposDocumentoEmpresa.map((tipo) => _slotDocumento(
               label: labelTipoDocumento[tipo]!,
@@ -241,11 +262,14 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Sócios', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const Text('Sócios',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             TextButton.icon(
-              onPressed: () => setState(() => _formularioSocioAberto = !_formularioSocioAberto),
+              onPressed: () => setState(
+                  () => _formularioSocioAberto = !_formularioSocioAberto),
               icon: Icon(_formularioSocioAberto ? Icons.close : Icons.add),
-              label: Text(_formularioSocioAberto ? 'Fechar' : 'Adicionar sócio'),
+              label:
+                  Text(_formularioSocioAberto ? 'Fechar' : 'Adicionar sócio'),
             ),
           ],
         ),
@@ -258,12 +282,16 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                 children: [
                   TextField(
                     controller: _nomeSocioCtrl,
-                    decoration: const InputDecoration(labelText: 'Nome do sócio', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'Nome do sócio',
+                        border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _cpfSocioCtrl,
-                    decoration: const InputDecoration(labelText: 'CPF (11 dígitos)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'CPF (11 dígitos)',
+                        border: OutlineInputBorder()),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 10),
@@ -283,7 +311,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         if (dados.socios.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Nenhum sócio cadastrado.', style: TextStyle(color: Colors.grey)),
+            child: Text('Nenhum sócio cadastrado.',
+                style: TextStyle(color: Colors.grey)),
           )
         else
           ...dados.socios.map((s) => Card(
@@ -298,11 +327,14 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                         children: [
                           Expanded(
                             child: Text('${s.nome} — ${_cpfFormatado(s.cpf)}',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 13)),
                           ),
                           TextButton(
-                            onPressed: _ocupado ? null : () => _removerSocio(s.id),
-                            child: const Text('Remover', style: TextStyle(color: Colors.red)),
+                            onPressed:
+                                _ocupado ? null : () => _removerSocio(s.id),
+                            child: const Text('Remover',
+                                style: TextStyle(color: Colors.red)),
                           ),
                         ],
                       ),
@@ -310,7 +342,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                       ...tiposDocumentoSocio.map((tipo) => _slotDocumento(
                             label: labelTipoDocumento[tipo]!,
                             doc: dados.documentoDe(tipo, socioId: s.id),
-                            onEscolher: () => _escolherEEnviar(tipo: tipo, socioId: s.id),
+                            onEscolher: () =>
+                                _escolherEEnviar(tipo: tipo, socioId: s.id),
                             onRemover: (d) => _removerDocumento(d),
                             compacto: true,
                           )),
@@ -319,9 +352,14 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                 ),
               )),
         const SizedBox(height: 20),
-        if (_erroGeral != null) ...[_banner(_erroGeral!, const Color(0xFFFEF2F2), const Color(0xFFB91C1C)), const SizedBox(height: 10)],
+        if (_erroGeral != null) ...[
+          _banner(
+              _erroGeral!, const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
+          const SizedBox(height: 10)
+        ],
         if (_sucessoGeral != null) ...[
-          _banner(_sucessoGeral!, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
+          _banner(
+              _sucessoGeral!, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
           const SizedBox(height: 10),
         ],
         if (dados.status == 'nao_iniciada' || dados.status == 'rejeitada')
@@ -333,10 +371,12 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
             ),
           )
         else if (dados.status == 'pendente')
-          const Text('Sua documentação está em análise — assim que o admin decidir, você será avisado aqui.',
+          const Text(
+              'Sua documentação está em análise — assim que o admin decidir, você será avisado aqui.',
               style: TextStyle(fontSize: 12, color: Colors.grey))
         else if (dados.status == 'aprovada')
-          const Text('Documentação aprovada. Se precisar corrigir algum documento, envie novamente acima.',
+          const Text(
+              'Documentação aprovada. Se precisar corrigir algum documento, envie novamente acima.',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
@@ -358,19 +398,26 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               if (doc == null)
-                const Text('Não enviado', style: TextStyle(fontSize: 12, color: Color(0xFFB45309)))
+                const Text('Não enviado',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFB45309)))
               else
                 Row(
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: doc.urlAssinada == null ? null : () => launchUrl(Uri.parse(doc.urlAssinada!)),
+                        onTap: doc.urlAssinada == null
+                            ? null
+                            : () => launchUrl(Uri.parse(doc.urlAssinada!)),
                         child: Text(doc.nomeArquivo,
                             style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF2563EB), decoration: TextDecoration.underline),
+                                fontSize: 12,
+                                color: Color(0xFF2563EB),
+                                decoration: TextDecoration.underline),
                             overflow: TextOverflow.ellipsis),
                       ),
                     ),
@@ -387,7 +434,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                     const SizedBox(width: 8),
                     TextButton(
                       onPressed: _ocupado ? null : () => onRemover(doc),
-                      child: const Text('Remover', style: TextStyle(color: Colors.red)),
+                      child: const Text('Remover',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ],
@@ -402,7 +450,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
   Widget _banner(String texto, Color fundo, Color cor) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(8)),
+        decoration:
+            BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(8)),
         child: Text(texto, style: TextStyle(color: cor, fontSize: 13)),
       );
 

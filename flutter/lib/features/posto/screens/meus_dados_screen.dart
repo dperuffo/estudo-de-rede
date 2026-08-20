@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/meus_dados_provider.dart';
 import '../services/meus_dados_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — "Meus Dados / PIX", porta de minha-empresa/page.tsx (só a
 // parte de PIX + dados bancários — nome/CNPJ/endereço do posto já são
 // editados em "Meu Posto", `meu_posto_screen.dart`, então aqui são só
@@ -18,7 +20,14 @@ class MeusDadosScreen extends ConsumerWidget {
     final async = ref.watch(meusDadosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Meus Dados / PIX')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Meus Dados / PIX')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
@@ -27,7 +36,8 @@ class MeusDadosScreen extends ConsumerWidget {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Nenhum posto vinculado a este usuário.', style: TextStyle(color: Colors.grey)),
+                child: Text('Nenhum posto vinculado a este usuário.',
+                    style: TextStyle(color: Colors.grey)),
               ),
             );
           }
@@ -83,7 +93,8 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
     _contaDigito = TextEditingController(text: _texto('conta_digito'));
     _tipoConta = _texto('tipo_conta');
     _titularNome = TextEditingController(text: _texto('titular_nome'));
-    _titularDocumento = TextEditingController(text: _texto('titular_documento'));
+    _titularDocumento =
+        TextEditingController(text: _texto('titular_documento'));
   }
 
   @override
@@ -110,7 +121,8 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
       _erroPix = null;
       _sucessoPix = null;
     });
-    final erro = await MeusDadosService().atualizarPixChave(empresaId: _empresaId, pixChave: _pixChave.text);
+    final erro = await MeusDadosService()
+        .atualizarPixChave(empresaId: _empresaId, pixChave: _pixChave.text);
     if (!mounted) return;
     setState(() {
       _salvandoPix = false;
@@ -164,7 +176,9 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Posto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text('Posto',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
                 const Text(
                   'Nome/CNPJ/endereço se editam em "Meu Posto". Aqui é só referência.',
@@ -184,7 +198,9 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Chave PIX', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text('Chave PIX',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
                 const Text(
                   'Usada como cedente no boleto/documento de cobrança enviado aos clientes.',
@@ -194,18 +210,26 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                 TextField(
                   controller: _pixChave,
                   decoration: const InputDecoration(
-                    labelText: 'Chave PIX (CPF, CNPJ, e-mail, telefone ou aleatória)',
+                    labelText:
+                        'Chave PIX (CPF, CNPJ, e-mail, telefone ou aleatória)',
                     border: OutlineInputBorder(),
                   ),
                 ),
-                if (_erroPix != null) ...[const SizedBox(height: 10), _bannerErro(_erroPix!)],
-                if (_sucessoPix != null) ...[const SizedBox(height: 10), _bannerSucesso(_sucessoPix!)],
+                if (_erroPix != null) ...[
+                  const SizedBox(height: 10),
+                  _bannerErro(_erroPix!)
+                ],
+                if (_sucessoPix != null) ...[
+                  const SizedBox(height: 10),
+                  _bannerSucesso(_sucessoPix!)
+                ],
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _salvandoPix ? null : _salvarPix,
-                    child: Text(_salvandoPix ? 'Salvando...' : 'Salvar chave PIX'),
+                    child:
+                        Text(_salvandoPix ? 'Salvando...' : 'Salvar chave PIX'),
                   ),
                 ),
               ],
@@ -219,19 +243,25 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Dados bancários', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text('Dados bancários',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
-                const Text('Captura pra uso futuro — ainda não usado em nenhum boleto.',
+                const Text(
+                    'Captura pra uso futuro — ainda não usado em nenhum boleto.',
                     style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _bancoCodigo,
-                  decoration: const InputDecoration(labelText: 'Código do banco', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Código do banco',
+                      border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _bancoNome,
-                  decoration: const InputDecoration(labelText: 'Nome do banco', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Nome do banco', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -239,14 +269,16 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                     Expanded(
                       child: TextField(
                         controller: _agencia,
-                        decoration: const InputDecoration(labelText: 'Agência', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Agência', border: OutlineInputBorder()),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _agenciaDigito,
-                        decoration: const InputDecoration(labelText: 'Dígito', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Dígito', border: OutlineInputBorder()),
                       ),
                     ),
                   ],
@@ -257,14 +289,16 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                     Expanded(
                       child: TextField(
                         controller: _conta,
-                        decoration: const InputDecoration(labelText: 'Conta', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Conta', border: OutlineInputBorder()),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _contaDigito,
-                        decoration: const InputDecoration(labelText: 'Dígito', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Dígito', border: OutlineInputBorder()),
                       ),
                     ),
                   ],
@@ -272,32 +306,46 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value: _tipoConta.isEmpty ? null : _tipoConta,
-                  decoration: const InputDecoration(labelText: 'Tipo de conta', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Tipo de conta', border: OutlineInputBorder()),
                   items: const [
-                    DropdownMenuItem(value: 'corrente', child: Text('Corrente')),
-                    DropdownMenuItem(value: 'poupanca', child: Text('Poupança')),
+                    DropdownMenuItem(
+                        value: 'corrente', child: Text('Corrente')),
+                    DropdownMenuItem(
+                        value: 'poupanca', child: Text('Poupança')),
                   ],
                   onChanged: (v) => setState(() => _tipoConta = v ?? ''),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _titularNome,
-                  decoration: const InputDecoration(labelText: 'Titular da conta', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Titular da conta',
+                      border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _titularDocumento,
-                  decoration:
-                      const InputDecoration(labelText: 'CPF/CNPJ do titular', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'CPF/CNPJ do titular',
+                      border: OutlineInputBorder()),
                 ),
-                if (_erroBancarios != null) ...[const SizedBox(height: 10), _bannerErro(_erroBancarios!)],
-                if (_sucessoBancarios != null) ...[const SizedBox(height: 10), _bannerSucesso(_sucessoBancarios!)],
+                if (_erroBancarios != null) ...[
+                  const SizedBox(height: 10),
+                  _bannerErro(_erroBancarios!)
+                ],
+                if (_sucessoBancarios != null) ...[
+                  const SizedBox(height: 10),
+                  _bannerSucesso(_sucessoBancarios!)
+                ],
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _salvandoBancarios ? null : _salvarBancarios,
-                    child: Text(_salvandoBancarios ? 'Salvando...' : 'Salvar dados bancários'),
+                    child: Text(_salvandoBancarios
+                        ? 'Salvando...'
+                        : 'Salvar dados bancários'),
                   ),
                 ),
               ],
@@ -314,8 +362,13 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 80, child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey))),
-          Expanded(child: Text(valor.isEmpty ? '—' : valor, style: const TextStyle(fontSize: 13))),
+          SizedBox(
+              width: 80,
+              child: Text(label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey))),
+          Expanded(
+              child: Text(valor.isEmpty ? '—' : valor,
+                  style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
@@ -323,13 +376,19 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
 
   Widget _bannerErro(String texto) => Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-        child: Text(texto, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+        decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(8)),
+        child: Text(texto,
+            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
       );
 
   Widget _bannerSucesso(String texto) => Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(8)),
-        child: Text(texto, style: const TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+        decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(8)),
+        child: Text(texto,
+            style: const TextStyle(color: Color(0xFF15803D), fontSize: 13)),
       );
 }

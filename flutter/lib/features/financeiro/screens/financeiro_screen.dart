@@ -8,6 +8,8 @@ import '../../posto/providers/financeiro_posto_provider.dart'
 import '../providers/financeiro_provider.dart';
 import 'posto_cobranca_detalhe_screen.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 const _corMeioPagamento = <String, Color>{
@@ -30,7 +32,20 @@ String _mesLabel(String isoMes) {
   // "mes" volta como yyyy-MM-dd (1º dia do mês) da RPC.
   final d = DateTime.tryParse(isoMes);
   if (d == null) return isoMes;
-  const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const meses = [
+    'jan',
+    'fev',
+    'mar',
+    'abr',
+    'mai',
+    'jun',
+    'jul',
+    'ago',
+    'set',
+    'out',
+    'nov',
+    'dez'
+  ];
   return '${meses[d.month - 1]}/${d.year.toString().substring(2)}';
 }
 
@@ -46,12 +61,20 @@ class FinanceiroScreen extends ConsumerWidget {
     final async = ref.watch(financeiroClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Painel Financeiro')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Painel Financeiro')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (dados) {
-          if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+          if (dados == null)
+            return const Center(child: Text('Nenhuma empresa selecionada.'));
           return _buildConteudo(context, dados);
         },
       ),
@@ -63,7 +86,8 @@ class FinanceiroScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        const Text('Custos do mês atual, consolidado por meio de pagamento e cobrança em aberto com os postos.',
+        const Text(
+            'Custos do mês atual, consolidado por meio de pagamento e cobrança em aberto com os postos.',
             style: TextStyle(color: Colors.grey, fontSize: 13)),
         const SizedBox(height: 12),
         GridView.count(
@@ -75,10 +99,17 @@ class FinanceiroScreen extends ConsumerWidget {
           mainAxisSpacing: 10,
           children: [
             _indicador('Custo total', _moeda.format(ind.custoTotal)),
-            _indicador('Custo por km', ind.custoPorKm == null ? '—' : '${_moeda.format(ind.custoPorKm)}/km'),
-            _indicador('Orçamento planejado', _moeda.format(ind.orcamentoPlanejado)),
+            _indicador(
+                'Custo por km',
+                ind.custoPorKm == null
+                    ? '—'
+                    : '${_moeda.format(ind.custoPorKm)}/km'),
+            _indicador(
+                'Orçamento planejado', _moeda.format(ind.orcamentoPlanejado)),
             _indicador('Saldo do orçamento', _moeda.format(ind.saldoOrcamento),
-                cor: ind.saldoOrcamento < 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A)),
+                cor: ind.saldoOrcamento < 0
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF16A34A)),
             _indicador('Combustível', _moeda.format(ind.custoCombustivel)),
             _indicador('Manutenção', _moeda.format(ind.custoManutencao)),
             _indicador('Custos fixos', _moeda.format(ind.custoFixos)),
@@ -86,7 +117,8 @@ class FinanceiroScreen extends ConsumerWidget {
         ),
         if (dados.evolucao.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const Text('Evolução mensal (6 meses)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Evolução mensal (6 meses)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
           const Text('Combustível, manutenção e custos fixos por mês.',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
@@ -100,7 +132,8 @@ class FinanceiroScreen extends ConsumerWidget {
         ],
         if (dados.porProvedor.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const Text('Consolidado por meio de pagamento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Consolidado por meio de pagamento',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
           const Text('Abastecimentos do mês, por meio de pagamento usado.',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
@@ -117,13 +150,18 @@ class FinanceiroScreen extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: (_corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback).withOpacity(0.15),
+                    backgroundColor: (_corMeioPagamento[p.provedor] ??
+                            _corMeioPagamentoFallback)
+                        .withOpacity(0.15),
                     child: Text(_nomeProvedor(p.provedor).substring(0, 1),
-                        style: const TextStyle(color: Colors.black87, fontSize: 13)),
+                        style: const TextStyle(
+                            color: Colors.black87, fontSize: 13)),
                   ),
                   title: Text(_nomeProvedor(p.provedor)),
-                  subtitle: Text('${p.qtdAbastecimentos} abastecimento(s) · ${p.litros.toStringAsFixed(0)} L'),
-                  trailing: Text(_moeda.format(p.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                      '${p.qtdAbastecimentos} abastecimento(s) · ${p.litros.toStringAsFixed(0)} L'),
+                  trailing: Text(_moeda.format(p.valorTotal),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
               )),
         ],
@@ -143,19 +181,23 @@ class FinanceiroScreen extends ConsumerWidget {
   // desse posto — escopo mais enxuto que /posto/clientes/:id (sem
   // cadastro/negociações, que dependem da futura tela Postos
   // Revendedores).
-  Widget _buildCobrancaEmAberto(BuildContext context, List<LinhaContraparte> linhas, List<FaturaFinanceiro> todasFaturas) {
+  Widget _buildCobrancaEmAberto(BuildContext context,
+      List<LinhaContraparte> linhas, List<FaturaFinanceiro> todasFaturas) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Cobrança em Aberto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text('Cobrança em Aberto',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
-        const Text('Ciclo atual (em andamento) e resumo de faturas com cada posto.',
+        const Text(
+            'Ciclo atual (em andamento) e resumo de faturas com cada posto.',
             style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 10),
         if (linhas.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Nenhum posto com ciclo ainda.', style: TextStyle(color: Colors.grey)),
+            child: Text('Nenhum posto com ciclo ainda.',
+                style: TextStyle(color: Colors.grey)),
           )
         else
           ...linhas.map((l) => _linhaContraparte(context, l, todasFaturas)),
@@ -168,12 +210,14 @@ class FinanceiroScreen extends ConsumerWidget {
   // FaturaDetalheScreen (rota /faturas/:id). Mostra só as mais recentes
   // pra não sobrecarregar a tela (mesmo limite "recente" usado noutras
   // listas do app).
-  Widget _buildUltimasFaturas(BuildContext context, List<FaturaFinanceiro> faturas) {
+  Widget _buildUltimasFaturas(
+      BuildContext context, List<FaturaFinanceiro> faturas) {
     final recentes = faturas.take(10).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Últimas faturas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text('Últimas faturas',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
         const Text('Toque numa fatura pra ver o extrato de abastecimentos.',
             style: TextStyle(fontSize: 12, color: Colors.grey)),
@@ -181,7 +225,8 @@ class FinanceiroScreen extends ConsumerWidget {
         if (recentes.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Nenhuma fatura ainda.', style: TextStyle(color: Colors.grey)),
+            child: Text('Nenhuma fatura ainda.',
+                style: TextStyle(color: Colors.grey)),
           )
         else
           ...recentes.map((f) => _linhaFatura(context, f)),
@@ -206,17 +251,23 @@ class FinanceiroScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(_moeda.format(f.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(f.status, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+            Text(_moeda.format(f.valorTotal),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(f.status,
+                style: TextStyle(
+                    fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
     );
   }
 
-  Widget _linhaContraparte(BuildContext context, LinhaContraparte l, List<FaturaFinanceiro> todasFaturas) {
+  Widget _linhaContraparte(BuildContext context, LinhaContraparte l,
+      List<FaturaFinanceiro> todasFaturas) {
     final ciclo = l.cicloAtual;
-    final faturasDoPosto = todasFaturas.where((f) => f.empresaClienteId == l.contraparteId).toList();
+    final faturasDoPosto = todasFaturas
+        .where((f) => f.empresaClienteId == l.contraparteId)
+        .toList();
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -224,7 +275,9 @@ class FinanceiroScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l.contraparteNome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(l.contraparteNome,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             if (l.cicloFaturamentoDias > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -235,13 +288,17 @@ class FinanceiroScreen extends ConsumerWidget {
             if (ciclo != null) ...[
               Row(children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2563EB).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text('Em andamento',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF2563EB),
+                          fontWeight: FontWeight.w600)),
                 ),
               ]),
               const SizedBox(height: 4),
@@ -256,30 +313,48 @@ class FinanceiroScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     '${_moeda.format(ciclo.valorPendenteNfe)} (${ciclo.quantidadePendenteNfe}) esperando NF-e',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
                   ),
                 ),
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: GestureDetector(
-                  onTap: () => context.push('/ciclos-abertos/${ciclo.negociacaoId}'),
+                  onTap: () =>
+                      context.push('/ciclos-abertos/${ciclo.negociacaoId}'),
                   child: const Text('Ver detalhamento',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF2563EB),
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
             ] else
-              const Text('Sem ciclo em andamento', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text('Sem ciclo em andamento',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 4,
               children: [
-                if (l.contagem.vencida > 0) _chipContagem('${l.contagem.vencida} vencida(s)', const Color(0xFFDC2626)),
-                if (l.contagem.fechada > 0) _chipContagem('${l.contagem.fechada} fechada(s)', const Color(0xFF64748B)),
-                if (l.contagem.aVencer > 0) _chipContagem('${l.contagem.aVencer} a vencer', const Color(0xFF64748B)),
-                if (l.contagem.paga > 0) _chipContagem('${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
-                if (l.contagem.vencida == 0 && l.contagem.fechada == 0 && l.contagem.aVencer == 0 && l.contagem.paga == 0)
-                  const Text('Nenhuma ainda', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                if (l.contagem.vencida > 0)
+                  _chipContagem('${l.contagem.vencida} vencida(s)',
+                      const Color(0xFFDC2626)),
+                if (l.contagem.fechada > 0)
+                  _chipContagem('${l.contagem.fechada} fechada(s)',
+                      const Color(0xFF64748B)),
+                if (l.contagem.aVencer > 0)
+                  _chipContagem('${l.contagem.aVencer} a vencer',
+                      const Color(0xFF64748B)),
+                if (l.contagem.paga > 0)
+                  _chipContagem(
+                      '${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
+                if (l.contagem.vencida == 0 &&
+                    l.contagem.fechada == 0 &&
+                    l.contagem.aVencer == 0 &&
+                    l.contagem.paga == 0)
+                  const Text('Nenhuma ainda',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
             if (l.valorEmAberto > 0)
@@ -291,7 +366,8 @@ class FinanceiroScreen extends ConsumerWidget {
                     children: [
                       const TextSpan(text: 'Em aberto: '),
                       TextSpan(
-                          text: _moeda.format(l.valorEmAberto), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          text: _moeda.format(l.valorEmAberto),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       if (l.valorVencido > 0)
                         TextSpan(
                           text: ' (${_moeda.format(l.valorVencido)} vencido)',
@@ -329,7 +405,8 @@ class FinanceiroScreen extends ConsumerWidget {
     const corManutencao = Color(0xFFEA580C);
     const corFixos = Color(0xFF64748B);
     final maxVal = pontos
-        .map((p) => [p.custoCombustivel, p.custoManutencao, p.custoFixos].reduce((a, b) => a > b ? a : b))
+        .map((p) => [p.custoCombustivel, p.custoManutencao, p.custoFixos]
+            .reduce((a, b) => a > b ? a : b))
         .fold<double>(0, (a, b) => a > b ? a : b);
 
     return Column(children: [
@@ -345,32 +422,39 @@ class FinanceiroScreen extends ConsumerWidget {
                   toY: p.custoCombustivel,
                   color: corCombustivel,
                   width: 6,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(2))),
               BarChartRodData(
                   toY: p.custoManutencao,
                   color: corManutencao,
                   width: 6,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(2))),
               BarChartRodData(
                   toY: p.custoFixos,
                   color: corFixos,
                   width: 6,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(2))),
             ]);
           }).toList(),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(
+            leftTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 44,
-              getTitlesWidget: (v, _) => Text('R\$${v.round()}', style: const TextStyle(fontSize: 9)),
+              getTitlesWidget: (v, _) =>
+                  Text('R\$${v.round()}', style: const TextStyle(fontSize: 9)),
             )),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(
+            bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
               getTitlesWidget: (v, _) {
                 final idx = v.toInt();
                 if (idx < 0 || idx >= pontos.length) return const SizedBox();
-                return Text(_mesLabel(pontos[idx].mes), style: const TextStyle(fontSize: 9));
+                return Text(_mesLabel(pontos[idx].mes),
+                    style: const TextStyle(fontSize: 9));
               },
             )),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -379,7 +463,8 @@ class FinanceiroScreen extends ConsumerWidget {
           borderData: FlBorderData(show: false),
           gridData: FlGridData(
             drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
@@ -396,7 +481,10 @@ class FinanceiroScreen extends ConsumerWidget {
                   children: [
                     TextSpan(
                       text: '${labels[rodIdx]}\n${_moeda.format(rod.toY)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 );
@@ -421,14 +509,20 @@ class FinanceiroScreen extends ConsumerWidget {
         Expanded(
           child: PieChart(PieChartData(
             sections: lista.map((p) {
-              final totalGeral = lista.fold<double>(0, (s, x) => s + x.valorTotal);
-              final pct = totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0.0;
+              final totalGeral =
+                  lista.fold<double>(0, (s, x) => s + x.valorTotal);
+              final pct =
+                  totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0.0;
               return PieChartSectionData(
                 value: p.valorTotal,
                 title: '${pct.toStringAsFixed(0)}%',
-                color: _corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback,
+                color:
+                    _corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback,
                 radius: 55,
-                titleStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                titleStyle: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
               );
             }).toList(),
             centerSpaceRadius: 30,
@@ -441,15 +535,21 @@ class FinanceiroScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: lista.map((p) {
-              final cor = _corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback;
+              final cor =
+                  _corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(children: [
-                  Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
+                  Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                          color: cor, borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(_nomeProvedor(p.provedor),
-                        style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis),
                   ),
                 ]),
               );
@@ -463,8 +563,11 @@ class FinanceiroScreen extends ConsumerWidget {
   Widget _chipContagem(String texto, Color cor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-      child: Text(texto, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+          color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Text(texto,
+          style:
+              TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
     );
   }
 
@@ -476,10 +579,12 @@ class FinanceiroScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(fontSize: 9, color: Colors.grey)),
             const SizedBox(height: 4),
             Text(valor,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: cor),
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.bold, color: cor),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -493,8 +598,12 @@ class _Legenda extends StatelessWidget {
   final String rotulo;
   const _Legenda({required this.cor, required this.rotulo});
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
+  Widget build(BuildContext context) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
         const SizedBox(width: 4),
         Text(rotulo, style: const TextStyle(fontSize: 11)),
       ]);

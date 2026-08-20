@@ -12,7 +12,8 @@ class PostoVinculado {
   final String vinculoId;
   final String empresaId;
   final String nome;
-  const PostoVinculado({required this.vinculoId, required this.empresaId, required this.nome});
+  const PostoVinculado(
+      {required this.vinculoId, required this.empresaId, required this.nome});
 }
 
 class RedePostoDetalhe {
@@ -37,7 +38,8 @@ class RedePostoDetalhe {
 // checagem de segmento acontece depois, ao ler o grupo em si, só por
 // segurança (mesmo espírito do "trata como não encontrado" do page.tsx
 // original quando o id é de um Grupo Econômico de Frota).
-final redePostoProvider = FutureProvider.autoDispose<RedePostoDetalhe?>((ref) async {
+final redePostoProvider =
+    FutureProvider.autoDispose<RedePostoDetalhe?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -87,7 +89,8 @@ final redePostoProvider = FutureProvider.autoDispose<RedePostoDetalhe?>((ref) as
 // /rede-postos/novo e /rede-postos/[id] pra montar "postosOpcoes"/
 // "postosDisponiveis" de quem não é admin). Usado tanto pra escolher o
 // posto fundador ao criar quanto pra vincular mais postos depois.
-final postosProprioProvider = FutureProvider.autoDispose<List<({String id, String nome})>>((ref) async {
+final postosProprioProvider =
+    FutureProvider.autoDispose<List<({String id, String nome})>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   if (sessao.empresasIds.isEmpty) return [];
   final rows = await SupabaseService.client
@@ -97,6 +100,9 @@ final postosProprioProvider = FutureProvider.autoDispose<List<({String id, Strin
       .order('nome') as List;
   return rows
       .where((m) => (m as Map<String, dynamic>)['segmento'] == 'Revenda')
-      .map((m) => (id: (m as Map<String, dynamic>)['id'] as String, nome: m['nome'] as String? ?? '—'))
+      .map((m) => (
+            id: (m as Map<String, dynamic>)['id'] as String,
+            nome: m['nome'] as String? ?? '—'
+          ))
       .toList();
 });

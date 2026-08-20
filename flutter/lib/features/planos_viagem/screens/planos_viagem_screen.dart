@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/planos_viagem_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _data = DateFormat('dd/MM/yyyy');
 
@@ -34,7 +36,14 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
     final listaAsync = ref.watch(planosViagemListaProvider(filtros));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Planos de Viagem')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Planos de Viagem')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/planos-viagem/novo'),
         icon: const Icon(Icons.add),
@@ -60,19 +69,23 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 16),
-
         _kpis(kpis),
         const SizedBox(height: 16),
-
         Row(
           children: [
             Expanded(
               child: DropdownButtonFormField<String?>(
                 value: _status,
-                decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                    isDense: true),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Todos os status')),
-                  for (final s in statusPlanoViagem) DropdownMenuItem(value: s, child: Text(statusPlanoViagemLabel[s] ?? s)),
+                  const DropdownMenuItem(
+                      value: null, child: Text('Todos os status')),
+                  for (final s in statusPlanoViagem)
+                    DropdownMenuItem(
+                        value: s, child: Text(statusPlanoViagemLabel[s] ?? s)),
                 ],
                 onChanged: (v) => setState(() => _status = v),
               ),
@@ -81,25 +94,35 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
             Expanded(
               child: TextField(
                 controller: _placaCtrl,
-                decoration: const InputDecoration(labelText: 'Placa', hintText: 'Filtrar placa...', border: OutlineInputBorder(), isDense: true),
-                onSubmitted: (v) => setState(() => _placa = v.trim().isEmpty ? null : v.trim()),
+                decoration: const InputDecoration(
+                    labelText: 'Placa',
+                    hintText: 'Filtrar placa...',
+                    border: OutlineInputBorder(),
+                    isDense: true),
+                onSubmitted: (v) =>
+                    setState(() => _placa = v.trim().isEmpty ? null : v.trim()),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-
         if (lista.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: Text('Nenhum plano de viagem encontrado.', style: TextStyle(color: Colors.grey.shade500))),
+            child: Center(
+                child: Text('Nenhum plano de viagem encontrado.',
+                    style: TextStyle(color: Colors.grey.shade500))),
           )
         else
           ...lista.map(_cardPlano),
-
         if (porVeiculo.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text('DESEMPENHO POR VEÍCULO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade500, letterSpacing: 0.5)),
+          Text('DESEMPENHO POR VEÍCULO',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.5)),
           const SizedBox(height: 10),
           ...porVeiculo.map(_cardVeiculo),
         ],
@@ -114,18 +137,25 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
           children: [
             _indicador('Planos de viagem', '${k.totalPlanos}'),
             const SizedBox(width: 8),
-            _indicador('Orçamento total estimado', _moeda.format(k.orcamentoTotalEstimado)),
+            _indicador('Orçamento total estimado',
+                _moeda.format(k.orcamentoTotalEstimado)),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            _indicador('Custo médio por km', k.custoMedioPorKm > 0 ? '${_moeda.format(k.custoMedioPorKm)}/km' : '—'),
+            _indicador(
+                'Custo médio por km',
+                k.custoMedioPorKm > 0
+                    ? '${_moeda.format(k.custoMedioPorKm)}/km'
+                    : '—'),
             const SizedBox(width: 8),
             _indicador(
               'Margem estimada',
               _moeda.format(k.margemEstimada),
-              destaque: k.margemEstimada >= 0 ? _CorDestaque.positivo : _CorDestaque.negativo,
+              destaque: k.margemEstimada >= 0
+                  ? _CorDestaque.positivo
+                  : _CorDestaque.negativo,
             ),
           ],
         ),
@@ -133,7 +163,8 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
     );
   }
 
-  Widget _indicador(String label, String valor, {_CorDestaque destaque = _CorDestaque.neutro}) {
+  Widget _indicador(String label, String valor,
+      {_CorDestaque destaque = _CorDestaque.neutro}) {
     final cor = switch (destaque) {
       _CorDestaque.positivo => const Color(0xFF15803D),
       _CorDestaque.negativo => const Color(0xFFDC2626),
@@ -142,13 +173,24 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+        decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text(valor, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cor), overflow: TextOverflow.ellipsis),
+            Text(valor,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700, color: cor),
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -161,7 +203,8 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/planos-viagem/${p.id}/editar'),
-        title: Text(p.nome, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+        title: Text(p.nome,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Column(
@@ -175,16 +218,29 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)),
-                    child: Text(statusPlanoViagemLabel[p.status] ?? p.status, style: const TextStyle(fontSize: 10, color: Color(0xFF92400E), fontWeight: FontWeight.w700)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text(statusPlanoViagemLabel[p.status] ?? p.status,
+                        style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF92400E),
+                            fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(width: 8),
-                  Text('${_moeda.format(p.custoTotalEstimado)} est.', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Text('${_moeda.format(p.custoTotalEstimado)} est.',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
                   const Spacer(),
                   Text(
                     'Margem: ${_moeda.format(margem)}',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: margem >= 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: margem >= 0
+                            ? const Color(0xFF15803D)
+                            : const Color(0xFFDC2626)),
                   ),
                 ],
               ),
@@ -205,12 +261,16 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(v.placa, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            Text(v.placa,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             const SizedBox(height: 6),
             _linhaDado('Planos', '${v.planos}'),
-            _linhaDado('KM total', '${v.km.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} km'),
+            _linhaDado('KM total',
+                '${v.km.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} km'),
             _linhaDado('Custo estimado', _moeda.format(v.custo)),
-            _linhaDado('Custo/km', v.km > 0 ? '${_moeda.format(v.custo / v.km)}/km' : '—'),
+            _linhaDado('Custo/km',
+                v.km > 0 ? '${_moeda.format(v.custo / v.km)}/km' : '—'),
           ],
         ),
       ),
@@ -223,8 +283,11 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          Text(valor, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(valor,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );

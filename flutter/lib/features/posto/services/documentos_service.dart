@@ -13,7 +13,10 @@ import '../providers/documentos_provider.dart';
 class DocumentosService {
   final _supabase = SupabaseService.client;
 
-  Future<String?> adicionarSocio({required String empresaId, required String nome, required String cpf}) async {
+  Future<String?> adicionarSocio(
+      {required String empresaId,
+      required String nome,
+      required String cpf}) async {
     final nomeLimpo = nome.trim();
     final cpfDigitos = cpf.replaceAll(RegExp(r'\D'), '');
     if (nomeLimpo.isEmpty) return 'Informe o nome do sócio.';
@@ -34,7 +37,10 @@ class DocumentosService {
 
   Future<String?> removerSocio(String socioId) async {
     try {
-      final docs = await _supabase.from('empresas_documentos').select('storage_path').eq('socio_id', socioId) as List;
+      final docs = await _supabase
+          .from('empresas_documentos')
+          .select('storage_path')
+          .eq('socio_id', socioId) as List;
       for (final d in docs) {
         final path = (d as Map<String, dynamic>)['storage_path'] as String?;
         if (path != null) {
@@ -65,8 +71,10 @@ class DocumentosService {
     }
     final ehDocSocio = tiposDocumentoSocio.contains(tipo);
     final ehDocEmpresa = tiposDocumentoEmpresa.contains(tipo);
-    if (ehDocSocio && socioId == null) return 'Documento de sócio precisa de um sócio selecionado.';
-    if (ehDocEmpresa && socioId != null) return 'Tipo de documento inválido para sócio.';
+    if (ehDocSocio && socioId == null)
+      return 'Documento de sócio precisa de um sócio selecionado.';
+    if (ehDocEmpresa && socioId != null)
+      return 'Tipo de documento inválido para sócio.';
 
     final path = caminhoStorage(empresaId, tipo, socioId, nomeArquivo);
     final email = AuthService().emailAtual;
@@ -78,8 +86,14 @@ class DocumentosService {
             fileOptions: FileOptions(contentType: mimeType, upsert: true),
           );
 
-      var query = _supabase.from('empresas_documentos').select('id').eq('empresa_id', empresaId).eq('tipo', tipo);
-      query = socioId == null ? query.isFilter('socio_id', null) : query.eq('socio_id', socioId);
+      var query = _supabase
+          .from('empresas_documentos')
+          .select('id')
+          .eq('empresa_id', empresaId)
+          .eq('tipo', tipo);
+      query = socioId == null
+          ? query.isFilter('socio_id', null)
+          : query.eq('socio_id', socioId);
       final existente = await query.maybeSingle();
 
       final dados = {
@@ -94,7 +108,10 @@ class DocumentosService {
       };
 
       if (existente != null) {
-        await _supabase.from('empresas_documentos').update(dados).eq('id', existente['id']);
+        await _supabase
+            .from('empresas_documentos')
+            .update(dados)
+            .eq('id', existente['id']);
       } else {
         await _supabase.from('empresas_documentos').insert(dados);
       }
@@ -104,14 +121,18 @@ class DocumentosService {
     }
   }
 
-  Future<String?> removerDocumento(String documentoId, String storagePath) async {
+  Future<String?> removerDocumento(
+      String documentoId, String storagePath) async {
     try {
       try {
         await _supabase.storage.from(documentosBucket).remove([storagePath]);
       } catch (_) {
         // best-effort
       }
-      await _supabase.from('empresas_documentos').delete().eq('id', documentoId);
+      await _supabase
+          .from('empresas_documentos')
+          .delete()
+          .eq('id', documentoId);
       return null;
     } catch (e) {
       return 'Não foi possível remover o documento: $e';
@@ -130,9 +151,12 @@ class DocumentosService {
       return 'Cadastre pelo menos um sócio.';
     }
     for (final s in dados.socios) {
-      if (dados.documentoDe('socio_cpf', socioId: s.id) == null) return 'Envie o CPF de ${s.nome}.';
-      if (dados.documentoDe('socio_identidade', socioId: s.id) == null) return 'Envie o RG ou CNH de ${s.nome}.';
-      if (dados.documentoDe('socio_comprovante_endereco', socioId: s.id) == null) {
+      if (dados.documentoDe('socio_cpf', socioId: s.id) == null)
+        return 'Envie o CPF de ${s.nome}.';
+      if (dados.documentoDe('socio_identidade', socioId: s.id) == null)
+        return 'Envie o RG ou CNH de ${s.nome}.';
+      if (dados.documentoDe('socio_comprovante_endereco', socioId: s.id) ==
+          null) {
         return 'Envie o comprovante de endereço de ${s.nome}.';
       }
     }

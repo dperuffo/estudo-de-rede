@@ -23,8 +23,13 @@ class PrecoPostoParceiro {
   final double preco;
   final String? atualizadoEm;
   final String? atualizadoPor;
-  const PrecoPostoParceiro({required this.combustivel, required this.preco, this.atualizadoEm, this.atualizadoPor});
-  factory PrecoPostoParceiro.fromMap(Map<String, dynamic> m) => PrecoPostoParceiro(
+  const PrecoPostoParceiro(
+      {required this.combustivel,
+      required this.preco,
+      this.atualizadoEm,
+      this.atualizadoPor});
+  factory PrecoPostoParceiro.fromMap(Map<String, dynamic> m) =>
+      PrecoPostoParceiro(
         combustivel: m['combustivel'] as String,
         preco: (m['preco'] as num).toDouble(),
         atualizadoEm: m['atualizado_em'] as String?,
@@ -36,10 +41,12 @@ class PostoComPrecos {
   final String idPosto;
   final String nome;
   final List<PrecoPostoParceiro> precos;
-  const PostoComPrecos({required this.idPosto, required this.nome, required this.precos});
+  const PostoComPrecos(
+      {required this.idPosto, required this.nome, required this.precos});
 }
 
-final precosPostosParceirosProvider = FutureProvider.autoDispose<List<PostoComPrecos>>((ref) async {
+final precosPostosParceirosProvider =
+    FutureProvider.autoDispose<List<PostoComPrecos>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -55,14 +62,16 @@ final precosPostosParceirosProvider = FutureProvider.autoDispose<List<PostoComPr
   for (final n in negociacoes) {
     final m = n as Map<String, dynamic>;
     final idPosto = m['empresa_posto_id'] as String?;
-    if (idPosto != null) postosMap[idPosto] = m['posto_nome'] as String? ?? 'Posto';
+    if (idPosto != null)
+      postosMap[idPosto] = m['posto_nome'] as String? ?? 'Posto';
   }
   final idsPostos = postosMap.keys.toList();
   if (idsPostos.isEmpty) return [];
 
   final precosRows = await supabase
       .from('precos_postos')
-      .select('empresa_posto_id, combustivel, preco, atualizado_em, atualizado_por')
+      .select(
+          'empresa_posto_id, combustivel, preco, atualizado_em, atualizado_por')
       .inFilter('empresa_posto_id', idsPostos)
       .order('combustivel', ascending: true) as List;
 
@@ -73,5 +82,8 @@ final precosPostosParceirosProvider = FutureProvider.autoDispose<List<PostoComPr
     porPosto.putIfAbsent(idPosto, () => []).add(PrecoPostoParceiro.fromMap(m));
   }
 
-  return idsPostos.map((id) => PostoComPrecos(idPosto: id, nome: postosMap[id]!, precos: porPosto[id] ?? [])).toList();
+  return idsPostos
+      .map((id) => PostoComPrecos(
+          idPosto: id, nome: postosMap[id]!, precos: porPosto[id] ?? []))
+      .toList();
 });

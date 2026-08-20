@@ -14,7 +14,8 @@ class AgendamentoPatio {
   final String? doca;
   final DateTime janelaInicio;
   final DateTime janelaFim;
-  final String status; // 'agendado' | 'confirmado' | 'em_andamento' | 'concluido' | 'cancelado'
+  final String
+      status; // 'agendado' | 'confirmado' | 'em_andamento' | 'concluido' | 'cancelado'
   final String? observacoes;
   final String freteId;
   final String? freteTitulo;
@@ -62,16 +63,21 @@ const labelTipoAgendamentoPatio = <String, String>{
 
 // Usado dentro da tela de detalhe do frete: no máximo 2 linhas (1 coleta +
 // 1 entrega).
-final agendamentosPatioFreteProvider = FutureProvider.autoDispose.family<List<AgendamentoPatio>, String>((ref, freteId) async {
+final agendamentosPatioFreteProvider = FutureProvider.autoDispose
+    .family<List<AgendamentoPatio>, String>((ref, freteId) async {
   final rows = await SupabaseService.client
       .from('agendamentos_patio')
-      .select('id, tipo, doca, janela_inicio, janela_fim, status, observacoes, frete_id')
+      .select(
+          'id, tipo, doca, janela_inicio, janela_fim, status, observacoes, frete_id')
       .eq('frete_id', freteId);
-  return (rows as List).map((r) => AgendamentoPatio.fromMap(r as Map<String, dynamic>)).toList();
+  return (rows as List)
+      .map((r) => AgendamentoPatio.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Usado na agenda do dia: todos os agendamentos da empresa numa data.
-final agendamentosPatioDiaProvider = FutureProvider.autoDispose.family<List<AgendamentoPatio>, DateTime>((ref, dia) async {
+final agendamentosPatioDiaProvider = FutureProvider.autoDispose
+    .family<List<AgendamentoPatio>, DateTime>((ref, dia) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -81,10 +87,13 @@ final agendamentosPatioDiaProvider = FutureProvider.autoDispose.family<List<Agen
 
   final rows = await SupabaseService.client
       .from('agendamentos_patio')
-      .select('id, tipo, doca, janela_inicio, janela_fim, status, observacoes, frete_id, fretes(titulo)')
+      .select(
+          'id, tipo, doca, janela_inicio, janela_fim, status, observacoes, frete_id, fretes(titulo)')
       .eq('empresa_id', empresaId)
       .gte('janela_inicio', inicioDia.toIso8601String())
       .lt('janela_inicio', fimDia.toIso8601String())
       .order('janela_inicio');
-  return (rows as List).map((r) => AgendamentoPatio.fromMap(r as Map<String, dynamic>)).toList();
+  return (rows as List)
+      .map((r) => AgendamentoPatio.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

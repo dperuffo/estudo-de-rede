@@ -34,7 +34,8 @@ class MapaVeiculos extends StatelessWidget {
   Widget build(BuildContext context) {
     if (posicoes.isEmpty) return const SizedBox.shrink();
 
-    final bounds = LatLngBounds.fromPoints(posicoes.map((p) => ll.LatLng(p.lat, p.lon)).toList());
+    final bounds = LatLngBounds.fromPoints(
+        posicoes.map((p) => ll.LatLng(p.lat, p.lon)).toList());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +46,8 @@ class MapaVeiculos extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: FlutterMap(
               options: MapOptions(
-                initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(32)),
+                initialCameraFit: CameraFit.bounds(
+                    bounds: bounds, padding: const EdgeInsets.all(32)),
                 minZoom: 2,
                 maxZoom: 18,
               ),
@@ -69,9 +71,12 @@ class MapaVeiculos extends StatelessWidget {
                             shape: BoxShape.circle,
                             color: cor,
                             border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black38, blurRadius: 3)
+                            ],
                           ),
-                          child: const Icon(Icons.local_shipping, color: Colors.white, size: 14),
+                          child: const Icon(Icons.local_shipping,
+                              color: Colors.white, size: 14),
                         ),
                       ),
                     );
@@ -101,9 +106,13 @@ class MapaVeiculos extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: cor)),
+        Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: cor)),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
       ],
     );
   }

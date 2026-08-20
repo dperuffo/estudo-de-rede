@@ -14,9 +14,11 @@ import '../../../core/services/supabase_service.dart';
 // não replicamos em código porque, pro escopo desta tela (só mostra/edita
 // a Rede da PRÓPRIA empresa atual, nunca por id arbitrário digitado), não
 // há como o usuário tentar mexer na Rede de outro grupo por esta UI.
-Future<String?> _exigirDocumentacaoAprovada(String empresaId, String contexto) async {
-  final linhas = await SupabaseService.client
-      .rpc('status_documentacao_empresa_publico', params: {'p_empresa_id': empresaId}) as List;
+Future<String?> _exigirDocumentacaoAprovada(
+    String empresaId, String contexto) async {
+  final linhas = await SupabaseService.client.rpc(
+      'status_documentacao_empresa_publico',
+      params: {'p_empresa_id': empresaId}) as List;
   if (linhas.isEmpty) return 'Empresa não encontrada.';
   final empresa = linhas.first as Map<String, dynamic>;
   if (empresa['documentacao_status'] == 'aprovada') return null;
@@ -41,10 +43,13 @@ class RedePostosService {
     final nomeTrim = nome.trim();
     if (nomeTrim.isEmpty) return (id: null, erro: 'Nome é obrigatório.');
 
-    final erroDoc = await _exigirDocumentacaoAprovada(empresaId, 'Criar uma Rede de Postos');
+    final erroDoc = await _exigirDocumentacaoAprovada(
+        empresaId, 'Criar uma Rede de Postos');
     if (erroDoc != null) return (id: null, erro: erroDoc);
 
-    final cnpjLimpo = (cnpjMatriz == null || cnpjMatriz.trim().isEmpty) ? null : cnpjMatriz.trim();
+    final cnpjLimpo = (cnpjMatriz == null || cnpjMatriz.trim().isEmpty)
+        ? null
+        : cnpjMatriz.trim();
 
     final Map<String, dynamic> resultado;
     try {
@@ -58,7 +63,10 @@ class RedePostosService {
     }
 
     if (resultado['ok'] != true) {
-      return (id: null, erro: resultado['erro'] as String? ?? 'Não foi possível salvar.');
+      return (
+        id: null,
+        erro: resultado['erro'] as String? ?? 'Não foi possível salvar.'
+      );
     }
     return (id: resultado['id'] as String, erro: null);
   }
@@ -74,7 +82,9 @@ class RedePostosService {
     try {
       await _supabase.from('grupos_economicos').update({
         'nome': nomeTrim,
-        'cnpj_matriz': (cnpjMatriz == null || cnpjMatriz.trim().isEmpty) ? null : cnpjMatriz.trim(),
+        'cnpj_matriz': (cnpjMatriz == null || cnpjMatriz.trim().isEmpty)
+            ? null
+            : cnpjMatriz.trim(),
         'ativo': ativo,
         'atualizado_em': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', redeId);
@@ -84,8 +94,10 @@ class RedePostosService {
     }
   }
 
-  Future<String?> vincularPosto({required String redeId, required String empresaId}) async {
-    final erroDoc = await _exigirDocumentacaoAprovada(empresaId, 'Vincular esta empresa a um grupo');
+  Future<String?> vincularPosto(
+      {required String redeId, required String empresaId}) async {
+    final erroDoc = await _exigirDocumentacaoAprovada(
+        empresaId, 'Vincular esta empresa a um grupo');
     if (erroDoc != null) return erroDoc;
     try {
       await _supabase.from('grupos_economicos_empresas').insert({
@@ -100,7 +112,10 @@ class RedePostosService {
 
   Future<String?> desvincularPosto({required String vinculoId}) async {
     try {
-      await _supabase.from('grupos_economicos_empresas').delete().eq('id', vinculoId);
+      await _supabase
+          .from('grupos_economicos_empresas')
+          .delete()
+          .eq('id', vinculoId);
       return null;
     } on PostgrestException catch (e) {
       return e.message;

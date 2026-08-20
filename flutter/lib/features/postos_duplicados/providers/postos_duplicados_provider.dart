@@ -18,7 +18,12 @@ class CandidatoDuplicata {
   final String? cnpj;
   final String? municipio;
   final String? uf;
-  const CandidatoDuplicata({required this.fonte, this.razaoSocial, this.cnpj, this.municipio, this.uf});
+  const CandidatoDuplicata(
+      {required this.fonte,
+      this.razaoSocial,
+      this.cnpj,
+      this.municipio,
+      this.uf});
 }
 
 class PossivelDuplicata {
@@ -39,7 +44,8 @@ class PossivelDuplicata {
   });
 }
 
-final postosDuplicadosProvider = FutureProvider.autoDispose<List<PossivelDuplicata>>((ref) async {
+final postosDuplicadosProvider =
+    FutureProvider.autoDispose<List<PossivelDuplicata>>((ref) async {
   final supabase = SupabaseService.client;
 
   final pendentes = await supabase

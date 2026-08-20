@@ -56,7 +56,8 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
   Future<void> _salvar() async {
     final empresaId = ref.read(sessaoProvider).valueOrNull?.empresaId;
     if (empresaId == null) {
-      setState(() => _erro = 'Não foi possível identificar seu posto na sessão atual.');
+      setState(() =>
+          _erro = 'Não foi possível identificar seu posto na sessão atual.');
       return;
     }
     setState(() {
@@ -90,12 +91,15 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
       data: (precos) {
         _preencher(precos);
         final auditoria = {for (final p in precos) p.combustivel: p};
-        final empresaId = ref.watch(sessaoProvider).maybeWhen(data: (s) => s.empresaId, orElse: () => null);
+        final empresaId = ref
+            .watch(sessaoProvider)
+            .maybeWhen(data: (s) => s.empresaId, orElse: () => null);
 
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text('Meus Preços', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Meus Preços',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             const Text(
               'Preço por combustível que você fornece — visível aos clientes com quem você negocia. '
@@ -115,25 +119,35 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
             if (_erro != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Text(_erro!,
+                    style: const TextStyle(
+                        color: Color(0xFFB91C1C), fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
             if (_sucesso) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(8)),
-                child: const Text('Preços salvos.', style: TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Text('Preços salvos.',
+                    style: TextStyle(color: Color(0xFF15803D), fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
             for (final produto in produtosPosto) ...[
               TextField(
                 controller: _controllers[produto],
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: '$produto (R\$/L)',
                   border: const OutlineInputBorder(),
@@ -157,7 +171,10 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
               child: ElevatedButton(
                 onPressed: _salvando ? null : _salvar,
                 child: _salvando
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Text('Salvar preços'),
               ),
             ),

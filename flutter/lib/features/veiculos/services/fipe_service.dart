@@ -21,7 +21,8 @@ class FipeOpcao {
   final String code;
   final String name;
   const FipeOpcao({required this.code, required this.name});
-  factory FipeOpcao.fromMap(Map<String, dynamic> m) => FipeOpcao(code: m['code'] as String, name: m['name'] as String);
+  factory FipeOpcao.fromMap(Map<String, dynamic> m) =>
+      FipeOpcao(code: m['code'] as String, name: m['name'] as String);
 }
 
 class FipePreco {
@@ -46,51 +47,83 @@ class FipePreco {
 
 class FipeHistoricoItem {
   final String price, month, reference;
-  const FipeHistoricoItem({required this.price, required this.month, required this.reference});
+  const FipeHistoricoItem(
+      {required this.price, required this.month, required this.reference});
   factory FipeHistoricoItem.fromMap(Map<String, dynamic> m) =>
-      FipeHistoricoItem(price: m['price'] as String, month: m['month'] as String, reference: m['reference'] as String);
+      FipeHistoricoItem(
+          price: m['price'] as String,
+          month: m['month'] as String,
+          reference: m['reference'] as String);
 }
 
 // "R$ 119.329,00" → 119329.00
 double parsePrecoFipe(String texto) {
-  final limpo = texto.replaceAll(RegExp(r'[^\d,.-]'), '').replaceAll('.', '').replaceAll(',', '.');
+  final limpo = texto
+      .replaceAll(RegExp(r'[^\d,.-]'), '')
+      .replaceAll('.', '')
+      .replaceAll(',', '.');
   return double.tryParse(limpo) ?? 0;
 }
 
 const _baseUrlFipe = 'https://fipe.parallelum.com.br/api/v2';
 final _dio = Dio();
 
-Options _opcoesFipe() => Options(sendTimeout: const Duration(seconds: 15), receiveTimeout: const Duration(seconds: 15));
+Options _opcoesFipe() => Options(
+    sendTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 15));
 
 Future<List<FipeOpcao>> listarMarcasFipe(TipoVeiculoFipe tipo) async {
-  final resp = await _dio.get('$_baseUrlFipe/$tipo/brands', options: _opcoesFipe());
-  return (resp.data as List).map((e) => FipeOpcao.fromMap(e as Map<String, dynamic>)).toList();
+  final resp =
+      await _dio.get('$_baseUrlFipe/$tipo/brands', options: _opcoesFipe());
+  return (resp.data as List)
+      .map((e) => FipeOpcao.fromMap(e as Map<String, dynamic>))
+      .toList();
 }
 
-Future<List<FipeOpcao>> listarModelosFipe(TipoVeiculoFipe tipo, String marcaCode) async {
-  final resp = await _dio.get('$_baseUrlFipe/$tipo/brands/$marcaCode/models', options: _opcoesFipe());
-  return (resp.data as List).map((e) => FipeOpcao.fromMap(e as Map<String, dynamic>)).toList();
+Future<List<FipeOpcao>> listarModelosFipe(
+    TipoVeiculoFipe tipo, String marcaCode) async {
+  final resp = await _dio.get('$_baseUrlFipe/$tipo/brands/$marcaCode/models',
+      options: _opcoesFipe());
+  return (resp.data as List)
+      .map((e) => FipeOpcao.fromMap(e as Map<String, dynamic>))
+      .toList();
 }
 
-Future<List<FipeOpcao>> listarAnosFipe(TipoVeiculoFipe tipo, String marcaCode, String modeloCode) async {
-  final resp = await _dio.get('$_baseUrlFipe/$tipo/brands/$marcaCode/models/$modeloCode/years', options: _opcoesFipe());
-  return (resp.data as List).map((e) => FipeOpcao.fromMap(e as Map<String, dynamic>)).toList();
+Future<List<FipeOpcao>> listarAnosFipe(
+    TipoVeiculoFipe tipo, String marcaCode, String modeloCode) async {
+  final resp = await _dio.get(
+      '$_baseUrlFipe/$tipo/brands/$marcaCode/models/$modeloCode/years',
+      options: _opcoesFipe());
+  return (resp.data as List)
+      .map((e) => FipeOpcao.fromMap(e as Map<String, dynamic>))
+      .toList();
 }
 
-Future<FipePreco> buscarPrecoFipe(TipoVeiculoFipe tipo, String marcaCode, String modeloCode, String anoCode) async {
-  final resp = await _dio.get('$_baseUrlFipe/$tipo/brands/$marcaCode/models/$modeloCode/years/$anoCode', options: _opcoesFipe());
+Future<FipePreco> buscarPrecoFipe(TipoVeiculoFipe tipo, String marcaCode,
+    String modeloCode, String anoCode) async {
+  final resp = await _dio.get(
+      '$_baseUrlFipe/$tipo/brands/$marcaCode/models/$modeloCode/years/$anoCode',
+      options: _opcoesFipe());
   return FipePreco.fromMap(resp.data as Map<String, dynamic>);
 }
 
-Future<FipePreco> buscarPrecoFipePorCodigo(TipoVeiculoFipe tipo, String codigoFipe, String anoCode) async {
-  final resp = await _dio.get('$_baseUrlFipe/$tipo/$codigoFipe/years/$anoCode', options: _opcoesFipe());
+Future<FipePreco> buscarPrecoFipePorCodigo(
+    TipoVeiculoFipe tipo, String codigoFipe, String anoCode) async {
+  final resp = await _dio.get('$_baseUrlFipe/$tipo/$codigoFipe/years/$anoCode',
+      options: _opcoesFipe());
   return FipePreco.fromMap(resp.data as Map<String, dynamic>);
 }
 
-Future<List<FipeHistoricoItem>> buscarHistoricoFipe(TipoVeiculoFipe tipo, String codigoFipe, String anoCode) async {
-  final resp = await _dio.get('$_baseUrlFipe/$tipo/$codigoFipe/years/$anoCode/history', options: _opcoesFipe());
-  final lista = (resp.data as Map<String, dynamic>)['priceHistory'] as List? ?? [];
-  return lista.map((e) => FipeHistoricoItem.fromMap(e as Map<String, dynamic>)).toList();
+Future<List<FipeHistoricoItem>> buscarHistoricoFipe(
+    TipoVeiculoFipe tipo, String codigoFipe, String anoCode) async {
+  final resp = await _dio.get(
+      '$_baseUrlFipe/$tipo/$codigoFipe/years/$anoCode/history',
+      options: _opcoesFipe());
+  final lista =
+      (resp.data as Map<String, dynamic>)['priceHistory'] as List? ?? [];
+  return lista
+      .map((e) => FipeHistoricoItem.fromMap(e as Map<String, dynamic>))
+      .toList();
 }
 
 // Vincula o veículo + backfill de histórico (best-effort) + custo de
@@ -107,7 +140,11 @@ class FipeVinculoService {
     required String anoCode,
   }) async {
     try {
-      final veiculo = await _supabase.from('cadastro_veiculos').select('cnpj_frota, placa').eq('id', veiculoId).maybeSingle();
+      final veiculo = await _supabase
+          .from('cadastro_veiculos')
+          .select('cnpj_frota, placa')
+          .eq('id', veiculoId)
+          .maybeSingle();
       final cnpjFrota = veiculo?['cnpj_frota'] as String?;
       final placa = veiculo?['placa'] as String?;
       if (cnpjFrota == null || placa == null) return 'Veículo não encontrado.';
@@ -125,7 +162,8 @@ class FipeVinculoService {
       }).eq('id', veiculoId);
 
       try {
-        final historico = await buscarHistoricoFipe(tipo, preco.codeFipe, anoCode);
+        final historico =
+            await buscarHistoricoFipe(tipo, preco.codeFipe, anoCode);
         await _gravarHistorico(
           veiculoId: veiculoId,
           cnpjFrota: cnpjFrota,
@@ -146,7 +184,8 @@ class FipeVinculoService {
     try {
       final veiculo = await _supabase
           .from('cadastro_veiculos')
-          .select('cnpj_frota, placa, codigo_fipe, fipe_tipo_veiculo, fipe_ano_codigo')
+          .select(
+              'cnpj_frota, placa, codigo_fipe, fipe_tipo_veiculo, fipe_ano_codigo')
           .eq('id', veiculoId)
           .maybeSingle();
       final cnpjFrota = veiculo?['cnpj_frota'] as String?;
@@ -154,7 +193,11 @@ class FipeVinculoService {
       final codigoFipe = veiculo?['codigo_fipe'] as String?;
       final tipo = veiculo?['fipe_tipo_veiculo'] as String?;
       final anoCode = veiculo?['fipe_ano_codigo'] as String?;
-      if (cnpjFrota == null || placa == null || codigoFipe == null || tipo == null || anoCode == null) {
+      if (cnpjFrota == null ||
+          placa == null ||
+          codigoFipe == null ||
+          tipo == null ||
+          anoCode == null) {
         return 'Este veículo ainda não está vinculado a um código FIPE.';
       }
 
@@ -169,7 +212,12 @@ class FipeVinculoService {
 
       try {
         final historico = await buscarHistoricoFipe(tipo, codigoFipe, anoCode);
-        await _gravarHistorico(veiculoId: veiculoId, cnpjFrota: cnpjFrota, placa: placa, codigoFipe: codigoFipe, historico: historico);
+        await _gravarHistorico(
+            veiculoId: veiculoId,
+            cnpjFrota: cnpjFrota,
+            placa: placa,
+            codigoFipe: codigoFipe,
+            historico: historico);
       } catch (_) {
         // best-effort — o valor atual já foi salvo.
       }
@@ -188,18 +236,18 @@ class FipeVinculoService {
   }) async {
     if (historico.isEmpty) return;
     await _supabase.from('cadastro_veiculos_fipe_historico').upsert(
-      historico
-          .map((item) => {
-                'cadastro_veiculo_id': veiculoId,
-                'cnpj_frota': cnpjFrota,
-                'placa': placa,
-                'codigo_fipe': codigoFipe,
-                'mes_referencia': item.month,
-                'referencia_codigo': int.tryParse(item.reference),
-                'valor': parsePrecoFipe(item.price),
-              })
-          .toList(),
-      onConflict: 'cadastro_veiculo_id,mes_referencia',
-    );
+          historico
+              .map((item) => {
+                    'cadastro_veiculo_id': veiculoId,
+                    'cnpj_frota': cnpjFrota,
+                    'placa': placa,
+                    'codigo_fipe': codigoFipe,
+                    'mes_referencia': item.month,
+                    'referencia_codigo': int.tryParse(item.reference),
+                    'valor': parsePrecoFipe(item.price),
+                  })
+              .toList(),
+          onConflict: 'cadastro_veiculo_id,mes_referencia',
+        );
   }
 }

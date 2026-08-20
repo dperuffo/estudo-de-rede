@@ -18,7 +18,8 @@ class ParceriasLocaisService {
   String _caminhoImagem(String empresaId, String nomeOriginal) {
     final ponto = nomeOriginal.lastIndexOf('.');
     final ext = ponto >= 0 ? nomeOriginal.substring(ponto) : '';
-    var base = (ponto >= 0 ? nomeOriginal.substring(0, ponto) : nomeOriginal).toLowerCase();
+    var base = (ponto >= 0 ? nomeOriginal.substring(0, ponto) : nomeOriginal)
+        .toLowerCase();
     base = base.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
     if (base.length > 40) base = base.substring(0, 40);
     final agora = DateTime.now().millisecondsSinceEpoch;
@@ -34,10 +35,12 @@ class ParceriasLocaisService {
       throw Exception('Imagem grande demais (máximo 3 MB).');
     }
     final caminho = _caminhoImagem(empresaId, nomeArquivo);
-    await _supabase.storage
+    await _supabase.storage.from(bucketFidelidadeImagens).uploadBinary(
+        caminho, bytes,
+        fileOptions: const FileOptions(upsert: true));
+    return _supabase.storage
         .from(bucketFidelidadeImagens)
-        .uploadBinary(caminho, bytes, fileOptions: const FileOptions(upsert: true));
-    return _supabase.storage.from(bucketFidelidadeImagens).getPublicUrl(caminho);
+        .getPublicUrl(caminho);
   }
 
   Future<void> criar({
@@ -51,13 +54,15 @@ class ParceriasLocaisService {
     String? imagemUrl,
   }) async {
     if (titulo.trim().isEmpty) throw Exception('O título é obrigatório.');
-    if (pontosNecessarios <= 0) throw Exception('Pontos necessários precisa ser maior que zero.');
+    if (pontosNecessarios <= 0)
+      throw Exception('Pontos necessários precisa ser maior que zero.');
 
     await _supabase.from('fidelidade_catalogo_itens').insert({
       'categoria': categoria,
       'titulo': titulo.trim(),
       'descricao': descricao?.trim().isEmpty == true ? null : descricao?.trim(),
-      'parceiro_nome': parceiroNome?.trim().isEmpty == true ? null : parceiroNome?.trim(),
+      'parceiro_nome':
+          parceiroNome?.trim().isEmpty == true ? null : parceiroNome?.trim(),
       'pontos_necessarios': pontosNecessarios,
       'criador_empresa_id': empresaId,
       'imagem_url': imagemUrl,
@@ -77,13 +82,15 @@ class ParceriasLocaisService {
     String? imagemUrl,
   }) async {
     if (titulo.trim().isEmpty) throw Exception('O título é obrigatório.');
-    if (pontosNecessarios <= 0) throw Exception('Pontos necessários precisa ser maior que zero.');
+    if (pontosNecessarios <= 0)
+      throw Exception('Pontos necessários precisa ser maior que zero.');
 
     final linha = <String, dynamic>{
       'categoria': categoria,
       'titulo': titulo.trim(),
       'descricao': descricao?.trim().isEmpty == true ? null : descricao?.trim(),
-      'parceiro_nome': parceiroNome?.trim().isEmpty == true ? null : parceiroNome?.trim(),
+      'parceiro_nome':
+          parceiroNome?.trim().isEmpty == true ? null : parceiroNome?.trim(),
       'pontos_necessarios': pontosNecessarios,
       'validade_dias': validadeDias,
       'ativo': ativo,
@@ -91,13 +98,17 @@ class ParceriasLocaisService {
     };
     if (imagemUrl != null) linha['imagem_url'] = imagemUrl;
 
-    await _supabase.from('fidelidade_catalogo_itens').update(linha).eq('id', id);
+    await _supabase
+        .from('fidelidade_catalogo_itens')
+        .update(linha)
+        .eq('id', id);
   }
 
   Future<void> alternarAtivo(String id, bool ativo) async {
-    await _supabase
-        .from('fidelidade_catalogo_itens')
-        .update({'ativo': ativo, 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', id);
+    await _supabase.from('fidelidade_catalogo_itens').update({
+      'ativo': ativo,
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   Future<void> excluir(String id) async {
@@ -108,9 +119,10 @@ class ParceriasLocaisService {
 
   Future<void> atualizarStatusResgate(String id, String status) async {
     if (!statusResgateProprio.contains(status)) return;
-    await _supabase
-        .from('fidelidade_resgates')
-        .update({'status': status, 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', id);
+    await _supabase.from('fidelidade_resgates').update({
+      'status': status,
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   // Queima do voucher — exige o código exibido no app do motorista, mesma
@@ -121,16 +133,19 @@ class ParceriasLocaisService {
     required String codigo,
   }) async {
     final codigoNormalizado = codigo.trim().toUpperCase();
-    if (codigoNormalizado.isEmpty) throw Exception('Digite o código do voucher.');
+    if (codigoNormalizado.isEmpty)
+      throw Exception('Digite o código do voucher.');
 
     final resgate = await _supabase
         .from('fidelidade_resgates')
-        .select('id, titulo, status, valido_ate, item_id, motoristas(nome_completo)')
+        .select(
+            'id, titulo, status, valido_ate, item_id, motoristas(nome_completo)')
         .eq('numero_voucher', codigoNormalizado)
         .maybeSingle();
 
     if (resgate == null) {
-      throw Exception('Voucher não encontrado. Confira o código com o motorista.');
+      throw Exception(
+          'Voucher não encontrado. Confira o código com o motorista.');
     }
 
     final item = await _supabase
@@ -140,21 +155,24 @@ class ParceriasLocaisService {
         .maybeSingle();
 
     if (item == null || item['criador_empresa_id'] != empresaId) {
-      throw Exception('Esse voucher não pertence a um benefício desta empresa.');
+      throw Exception(
+          'Esse voucher não pertence a um benefício desta empresa.');
     }
-    if (resgate['status'] == 'concluido') throw Exception('Esse voucher já foi queimado antes.');
+    if (resgate['status'] == 'concluido')
+      throw Exception('Esse voucher já foi queimado antes.');
     if (resgate['status'] == 'cancelado') {
       throw Exception('Esse voucher foi cancelado — não pode ser queimado.');
     }
     final validoAte = resgate['valido_ate'] as String?;
-    if (validoAte != null && DateTime.parse(validoAte).isBefore(DateTime.now())) {
+    if (validoAte != null &&
+        DateTime.parse(validoAte).isBefore(DateTime.now())) {
       throw Exception('Esse voucher venceu em ${_formatarData(validoAte)}.');
     }
 
-    await _supabase
-        .from('fidelidade_resgates')
-        .update({'status': 'concluido', 'atualizado_em': DateTime.now().toIso8601String()}).eq(
-            'id', resgate['id'] as String);
+    await _supabase.from('fidelidade_resgates').update({
+      'status': 'concluido',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', resgate['id'] as String);
 
     final motoristaMap = resgate['motoristas'] as Map<String, dynamic>?;
     return (

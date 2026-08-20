@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+
 // Fase FLT-1 — placeholder genérico pras telas da visão Posto que ainda vão
 // ser construídas de verdade na Fase FLT-2 (uma de cada vez — ver tarefa
 // "PWA Flutter — Fase FLT-2" na lista de tarefas). Existe pra já deixar a
@@ -12,7 +14,14 @@ class EmConstrucaoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: Text(titulo)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

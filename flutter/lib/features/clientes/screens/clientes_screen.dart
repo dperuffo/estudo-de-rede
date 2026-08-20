@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/cliente_cadastro_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 String _formatarCnpj(String? cnpj) {
   if (cnpj == null || cnpj.isEmpty) return '—';
   final d = cnpj.replaceAll(RegExp(r'\D'), '');
@@ -20,12 +22,20 @@ class ClientesScreen extends ConsumerWidget {
     final async = ref.watch(clienteCadastroProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Clientes')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Clientes')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (c) {
-          if (c == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+          if (c == null)
+            return const Center(child: Text('Nenhuma empresa selecionada.'));
           return _buildConteudo(c);
         },
       ),
@@ -41,7 +51,8 @@ class ClientesScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Cadastro da sua empresa na plataforma.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+        const Text('Cadastro da sua empresa na plataforma.',
+            style: TextStyle(color: Colors.grey, fontSize: 13)),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -53,22 +64,32 @@ class ClientesScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(c.nome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      child: Text(c.nome,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: corStatus.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: corStatus.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12)),
                       child: Text(statusEmpresaLabel[c.status] ?? c.status,
-                          style: TextStyle(fontSize: 11, color: corStatus, fontWeight: FontWeight.w600)),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: corStatus,
+                              fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 _linha('CNPJ', _formatarCnpj(c.cnpj)),
-                _linha('Cidade/UF', c.municipio == null ? '—' : '${c.municipio}/${c.uf ?? ''}'),
+                _linha('Cidade/UF',
+                    c.municipio == null ? '—' : '${c.municipio}/${c.uf ?? ''}'),
                 _linha('Segmento', c.segmentoTransporte),
                 _linha('Porte', c.porte),
-                _linha('Plano', c.plano == null ? '—' : (planoLabel[c.plano] ?? c.plano!)),
+                _linha('Plano',
+                    c.plano == null ? '—' : (planoLabel[c.plano] ?? c.plano!)),
                 _linha('Limite de veículos', c.maxVeiculos?.toString()),
                 _linha('Limite de usuários', c.maxUsuarios?.toString()),
                 _linha('Telefone de contato', c.telefoneContato),
@@ -92,8 +113,13 @@ class ClientesScreen extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 150, child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey))),
-          Expanded(child: Text((valor == null || valor.isEmpty) ? '—' : valor, style: const TextStyle(fontSize: 13))),
+          SizedBox(
+              width: 150,
+              child: Text(label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey))),
+          Expanded(
+              child: Text((valor == null || valor.isEmpty) ? '—' : valor,
+                  style: const TextStyle(fontSize: 13))),
         ],
       ),
     );

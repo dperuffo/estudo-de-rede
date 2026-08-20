@@ -10,7 +10,8 @@ import '../../features/assinatura/screens/assinatura_cliente_screen.dart';
 import '../../features/avaliacao/screens/avaliacao_screen.dart';
 import '../../features/financeiro/screens/financeiro_screen.dart';
 import '../../features/financeiro/screens/fatura_detalhe_screen.dart';
-import '../../features/financeiro/screens/ciclo_aberto_detalhe_screen.dart' show CicloAbertoClienteDetalheScreen;
+import '../../features/financeiro/screens/ciclo_aberto_detalhe_screen.dart'
+    show CicloAbertoClienteDetalheScreen;
 import '../../features/financeiro/screens/posto_cobranca_detalhe_screen.dart';
 import '../../features/inteligencia_rede/screens/inteligencia_rede_screen.dart';
 import '../../features/posto/screens/posto_home_screen.dart';
@@ -97,7 +98,8 @@ import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
 import '../../features/planos_viagem/screens/planos_viagem_screen.dart';
 import '../../features/planos_viagem/screens/plano_viagem_novo_screen.dart';
 import '../../features/planos_viagem/screens/plano_viagem_editar_screen.dart';
-import '../../features/planos_viagem/providers/planos_viagem_provider.dart' show PrefillPlanoViagem;
+import '../../features/planos_viagem/providers/planos_viagem_provider.dart'
+    show PrefillPlanoViagem;
 import '../../features/negociacoes/screens/negociacoes_screen.dart';
 import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
 import '../../features/negociacoes/screens/criar_negociacao_screen.dart';
@@ -164,7 +166,8 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         if (loc == '/login') return '/';
 
         // Camada 2 — MFA.
-        final precisaMfa = await AuthService().precisaConfigurarOuVerificarMfa();
+        final precisaMfa =
+            await AuthService().precisaConfigurarOuVerificarMfa();
         if (precisaMfa) {
           return loc == '/mfa-pendente' ? null : '/mfa-pendente';
         }
@@ -209,7 +212,8 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         // (fail-open); o destino do redirect (`/` ou `/posto`) está em
         // `rotasNuncaBloqueadas`, então não tem como entrar em loop.
         if (!ehBypassPermissao(sessao.perfil, sessao.email)) {
-          final mapa = await ref.read(permissoesMapaProvider(sessao.perfil).future);
+          final mapa =
+              await ref.read(permissoesMapaProvider(sessao.perfil).future);
           if (!temAcesso(mapa, resolverFuncionalidadeDaRota(loc))) {
             return sessao.ehPosto ? '/posto' : '/';
           }
@@ -219,8 +223,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
       },
       routes: [
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-        GoRoute(path: '/mfa-pendente', builder: (_, __) => const MfaPendenteScreen()),
-        GoRoute(path: '/selecionar-empresa', builder: (_, __) => const SelecionarEmpresaScreen()),
+        GoRoute(
+            path: '/mfa-pendente',
+            builder: (_, __) => const MfaPendenteScreen()),
+        GoRoute(
+            path: '/selecionar-empresa',
+            builder: (_, __) => const SelecionarEmpresaScreen()),
 
         // Fase FLT-3 — shell da visão Cliente, reescrito do zero (ver
         // comentário completo em home_screen.dart: as 18 telas antigas
@@ -233,19 +241,29 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
           builder: (c, s, child) => HomeScreen(child: child),
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DashboardScreen()),
-            GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-            GoRoute(path: '/assistente', builder: (_, __) => const AssistenteClienteScreen()),
-            GoRoute(path: '/assinatura', builder: (_, __) => const AssinaturaClienteScreen()),
-            GoRoute(path: '/avaliar', builder: (_, __) => const AvaliacaoScreen()),
-            GoRoute(path: '/financeiro', builder: (_, __) => const FinanceiroScreen()),
+            GoRoute(
+                path: '/dashboard',
+                builder: (_, __) => const DashboardScreen()),
+            GoRoute(
+                path: '/assistente',
+                builder: (_, __) => const AssistenteClienteScreen()),
+            GoRoute(
+                path: '/assinatura',
+                builder: (_, __) => const AssinaturaClienteScreen()),
+            GoRoute(
+                path: '/avaliar', builder: (_, __) => const AvaliacaoScreen()),
+            GoRoute(
+                path: '/financeiro',
+                builder: (_, __) => const FinanceiroScreen()),
             GoRoute(
               path: '/faturas/:id',
-              builder: (_, state) => FaturaDetalheScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  FaturaDetalheScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(
               path: '/ciclos-abertos/:negociacaoId',
-              builder: (_, state) =>
-                  CicloAbertoClienteDetalheScreen(negociacaoId: state.pathParameters['negociacaoId']!),
+              builder: (_, state) => CicloAbertoClienteDetalheScreen(
+                  negociacaoId: state.pathParameters['negociacaoId']!),
             ),
             // Sem :id na URL de propósito — os dados já estão carregados na
             // tela de Financeiro (ver comentário em
@@ -259,8 +277,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             // nova. O próprio documentos_provider.dart já documenta que é
             // "mesma tela pra posto e cliente na web" (nenhum campo/fluxo
             // bifurca por segmento — lê sessao.empresaId e pronto).
-            GoRoute(path: '/documentos', builder: (_, __) => const DocumentosScreen()),
-            GoRoute(path: '/inteligencia-rede', builder: (_, __) => const InteligenciaRedeScreen()),
+            GoRoute(
+                path: '/documentos',
+                builder: (_, __) => const DocumentosScreen()),
+            GoRoute(
+                path: '/inteligencia-rede',
+                builder: (_, __) => const InteligenciaRedeScreen()),
             // Fase FLT-3 — Privacidade (LGPD) cliente: porta 1:1 direta,
             // mesmo espírito de Documentos. O próprio lgpd_provider.dart já
             // documenta que na web é uma ÚNICA rota /lgpd compartilhada por
@@ -273,216 +295,377 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             // com a FLT-2 (ver comentário em chamados_cliente_screen.dart).
             // ChamadoDetalheScreen é reaproveitada DIRETO — não tem rota
             // hardcoded nenhuma dentro dela.
-            GoRoute(path: '/chamados', builder: (_, __) => const ChamadosClienteScreen()),
-            GoRoute(path: '/chamados/novo', builder: (_, __) => const ChamadoNovoClienteScreen()),
-            GoRoute(path: '/chamados/:id', builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!)),
+            GoRoute(
+                path: '/chamados',
+                builder: (_, __) => const ChamadosClienteScreen()),
+            GoRoute(
+                path: '/chamados/novo',
+                builder: (_, __) => const ChamadoNovoClienteScreen()),
+            GoRoute(
+                path: '/chamados/:id',
+                builder: (_, state) =>
+                    ChamadoDetalheScreen(id: state.pathParameters['id']!)),
             // Fase Central-Avisos (28/07/2026) — mesma tela AvisosScreen
             // reaproveitada pelos dois shells (cliente aqui, posto abaixo em
             // /posto/avisos) — provider já lê `sessao` sozinho, sem
             // bifurcação de segmento.
             GoRoute(path: '/avisos', builder: (_, __) => const AvisosScreen()),
-            GoRoute(path: '/clientes', builder: (_, __) => const ClientesScreen()),
-            GoRoute(path: '/grupo-economico', builder: (_, __) => const GrupoEconomicoScreen()),
+            GoRoute(
+                path: '/clientes', builder: (_, __) => const ClientesScreen()),
+            GoRoute(
+                path: '/grupo-economico',
+                builder: (_, __) => const GrupoEconomicoScreen()),
             // Fase FLT-3 — Usuários (cliente): telas próprias (mesmo
             // espírito de Chamados), providers/service compartilhados com
             // a FLT-2. UsuarioEditarScreen reaproveitada DIRETO — não tem
             // rota hardcoded dentro dela.
-            GoRoute(path: '/usuarios', builder: (_, __) => const UsuariosClienteScreen()),
-            GoRoute(path: '/usuarios/novo', builder: (_, __) => const UsuarioNovoClienteScreen()),
+            GoRoute(
+                path: '/usuarios',
+                builder: (_, __) => const UsuariosClienteScreen()),
+            GoRoute(
+                path: '/usuarios/novo',
+                builder: (_, __) => const UsuarioNovoClienteScreen()),
             GoRoute(
               path: '/usuarios/:email',
-              builder: (_, state) => UsuarioEditarScreen(email: Uri.decodeComponent(state.pathParameters['email']!)),
+              builder: (_, state) => UsuarioEditarScreen(
+                  email: Uri.decodeComponent(state.pathParameters['email']!)),
             ),
-            GoRoute(path: '/motoristas', builder: (_, __) => const MotoristasScreen()),
-            GoRoute(path: '/motoristas/novo', builder: (_, __) => const MotoristaNovoScreen()),
+            GoRoute(
+                path: '/motoristas',
+                builder: (_, __) => const MotoristasScreen()),
+            GoRoute(
+                path: '/motoristas/novo',
+                builder: (_, __) => const MotoristaNovoScreen()),
             GoRoute(
               path: '/motoristas/:id',
-              builder: (_, state) => MotoristaEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  MotoristaEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/veiculos', builder: (_, __) => const VeiculosScreen()),
-            GoRoute(path: '/veiculos/novo', builder: (_, __) => const VeiculoNovoScreen()),
+            GoRoute(
+                path: '/veiculos', builder: (_, __) => const VeiculosScreen()),
+            GoRoute(
+                path: '/veiculos/novo',
+                builder: (_, __) => const VeiculoNovoScreen()),
             GoRoute(
               path: '/veiculos/:id',
-              builder: (_, state) => VeiculoEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  VeiculoEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/centros-custo', builder: (_, __) => const CentrosCustoScreen()),
-            GoRoute(path: '/centros-custo/novo', builder: (_, __) => const CentroCustoNovoScreen()),
+            GoRoute(
+                path: '/centros-custo',
+                builder: (_, __) => const CentrosCustoScreen()),
+            GoRoute(
+                path: '/centros-custo/novo',
+                builder: (_, __) => const CentroCustoNovoScreen()),
             GoRoute(
               path: '/centros-custo/:id',
-              builder: (_, state) => CentroCustoEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  CentroCustoEditarScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(path: '/postos', builder: (_, __) => const PostosScreen()),
-            GoRoute(path: '/postos/buscar', builder: (_, __) => const PostosBuscarScreen()),
+            GoRoute(
+                path: '/postos/buscar',
+                builder: (_, __) => const PostosBuscarScreen()),
             GoRoute(
               path: '/postos/:cnpj',
-              builder: (_, state) => PostoDetalheScreen(cnpj: state.pathParameters['cnpj']!),
+              builder: (_, state) =>
+                  PostoDetalheScreen(cnpj: state.pathParameters['cnpj']!),
             ),
-            GoRoute(path: '/abastecimentos', builder: (_, __) => const AbastecimentosScreen()),
-            GoRoute(path: '/abastecimentos/novo', builder: (_, __) => const AbastecimentoNovoScreen()),
+            GoRoute(
+                path: '/abastecimentos',
+                builder: (_, __) => const AbastecimentosScreen()),
+            GoRoute(
+                path: '/abastecimentos/novo',
+                builder: (_, __) => const AbastecimentoNovoScreen()),
             GoRoute(
               path: '/abastecimentos/:chave',
-              builder: (_, state) => AbastecimentoDetalheClienteScreen(chave: state.pathParameters['chave']!),
+              builder: (_, state) => AbastecimentoDetalheClienteScreen(
+                  chave: state.pathParameters['chave']!),
             ),
-            GoRoute(path: '/notas-fiscais', builder: (_, __) => const NotasFiscaisScreen()),
+            GoRoute(
+                path: '/notas-fiscais',
+                builder: (_, __) => const NotasFiscaisScreen()),
             GoRoute(
               path: '/notas-fiscais/:notaId',
-              builder: (_, state) => NotaFiscalDetalheScreen(notaId: state.pathParameters['notaId']!),
+              builder: (_, state) => NotaFiscalDetalheScreen(
+                  notaId: state.pathParameters['notaId']!),
             ),
             // Pedido do Daniel: "Retirar a aba de Anomalias" — mesma decisão
             // já tomada na web (Ações Sugeridas cobre tudo que Anomalias
             // detectava). Rota mantida só como redirect pra não quebrar
             // favoritos/links antigos, mesmo padrão do web
             // (acoes-sugeridas/actions.ts).
-            GoRoute(path: '/anomalias', redirect: (_, __) => '/acoes-sugeridas'),
-            GoRoute(path: '/acoes-sugeridas', builder: (_, __) => const AcoesSugeridasScreen()),
-            GoRoute(path: '/combustivel-ideal', builder: (_, __) => const CombustivelIdealScreen()),
-            GoRoute(path: '/pegada-carbono', builder: (_, __) => const PegadaCarbonoScreen()),
-            GoRoute(path: '/roteirizacao', builder: (_, __) => const RoteirizacaoScreen()),
-            GoRoute(path: '/rotograma', builder: (_, __) => const RotogramaScreen()),
-            GoRoute(path: '/rotograma/novo', builder: (_, __) => const RotogramaNovoScreen()),
+            GoRoute(
+                path: '/anomalias', redirect: (_, __) => '/acoes-sugeridas'),
+            GoRoute(
+                path: '/acoes-sugeridas',
+                builder: (_, __) => const AcoesSugeridasScreen()),
+            GoRoute(
+                path: '/combustivel-ideal',
+                builder: (_, __) => const CombustivelIdealScreen()),
+            GoRoute(
+                path: '/pegada-carbono',
+                builder: (_, __) => const PegadaCarbonoScreen()),
+            GoRoute(
+                path: '/roteirizacao',
+                builder: (_, __) => const RoteirizacaoScreen()),
+            GoRoute(
+                path: '/rotograma',
+                builder: (_, __) => const RotogramaScreen()),
+            GoRoute(
+                path: '/rotograma/novo',
+                builder: (_, __) => const RotogramaNovoScreen()),
             GoRoute(
               path: '/rotograma/:id/editar',
-              builder: (_, state) => RotogramaEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  RotogramaEditarScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(
               path: '/rotograma/:id',
-              builder: (_, state) => RotogramaDetalheScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  RotogramaDetalheScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/parcerias-locais', builder: (_, __) => const ParceriasLocaisScreen()),
-            GoRoute(path: '/parcerias-locais/novo', builder: (_, __) => const ItemParceriaNovoScreen()),
+            GoRoute(
+                path: '/parcerias-locais',
+                builder: (_, __) => const ParceriasLocaisScreen()),
+            GoRoute(
+                path: '/parcerias-locais/novo',
+                builder: (_, __) => const ItemParceriaNovoScreen()),
             GoRoute(
               path: '/parcerias-locais/:id/editar',
-              builder: (_, state) => ItemParceriaEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  ItemParceriaEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/planos-viagem', builder: (_, __) => const PlanosViagemScreen()),
+            GoRoute(
+                path: '/planos-viagem',
+                builder: (_, __) => const PlanosViagemScreen()),
             // Fase Pré-Pedido (28/07/2026) — `extra` opcional (PrefillPlanoViagem)
             // vindo do botão "Criar Plano de Viagem" na Roteirização.
             GoRoute(
               path: '/planos-viagem/novo',
-              builder: (_, state) => PlanoViagemNovoScreen(prefill: state.extra as PrefillPlanoViagem?),
+              builder: (_, state) => PlanoViagemNovoScreen(
+                  prefill: state.extra as PrefillPlanoViagem?),
             ),
             GoRoute(
               path: '/planos-viagem/:id/editar',
-              builder: (_, state) => PlanoViagemEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  PlanoViagemEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/negociacoes', builder: (_, __) => const NegociacoesClienteScreen()),
-            GoRoute(path: '/negociacoes/novo', builder: (_, __) => const CriarNegociacaoClienteScreen()),
+            GoRoute(
+                path: '/negociacoes',
+                builder: (_, __) => const NegociacoesClienteScreen()),
+            GoRoute(
+                path: '/negociacoes/novo',
+                builder: (_, __) => const CriarNegociacaoClienteScreen()),
             GoRoute(
               path: '/negociacoes/:id',
-              builder: (_, state) => NegociacaoDetalheClienteScreen(id: state.pathParameters['id']!),
+              builder: (_, state) => NegociacaoDetalheClienteScreen(
+                  id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/precos-postos', builder: (_, __) => const PrecosPostosScreen()),
-            GoRoute(path: '/manutencao-preditiva', builder: (_, __) => const ManutencaoPreditivaScreen()),
+            GoRoute(
+                path: '/precos-postos',
+                builder: (_, __) => const PrecosPostosScreen()),
+            GoRoute(
+                path: '/manutencao-preditiva',
+                builder: (_, __) => const ManutencaoPreditivaScreen()),
             GoRoute(
               path: '/manutencao-preditiva/:placa',
-              builder: (_, state) => ManutencaoPreditivaDetalheScreen(placa: state.pathParameters['placa']!),
+              builder: (_, state) => ManutencaoPreditivaDetalheScreen(
+                  placa: state.pathParameters['placa']!),
             ),
             // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs
             // Rodopar/Datapar) — Estoque de Peças na Manutenção.
-            GoRoute(path: '/estoque-pecas', builder: (_, __) => const EstoquePecasScreen()),
-            GoRoute(path: '/estoque-pecas/nova', builder: (_, __) => const NovaPecaScreen()),
-            GoRoute(path: '/estoque-pecas/:id', builder: (_, state) => PecaDetalheScreen(id: state.pathParameters['id']!)),
+            GoRoute(
+                path: '/estoque-pecas',
+                builder: (_, __) => const EstoquePecasScreen()),
+            GoRoute(
+                path: '/estoque-pecas/nova',
+                builder: (_, __) => const NovaPecaScreen()),
+            GoRoute(
+                path: '/estoque-pecas/:id',
+                builder: (_, state) =>
+                    PecaDetalheScreen(id: state.pathParameters['id']!)),
             // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) — CRM
             // Comercial: carteira de clientes-tomadores + funil de propostas
             // (lê cotacoes) + histórico de relacionamento.
-            GoRoute(path: '/crm-comercial', builder: (_, __) => const CrmClientesScreen()),
-            GoRoute(path: '/crm-comercial/novo', builder: (_, __) => const NovoClienteCrmScreen()),
-            GoRoute(path: '/crm-comercial/:id', builder: (_, state) => ClienteCrmDetalheScreen(id: state.pathParameters['id']!)),
-            GoRoute(path: '/crm-comercial/:id/editar', builder: (_, state) => EditarClienteCrmScreen(clienteId: state.pathParameters['id']!)),
+            GoRoute(
+                path: '/crm-comercial',
+                builder: (_, __) => const CrmClientesScreen()),
+            GoRoute(
+                path: '/crm-comercial/novo',
+                builder: (_, __) => const NovoClienteCrmScreen()),
+            GoRoute(
+                path: '/crm-comercial/:id',
+                builder: (_, state) =>
+                    ClienteCrmDetalheScreen(id: state.pathParameters['id']!)),
+            GoRoute(
+                path: '/crm-comercial/:id/editar',
+                builder: (_, state) => EditarClienteCrmScreen(
+                    clienteId: state.pathParameters['id']!)),
             // Fase TCO (29/07/2026) — Custo Total de Propriedade por veículo.
             GoRoute(path: '/tco', builder: (_, __) => const TcoScreen()),
             GoRoute(
               path: '/tco/:placa',
-              builder: (_, state) => TcoDetalheScreen(placa: state.pathParameters['placa']!),
+              builder: (_, state) =>
+                  TcoDetalheScreen(placa: state.pathParameters['placa']!),
             ),
             // Fase Grupo 2 (Rodopar, item 6, 03/08/2026) — Patrimônio formal
             // (depreciação contábil linha reta + correções do ativo).
-            GoRoute(path: '/patrimonio', builder: (_, __) => const PatrimonioScreen()),
+            GoRoute(
+                path: '/patrimonio',
+                builder: (_, __) => const PatrimonioScreen()),
             GoRoute(
               path: '/patrimonio/:placa',
-              builder: (_, state) => PatrimonioDetalheScreen(placa: state.pathParameters['placa']!),
+              builder: (_, state) => PatrimonioDetalheScreen(
+                  placa: state.pathParameters['placa']!),
             ),
             // Fase Indicadores-da-Frota (30/07/2026).
-            GoRoute(path: '/indicadores-frota', builder: (_, __) => const IndicadoresFrotaScreen()),
+            GoRoute(
+                path: '/indicadores-frota',
+                builder: (_, __) => const IndicadoresFrotaScreen()),
             // Fase Painel-Jornada-Motorista (17/08/2026, pedido do Daniel:
             // painel do gestor com indicadores de jornada, "Web e PWA juntos
             // desde já").
-            GoRoute(path: '/jornada-motoristas', builder: (_, __) => const JornadaMotoristasScreen()),
+            GoRoute(
+                path: '/jornada-motoristas',
+                builder: (_, __) => const JornadaMotoristasScreen()),
             // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas.
             GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
-            GoRoute(path: '/multas/nova', builder: (_, __) => const NovaMultaScreen()),
-            GoRoute(path: '/multas/:id', builder: (_, state) => MultaDetalheScreen(id: state.pathParameters['id']!)),
+            GoRoute(
+                path: '/multas/nova',
+                builder: (_, __) => const NovaMultaScreen()),
+            GoRoute(
+                path: '/multas/:id',
+                builder: (_, state) =>
+                    MultaDetalheScreen(id: state.pathParameters['id']!)),
             // Fase Indicadores-da-Frota C (30/07/2026) — checklist de inspeção
             // veicular e sinistros/acidentes, os 2 fluxos de captura que
             // faltavam pros 8 KPIs do benchmark.
-            GoRoute(path: '/checklist-veiculos', builder: (_, __) => const ChecklistVeiculosScreen()),
+            GoRoute(
+                path: '/checklist-veiculos',
+                builder: (_, __) => const ChecklistVeiculosScreen()),
             GoRoute(
               path: '/checklist-veiculos/:placa',
-              builder: (_, state) => ChecklistVeiculoDetalheScreen(placa: state.pathParameters['placa']!),
+              builder: (_, state) => ChecklistVeiculoDetalheScreen(
+                  placa: state.pathParameters['placa']!),
             ),
-            GoRoute(path: '/sinistros', builder: (_, __) => const SinistrosScreen()),
-            GoRoute(path: '/sinistros/novo', builder: (_, __) => const NovoSinistroScreen()),
+            GoRoute(
+                path: '/sinistros',
+                builder: (_, __) => const SinistrosScreen()),
+            GoRoute(
+                path: '/sinistros/novo',
+                builder: (_, __) => const NovoSinistroScreen()),
             // Fase Onda-2 (benchmark TicketLog, item #5) — Rede de Oficinas
             // Credenciadas com Orçamento (catálogo + minhas solicitações).
             // CRUD do catálogo nacional continua exclusivo da web
             // (/administracao/oficinas-credenciadas) — mesma decisão já
             // tomada pra Central de Avisos (avisos/avisos_screen.dart é só
             // leitura no PWA, o CRUD é admin-web-only).
-            GoRoute(path: '/oficinas', builder: (_, __) => const OficinasScreen()),
-            GoRoute(path: '/parametros-uso', builder: (_, __) => const ParametrosUsoScreen()),
-            GoRoute(path: '/antifraude', builder: (_, __) => const AntifraudeScreen()),
-            GoRoute(path: '/parametros-uso/novo', builder: (_, __) => const VinculoNovoScreen()),
+            GoRoute(
+                path: '/oficinas', builder: (_, __) => const OficinasScreen()),
+            GoRoute(
+                path: '/parametros-uso',
+                builder: (_, __) => const ParametrosUsoScreen()),
+            GoRoute(
+                path: '/antifraude',
+                builder: (_, __) => const AntifraudeScreen()),
+            GoRoute(
+                path: '/parametros-uso/novo',
+                builder: (_, __) => const VinculoNovoScreen()),
             GoRoute(
               path: '/parametros-uso/:id/editar',
-              builder: (_, state) => VinculoEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  VinculoEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/parametros-nf', builder: (_, __) => const ParametrosNFScreen()),
-            GoRoute(path: '/pisos-antt', builder: (_, __) => const PisosAnttScreen()),
-            GoRoute(path: '/relatorios', builder: (_, __) => const RelatoriosScreen()),
+            GoRoute(
+                path: '/parametros-nf',
+                builder: (_, __) => const ParametrosNFScreen()),
+            GoRoute(
+                path: '/pisos-antt',
+                builder: (_, __) => const PisosAnttScreen()),
+            GoRoute(
+                path: '/relatorios',
+                builder: (_, __) => const RelatoriosScreen()),
             // "Integrações" (era EmConstrucaoScreen) foi removida do menu e
             // do router por decisão do Daniel — não faz sentido gerenciar
             // conexões de integração (PróFrotas, planilhas etc.) num PWA de
             // celular; segue existindo só na web.
-            GoRoute(path: '/permissoes', builder: (_, __) => const PermissoesScreen()),
-            GoRoute(path: '/configuracoes', builder: (_, __) => const ConfiguracoesSistemaScreen()),
-            GoRoute(path: '/avaliacoes', builder: (_, __) => const AvaliacoesAdminScreen()),
-            GoRoute(path: '/assinaturas', builder: (_, __) => const AssinaturasAdminScreen()),
-            GoRoute(path: '/documentos-empresas', builder: (_, __) => const DocumentosEmpresasListaScreen()),
+            GoRoute(
+                path: '/permissoes',
+                builder: (_, __) => const PermissoesScreen()),
+            GoRoute(
+                path: '/configuracoes',
+                builder: (_, __) => const ConfiguracoesSistemaScreen()),
+            GoRoute(
+                path: '/avaliacoes',
+                builder: (_, __) => const AvaliacoesAdminScreen()),
+            GoRoute(
+                path: '/assinaturas',
+                builder: (_, __) => const AssinaturasAdminScreen()),
+            GoRoute(
+                path: '/documentos-empresas',
+                builder: (_, __) => const DocumentosEmpresasListaScreen()),
             GoRoute(
               path: '/documentos-empresas/:id',
-              builder: (_, state) => DocumentosEmpresaDetalheScreen(empresaId: state.pathParameters['id']!),
+              builder: (_, state) => DocumentosEmpresaDetalheScreen(
+                  empresaId: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/redes-postos', builder: (_, __) => const RedesPostosAdminListaScreen()),
-            GoRoute(path: '/redes-postos/nova', builder: (_, __) => const NovaRedeAdminScreen()),
+            GoRoute(
+                path: '/redes-postos',
+                builder: (_, __) => const RedesPostosAdminListaScreen()),
+            GoRoute(
+                path: '/redes-postos/nova',
+                builder: (_, __) => const NovaRedeAdminScreen()),
             GoRoute(
               path: '/redes-postos/:id',
-              builder: (_, state) => RedePostoAdminDetalheScreen(redeId: state.pathParameters['id']!),
+              builder: (_, state) => RedePostoAdminDetalheScreen(
+                  redeId: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/postos-duplicados', builder: (_, __) => const PostosDuplicadosScreen()),
-            GoRoute(path: '/grupos-economicos', builder: (_, __) => const GruposEconomicosAdminListaScreen()),
-            GoRoute(path: '/grupos-economicos/novo', builder: (_, __) => const NovoGrupoEconomicoAdminScreen()),
+            GoRoute(
+                path: '/postos-duplicados',
+                builder: (_, __) => const PostosDuplicadosScreen()),
+            GoRoute(
+                path: '/grupos-economicos',
+                builder: (_, __) => const GruposEconomicosAdminListaScreen()),
+            GoRoute(
+                path: '/grupos-economicos/novo',
+                builder: (_, __) => const NovoGrupoEconomicoAdminScreen()),
             GoRoute(
               path: '/grupos-economicos/:id',
-              builder: (_, state) => GrupoEconomicoAdminDetalheScreen(grupoId: state.pathParameters['id']!),
+              builder: (_, state) => GrupoEconomicoAdminDetalheScreen(
+                  grupoId: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/clientes-admin', builder: (_, __) => const ClientesAdminListaScreen()),
+            GoRoute(
+                path: '/clientes-admin',
+                builder: (_, __) => const ClientesAdminListaScreen()),
             // Fase PWA-Fretes — só visão CLIENTE (o motorista tem seu
             // próprio app, estrada-que-cuida). Mesmas RPCs SECURITY DEFINER
             // já usadas pela web (negociação, avaliação, parceiros).
             GoRoute(path: '/fretes', builder: (_, __) => const FretesScreen()),
-            GoRoute(path: '/fretes/novo', builder: (_, __) => const FreteNovoScreen()),
+            GoRoute(
+                path: '/fretes/novo',
+                builder: (_, __) => const FreteNovoScreen()),
             GoRoute(
               path: '/fretes/:id',
-              builder: (_, state) => FreteDetalheScreen(freteId: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  FreteDetalheScreen(freteId: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/motoristas-parceiros', builder: (_, __) => const MotoristasParceirosScreen()),
+            GoRoute(
+                path: '/motoristas-parceiros',
+                builder: (_, __) => const MotoristasParceirosScreen()),
             // Fase Torre-de-Controle-Leve + Programacao-Frota (03/08/2026,
             // benchmark FNI vs KMM/Rodopar) — porta das telas web equivalentes.
-            GoRoute(path: '/torre-de-controle', builder: (_, __) => const TorreDeControleScreen()),
-            GoRoute(path: '/programacao', builder: (_, __) => const ProgramacaoFrotaScreen()),
+            GoRoute(
+                path: '/torre-de-controle',
+                builder: (_, __) => const TorreDeControleScreen()),
+            GoRoute(
+                path: '/programacao',
+                builder: (_, __) => const ProgramacaoFrotaScreen()),
             // Fase agendamento-patio (04/08/2026, benchmark FNI vs KMM,
             // Grupo 2 item 8) — porta de agendamentos-patio/page.tsx (web).
-            GoRoute(path: '/agendamentos-patio', builder: (_, __) => const AgendamentosPatioScreen()),
+            GoRoute(
+                path: '/agendamentos-patio',
+                builder: (_, __) => const AgendamentosPatioScreen()),
           ],
         ),
 
@@ -493,67 +676,121 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         ShellRoute(
           builder: (c, s, child) => PostoHomeScreen(child: child),
           routes: [
-            GoRoute(path: '/posto', builder: (_, __) => const PostoDashboardScreen()),
-            GoRoute(path: '/posto/meu-posto', builder: (_, __) => const MeuPostoScreen()),
-            GoRoute(path: '/posto/rede-postos', builder: (_, __) => const RedePostosScreen()),
-            GoRoute(path: '/posto/rede-postos/nova', builder: (_, __) => const NovaRedeScreen()),
-            GoRoute(path: '/posto/assistente', builder: (_, __) => const AssistentePostoScreen()),
-            GoRoute(path: '/posto/assinatura', builder: (_, __) => const AssinaturaScreen()),
-            GoRoute(path: '/posto/avaliar', builder: (_, __) => const AvaliarScreen()),
-            GoRoute(path: '/posto/financeiro', builder: (_, __) => const FinanceiroPostoScreen()),
-            GoRoute(path: '/posto/lgpd', builder: (_, __) => const LgpdScreen()),
-            GoRoute(path: '/posto/meus-dados', builder: (_, __) => const MeusDadosScreen()),
-            GoRoute(path: '/posto/documentos', builder: (_, __) => const DocumentosScreen()),
-            GoRoute(path: '/posto/usuarios', builder: (_, __) => const UsuariosScreen()),
-            GoRoute(path: '/posto/usuarios/novo', builder: (_, __) => const UsuarioNovoScreen()),
+            GoRoute(
+                path: '/posto',
+                builder: (_, __) => const PostoDashboardScreen()),
+            GoRoute(
+                path: '/posto/meu-posto',
+                builder: (_, __) => const MeuPostoScreen()),
+            GoRoute(
+                path: '/posto/rede-postos',
+                builder: (_, __) => const RedePostosScreen()),
+            GoRoute(
+                path: '/posto/rede-postos/nova',
+                builder: (_, __) => const NovaRedeScreen()),
+            GoRoute(
+                path: '/posto/assistente',
+                builder: (_, __) => const AssistentePostoScreen()),
+            GoRoute(
+                path: '/posto/assinatura',
+                builder: (_, __) => const AssinaturaScreen()),
+            GoRoute(
+                path: '/posto/avaliar',
+                builder: (_, __) => const AvaliarScreen()),
+            GoRoute(
+                path: '/posto/financeiro',
+                builder: (_, __) => const FinanceiroPostoScreen()),
+            GoRoute(
+                path: '/posto/lgpd', builder: (_, __) => const LgpdScreen()),
+            GoRoute(
+                path: '/posto/meus-dados',
+                builder: (_, __) => const MeusDadosScreen()),
+            GoRoute(
+                path: '/posto/documentos',
+                builder: (_, __) => const DocumentosScreen()),
+            GoRoute(
+                path: '/posto/usuarios',
+                builder: (_, __) => const UsuariosScreen()),
+            GoRoute(
+                path: '/posto/usuarios/novo',
+                builder: (_, __) => const UsuarioNovoScreen()),
             GoRoute(
               path: '/posto/usuarios/:email',
-              builder: (_, state) =>
-                  UsuarioEditarScreen(email: Uri.decodeComponent(state.pathParameters['email']!)),
+              builder: (_, state) => UsuarioEditarScreen(
+                  email: Uri.decodeComponent(state.pathParameters['email']!)),
             ),
-            GoRoute(path: '/posto/parcerias-locais', builder: (_, __) => const ParceriasLocaisScreen()),
-            GoRoute(path: '/posto/parcerias-locais/novo', builder: (_, __) => const ItemParceriaNovoScreen()),
+            GoRoute(
+                path: '/posto/parcerias-locais',
+                builder: (_, __) => const ParceriasLocaisScreen()),
+            GoRoute(
+                path: '/posto/parcerias-locais/novo',
+                builder: (_, __) => const ItemParceriaNovoScreen()),
             GoRoute(
               path: '/posto/parcerias-locais/:id/editar',
-              builder: (_, state) => ItemParceriaEditarScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  ItemParceriaEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/posto/negociacoes', builder: (_, __) => const NegociacoesScreen()),
-            GoRoute(path: '/posto/negociacoes/novo', builder: (_, __) => const CriarNegociacaoScreen()),
+            GoRoute(
+                path: '/posto/negociacoes',
+                builder: (_, __) => const NegociacoesScreen()),
+            GoRoute(
+                path: '/posto/negociacoes/novo',
+                builder: (_, __) => const CriarNegociacaoScreen()),
             GoRoute(
               path: '/posto/negociacoes/:id',
-              builder: (_, state) => NegociacaoDetalheScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  NegociacaoDetalheScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/posto/abastecimentos', builder: (_, __) => const AbastecimentosPostoScreen()),
+            GoRoute(
+                path: '/posto/abastecimentos',
+                builder: (_, __) => const AbastecimentosPostoScreen()),
             GoRoute(
               path: '/posto/abastecimentos/:chave',
-              builder: (_, state) => AbastecimentoDetalheScreen(chave: state.pathParameters['chave']!),
+              builder: (_, state) => AbastecimentoDetalheScreen(
+                  chave: state.pathParameters['chave']!),
             ),
-            GoRoute(path: '/posto/clientes', builder: (_, __) => const ClientesPostoScreen()),
+            GoRoute(
+                path: '/posto/clientes',
+                builder: (_, __) => const ClientesPostoScreen()),
             GoRoute(
               path: '/posto/clientes/:id',
-              builder: (_, state) => ClientePostoDetalheScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  ClientePostoDetalheScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(
               path: '/posto/faturas/:id',
-              builder: (_, state) => FaturaPostoDetalheScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  FaturaPostoDetalheScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(
               path: '/posto/ciclos-abertos/:negociacaoId',
-              builder: (_, state) => CicloAbertoDetalheScreen(negociacaoId: state.pathParameters['negociacaoId']!),
+              builder: (_, state) => CicloAbertoDetalheScreen(
+                  negociacaoId: state.pathParameters['negociacaoId']!),
             ),
-            GoRoute(path: '/posto/precos', builder: (_, __) => const PrecosPostoScreen()),
-            GoRoute(path: '/posto/chamados', builder: (_, __) => const ChamadosPostoScreen()),
-            GoRoute(path: '/posto/chamados/novo', builder: (_, __) => const ChamadoNovoScreen()),
+            GoRoute(
+                path: '/posto/precos',
+                builder: (_, __) => const PrecosPostoScreen()),
+            GoRoute(
+                path: '/posto/chamados',
+                builder: (_, __) => const ChamadosPostoScreen()),
+            GoRoute(
+                path: '/posto/chamados/novo',
+                builder: (_, __) => const ChamadoNovoScreen()),
             GoRoute(
               path: '/posto/chamados/:id',
-              builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!),
+              builder: (_, state) =>
+                  ChamadoDetalheScreen(id: state.pathParameters['id']!),
             ),
             // Fase Central-Avisos (28/07/2026) — mesma AvisosScreen do shell
             // cliente (ver /avisos acima), só com path prefixado /posto.
-            GoRoute(path: '/posto/avisos', builder: (_, __) => const AvisosScreen()),
+            GoRoute(
+                path: '/posto/avisos',
+                builder: (_, __) => const AvisosScreen()),
             // Fase Pré-Pedido (28/07/2026) — porta de /pre-pedidos (web),
             // consulta pro posto conferir antes de liberar abastecimento.
-            GoRoute(path: '/posto/pre-pedidos', builder: (_, __) => const PrePedidosPostoScreen()),
+            GoRoute(
+                path: '/posto/pre-pedidos',
+                builder: (_, __) => const PrePedidosPostoScreen()),
           ],
         ),
       ],

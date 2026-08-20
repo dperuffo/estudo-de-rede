@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/acoes_sugeridas_provider.dart';
 import '../services/acoes_sugeridas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
 
 String _fmtDataHora(String? iso) {
@@ -23,7 +25,8 @@ class AcoesSugeridasScreen extends ConsumerStatefulWidget {
   const AcoesSugeridasScreen({super.key});
 
   @override
-  ConsumerState<AcoesSugeridasScreen> createState() => _AcoesSugeridasScreenState();
+  ConsumerState<AcoesSugeridasScreen> createState() =>
+      _AcoesSugeridasScreenState();
 }
 
 class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
@@ -45,17 +48,20 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
     final empresaId = sessao.empresaId;
     if (empresaId == null || !mounted) return;
     setState(() => _detectando = true);
-    final resultado = await AcoesSugeridasService().detectar(empresaId: empresaId);
+    final resultado =
+        await AcoesSugeridasService().detectar(empresaId: empresaId);
     if (!mounted) return;
     setState(() => _detectando = false);
     _invalidarListas();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(resultado.erro ?? '${resultado.inseridas ?? 0} oportunidade(s) nova(s) encontrada(s).'),
+      content: Text(resultado.erro ??
+          '${resultado.inseridas ?? 0} oportunidade(s) nova(s) encontrada(s).'),
     ));
   }
 
   void _invalidarListas() {
-    ref.invalidate(acoesSugeridasProvider(FiltrosAcoesSugeridas(tipo: _tipo, status: _status, busca: _busca)));
+    ref.invalidate(acoesSugeridasProvider(
+        FiltrosAcoesSugeridas(tipo: _tipo, status: _status, busca: _busca)));
     ref.invalidate(kpisAcoesSugeridasProvider);
   }
 
@@ -65,22 +71,28 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
   }
 
   Future<void> _aprovar(AcaoSugerida a) async {
-    final pergunta = confirmacaoPorTipoAcaoSugerida[a.tipo] ?? 'Executar esta ação agora?';
+    final pergunta =
+        confirmacaoPorTipoAcaoSugerida[a.tipo] ?? 'Executar esta ação agora?';
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar ação'),
         content: Text(pergunta),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Confirmar')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Confirmar')),
         ],
       ),
     );
     if (confirmado != true || !mounted) return;
 
     setState(() => _executandoId = a.id);
-    final erro = await AcoesSugeridasService().aprovarEExecutar(id: a.id, tipo: a.tipo);
+    final erro =
+        await AcoesSugeridasService().aprovarEExecutar(id: a.id, tipo: a.tipo);
     if (!mounted) return;
     setState(() => _executandoId = null);
     if (erro != null) {
@@ -104,16 +116,28 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtros = FiltrosAcoesSugeridas(tipo: _tipo, status: _status, busca: _busca);
+    final filtros =
+        FiltrosAcoesSugeridas(tipo: _tipo, status: _status, busca: _busca);
     final listaAsync = ref.watch(acoesSugeridasProvider(filtros));
     final kpisAsync = ref.watch(kpisAcoesSugeridasProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ações Sugeridas')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Ações Sugeridas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _detectando ? null : _detectar,
         icon: _detectando
-            ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            ? const SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
             : const Icon(Icons.search),
         label: Text(_detectando ? 'Detectando...' : 'Detectar oportunidades'),
       ),
@@ -137,7 +161,8 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                   Expanded(child: _kpi('Pendentes', k.pendentes.toString())),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _kpi('Críticas (pendentes)', k.criticasPendentes.toString(),
+                    child: _kpi(
+                        'Críticas (pendentes)', k.criticasPendentes.toString(),
                         destaque: k.criticasPendentes > 0),
                   ),
                 ],
@@ -153,14 +178,16 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                       isDense: true,
                       hintText: 'Buscar por posto, placa ou motorista...',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     ),
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _aplicarBusca(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(onPressed: _aplicarBusca, child: const Text('Buscar')),
+                FilledButton(
+                    onPressed: _aplicarBusca, child: const Text('Buscar')),
               ],
             ),
             const SizedBox(height: 8),
@@ -172,16 +199,21 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                   value: _tipo,
                   hint: const Text('Todos os tipos'),
                   items: [
-                    const DropdownMenuItem<String?>(value: null, child: Text('Todos os tipos')),
-                    for (final e in tipoLabelAcaoSugerida.entries) DropdownMenuItem<String?>(value: e.key, child: Text(e.value)),
+                    const DropdownMenuItem<String?>(
+                        value: null, child: Text('Todos os tipos')),
+                    for (final e in tipoLabelAcaoSugerida.entries)
+                      DropdownMenuItem<String?>(
+                          value: e.key, child: Text(e.value)),
                   ],
                   onChanged: (v) => setState(() => _tipo = v),
                 ),
                 DropdownButton<String>(
                   value: _status,
                   items: const [
-                    DropdownMenuItem(value: 'pendentes', child: Text('Pendentes')),
-                    DropdownMenuItem(value: 'decididas', child: Text('Decididas')),
+                    DropdownMenuItem(
+                        value: 'pendentes', child: Text('Pendentes')),
+                    DropdownMenuItem(
+                        value: 'decididas', child: Text('Decididas')),
                     DropdownMenuItem(value: 'todas', child: Text('Todas')),
                   ],
                   onChanged: (v) => setState(() => _status = v ?? 'pendentes'),
@@ -224,11 +256,15 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: destaque ? const Color(0xFFDC2626) : null)),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: destaque ? const Color(0xFFDC2626) : null)),
           ],
         ),
       ),
@@ -243,10 +279,12 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
     String? statusTexto;
     Color? statusCor;
     if (a.status == 'executada') {
-      statusTexto = 'Executada${a.decididoPor != null ? ' por ${a.decididoPor}' : ''}';
+      statusTexto =
+          'Executada${a.decididoPor != null ? ' por ${a.decididoPor}' : ''}';
       statusCor = const Color(0xFF16A34A);
     } else if (a.status == 'rejeitada') {
-      statusTexto = 'Rejeitada${a.decididoPor != null ? ' por ${a.decididoPor}' : ''}';
+      statusTexto =
+          'Rejeitada${a.decididoPor != null ? ' por ${a.decididoPor}' : ''}';
       statusCor = Colors.grey;
     } else if (a.status == 'falhou') {
       statusTexto = 'Falhou: ${a.erroExecucao ?? 'erro desconhecido'}';
@@ -263,28 +301,38 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (critica ? const Color(0xFFDC2626) : const Color(0xFFD97706)).withOpacity(0.1),
+                    color: (critica
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFFD97706))
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(a.severidade,
                       style: TextStyle(
                           fontSize: 11,
-                          color: critica ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                          color: critica
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFFD97706),
                           fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(a.alvoLabel,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis),
                 ),
-                Text(_fmtDataHora(a.criadoEm), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(_fmtDataHora(a.criadoEm),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 8),
-            Text(a.titulo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(a.titulo,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(a.descricao, style: const TextStyle(fontSize: 13)),
             if (statusTexto != null) ...[
@@ -295,7 +343,11 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                   color: statusCor!.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(statusTexto, style: TextStyle(fontSize: 11, color: statusCor, fontWeight: FontWeight.w600)),
+                child: Text(statusTexto,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: statusCor,
+                        fontWeight: FontWeight.w600)),
               ),
             ],
             if (pendente) ...[
@@ -310,7 +362,9 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                   const SizedBox(width: 4),
                   FilledButton(
                     onPressed: executandoEsta ? null : () => _aprovar(a),
-                    child: Text(executandoEsta ? 'Executando...' : 'Aprovar e executar'),
+                    child: Text(executandoEsta
+                        ? 'Executando...'
+                        : 'Aprovar e executar'),
                   ),
                 ],
               ),

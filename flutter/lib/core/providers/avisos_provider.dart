@@ -45,7 +45,8 @@ class AvisoUsuario {
 
 // Busca a lista completa (dentro da janela de exibição, sem os já
 // expirados) — usada tanto pro sino/badge quanto pro drawer/lista.
-final avisosProvider = FutureProvider.autoDispose<List<AvisoUsuario>>((ref) async {
+final avisosProvider =
+    FutureProvider.autoDispose<List<AvisoUsuario>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final supabase = SupabaseService.client;
   if (sessao.email.isEmpty) return [];
@@ -69,8 +70,10 @@ final avisosProvider = FutureProvider.autoDispose<List<AvisoUsuario>>((ref) asyn
   var segmentosUsuario = <String>{};
   var planosUsuario = <String>{};
   if (idsEmpresa.isNotEmpty) {
-    final empresasData =
-        await supabase.from('empresas').select('id, segmento, plano').inFilter('id', idsEmpresa) as List;
+    final empresasData = await supabase
+        .from('empresas')
+        .select('id, segmento, plano')
+        .inFilter('id', idsEmpresa) as List;
     for (final e in empresasData) {
       final m = e as Map<String, dynamic>;
       final seg = m['segmento'] as String?;
@@ -85,15 +88,22 @@ final avisosProvider = FutureProvider.autoDispose<List<AvisoUsuario>>((ref) asyn
     final segmentosAlvo = ((m['segmentos_alvo'] as List?) ?? []).cast<String>();
     final planosAlvo = ((m['planos_alvo'] as List?) ?? []).cast<String>();
     final empresasAlvo = ((m['empresas_alvo'] as List?) ?? []).cast<String>();
-    final segOk = segmentosAlvo.isEmpty || segmentosAlvo.any(segmentosUsuario.contains);
-    final planoOk = planosAlvo.isEmpty || planosAlvo.any(planosUsuario.contains);
-    final empresaOk = empresasAlvo.isEmpty || empresasAlvo.any(idsEmpresa.contains);
+    final segOk =
+        segmentosAlvo.isEmpty || segmentosAlvo.any(segmentosUsuario.contains);
+    final planoOk =
+        planosAlvo.isEmpty || planosAlvo.any(planosUsuario.contains);
+    final empresaOk =
+        empresasAlvo.isEmpty || empresasAlvo.any(idsEmpresa.contains);
     return segOk && planoOk && empresaOk;
   }).toList();
 
-  final leituras =
-      await supabase.from('comunicados_leituras').select('comunicado_id').eq('usuario_email', sessao.email) as List;
-  final lidosSet = leituras.map((l) => (l as Map<String, dynamic>)['comunicado_id'] as String).toSet();
+  final leituras = await supabase
+      .from('comunicados_leituras')
+      .select('comunicado_id')
+      .eq('usuario_email', sessao.email) as List;
+  final lidosSet = leituras
+      .map((l) => (l as Map<String, dynamic>)['comunicado_id'] as String)
+      .toSet();
 
   return visiveis.map((l) {
     final m = l as Map<String, dynamic>;

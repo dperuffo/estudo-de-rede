@@ -25,7 +25,8 @@ class DashboardScreen extends StatelessWidget {
           // (mesma receita do .glass-tab-ativa na web), em vez do sublinhado
           // branco sobre navy.
           Container(
-            decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient),
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient),
             child: Material(
               color: Colors.transparent,
               child: TabBar(
@@ -34,7 +35,8 @@ class DashboardScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
-                indicatorPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                indicatorPadding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 labelColor: AppTheme.glassTextoAtivo,
                 unselectedLabelColor: AppTheme.glassTextoMuted,
                 tabs: const [

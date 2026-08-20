@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../grupo_economico/providers/grupo_economico_provider.dart' show EmpresaVinculadaGrupo, GrupoEconomicoDetalhe;
+import '../../grupo_economico/providers/grupo_economico_provider.dart'
+    show EmpresaVinculadaGrupo, GrupoEconomicoDetalhe;
 
 // Fase FLT-4 — Grupo Econômico (admin, consolidado — menu "Cadastros" da
 // web), porta de grupo-economico/page.tsx + [id]/page.tsx + novo/page.tsx
@@ -44,7 +45,8 @@ class KpisGruposEconomicos {
 
 // Espelha a query de grupo-economico/page.tsx: grupos_economicos +
 // grupos_economicos_empresas(count), segmento='Frota'.
-final gruposEconomicosAdminListaProvider = FutureProvider.autoDispose<List<GrupoEconomicoResumo>>((ref) async {
+final gruposEconomicosAdminListaProvider =
+    FutureProvider.autoDispose<List<GrupoEconomicoResumo>>((ref) async {
   final rows = await SupabaseService.client
       .from('grupos_economicos')
       .select('id, nome, cnpj_matriz, ativo, grupos_economicos_empresas(count)')
@@ -54,7 +56,9 @@ final gruposEconomicosAdminListaProvider = FutureProvider.autoDispose<List<Grupo
   return rows.map((r) {
     final m = r as Map<String, dynamic>;
     final contagem = m['grupos_economicos_empresas'] as List?;
-    final total = (contagem != null && contagem.isNotEmpty) ? ((contagem.first['count'] as num?)?.toInt() ?? 0) : 0;
+    final total = (contagem != null && contagem.isNotEmpty)
+        ? ((contagem.first['count'] as num?)?.toInt() ?? 0)
+        : 0;
     return GrupoEconomicoResumo(
       id: m['id'] as String,
       nome: m['nome'] as String? ?? '—',
@@ -65,7 +69,8 @@ final gruposEconomicosAdminListaProvider = FutureProvider.autoDispose<List<Grupo
   }).toList();
 });
 
-final kpisGruposEconomicosProvider = Provider.autoDispose<AsyncValue<KpisGruposEconomicos>>((ref) {
+final kpisGruposEconomicosProvider =
+    Provider.autoDispose<AsyncValue<KpisGruposEconomicos>>((ref) {
   final listaAsync = ref.watch(gruposEconomicosAdminListaProvider);
   return listaAsync.whenData((lista) => KpisGruposEconomicos(
         total: lista.length,
@@ -76,22 +81,26 @@ final kpisGruposEconomicosProvider = Provider.autoDispose<AsyncValue<KpisGruposE
 // Todos os clientes (Frota) do sistema — espelha `empresasDisponiveis`
 // de [id]/page.tsx (segmento='Frota', menos as já vinculadas, calculado
 // na tela).
-final empresasFrotaTodasProvider = FutureProvider.autoDispose<List<({String id, String nome})>>((ref) async {
+final empresasFrotaTodasProvider =
+    FutureProvider.autoDispose<List<({String id, String nome})>>((ref) async {
   final rows = await SupabaseService.client
       .from('empresas')
       .select('id, nome')
       .eq('segmento', 'Frota')
       .order('nome') as List;
   return rows
-      .map((m) => (id: (m as Map<String, dynamic>)['id'] as String, nome: m['nome'] as String? ?? '—'))
+      .map((m) => (
+            id: (m as Map<String, dynamic>)['id'] as String,
+            nome: m['nome'] as String? ?? '—'
+          ))
       .toList();
 });
 
 // Busca um Grupo por id arbitrário (não precisa ser o da empresa atual —
 // diferença central pro grupoEconomicoClienteProvider, que só lê o
 // próprio e é read-only).
-final grupoEconomicoAdminDetalheProvider =
-    FutureProvider.autoDispose.family<GrupoEconomicoDetalhe?, String>((ref, grupoId) async {
+final grupoEconomicoAdminDetalheProvider = FutureProvider.autoDispose
+    .family<GrupoEconomicoDetalhe?, String>((ref, grupoId) async {
   final supabase = SupabaseService.client;
 
   final grupo = await supabase

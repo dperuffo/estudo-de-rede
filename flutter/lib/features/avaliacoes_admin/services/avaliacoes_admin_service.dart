@@ -4,7 +4,10 @@ import '../../../core/services/supabase_service.dart';
 class AvaliacoesAdminService {
   final _supabase = SupabaseService.client;
 
-  Future<void> responder({required String avaliacaoId, required String resposta, required String respondidoPor}) async {
+  Future<void> responder(
+      {required String avaliacaoId,
+      required String resposta,
+      required String respondidoPor}) async {
     final respostaLimpa = resposta.trim();
     if (respostaLimpa.isEmpty) {
       throw Exception('Escreva uma resposta.');

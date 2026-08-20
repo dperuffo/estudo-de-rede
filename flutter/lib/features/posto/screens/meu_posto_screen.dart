@@ -11,17 +11,22 @@ class _StatusInfo {
 }
 
 const _statusLabel = <String, _StatusInfo>{
-  'pendente': _StatusInfo('Cadastro ainda não confirmado', Color(0xFFF1F5F9), Color(0xFF475569)),
-  'confirmado': _StatusInfo('✓ CNPJ confirmado na base ANP', Color(0xFFF0FDF4), Color(0xFF15803D)),
-  'novo_sem_anp':
-      _StatusInfo('Posto novo — CNPJ não está na base ANP ainda', Color(0xFFEFF6FF), Color(0xFF1D4ED8)),
-  'possivel_duplicidade':
-      _StatusInfo('⚠ Possível duplicidade sinalizada — em revisão pela FNI', Color(0xFFFFFBEB), Color(0xFF92400E)),
+  'pendente': _StatusInfo(
+      'Cadastro ainda não confirmado', Color(0xFFF1F5F9), Color(0xFF475569)),
+  'confirmado': _StatusInfo(
+      '✓ CNPJ confirmado na base ANP', Color(0xFFF0FDF4), Color(0xFF15803D)),
+  'novo_sem_anp': _StatusInfo('Posto novo — CNPJ não está na base ANP ainda',
+      Color(0xFFEFF6FF), Color(0xFF1D4ED8)),
+  'possivel_duplicidade': _StatusInfo(
+      '⚠ Possível duplicidade sinalizada — em revisão pela FNI',
+      Color(0xFFFFFBEB),
+      Color(0xFF92400E)),
 };
 
 const _motivoMensagem = <String, String>{
   'sem_permissao': 'Você não tem permissão para editar o cadastro deste posto.',
-  'cnpj_invalido': 'CNPJ inválido — confira se digitou os 14 dígitos corretamente.',
+  'cnpj_invalido':
+      'CNPJ inválido — confira se digitou os 14 dígitos corretamente.',
   'cnpj_ja_vinculado_outro_posto':
       'Este CNPJ já está vinculado a outro posto cadastrado na plataforma. Se isso for um engano, fale com a FNI.',
 };
@@ -54,7 +59,8 @@ class MeuPostoScreen extends ConsumerWidget {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Text('Nenhum posto vinculado a este usuário.', style: TextStyle(color: Colors.grey)),
+              child: Text('Nenhum posto vinculado a este usuário.',
+                  style: TextStyle(color: Colors.grey)),
             ),
           );
         }
@@ -152,14 +158,16 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
     if (_latitude.text.trim().isNotEmpty) {
       latitude = double.tryParse(_latitude.text.trim().replaceAll(',', '.'));
       if (latitude == null) {
-        setState(() => _erro = 'Latitude precisa ser um número (ex: -23.5505).');
+        setState(
+            () => _erro = 'Latitude precisa ser um número (ex: -23.5505).');
         return;
       }
     }
     if (_longitude.text.trim().isNotEmpty) {
       longitude = double.tryParse(_longitude.text.trim().replaceAll(',', '.'));
       if (longitude == null) {
-        setState(() => _erro = 'Longitude precisa ser um número (ex: -46.6333).');
+        setState(
+            () => _erro = 'Longitude precisa ser um número (ex: -46.6333).');
         return;
       }
     }
@@ -170,10 +178,12 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
       _resultadoStatus = null;
     });
 
-    String? campo(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+    String? campo(TextEditingController c) =>
+        c.text.trim().isEmpty ? null : c.text.trim();
 
     try {
-      final resposta = await SupabaseService.client.rpc('verificar_e_registrar_posto_anp', params: {
+      final resposta = await SupabaseService.client
+          .rpc('verificar_e_registrar_posto_anp', params: {
         'p_empresa_id': widget.empresa['id'],
         'p_cnpj': cnpj,
         'p_razao_social': nome,
@@ -193,7 +203,8 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
       final ok = resposta['ok'] == true;
       if (!ok) {
         final motivo = resposta['motivo'] as String?;
-        setState(() => _erro = _motivoMensagem[motivo] ?? 'Não foi possível salvar o cadastro.');
+        setState(() => _erro =
+            _motivoMensagem[motivo] ?? 'Não foi possível salvar o cadastro.');
         return;
       }
 
@@ -208,13 +219,15 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
 
   @override
   Widget build(BuildContext context) {
-    final statusAtual = _statusLabel[widget.empresa['anp_status'] as String? ?? 'pendente'] ??
-        _statusLabel['pendente']!;
+    final statusAtual =
+        _statusLabel[widget.empresa['anp_status'] as String? ?? 'pendente'] ??
+            _statusLabel['pendente']!;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        const Text('Meu Posto', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text('Meu Posto',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         const Text(
           'Confirme os dados do seu estabelecimento — CNPJ, endereço e localização são comparados com a '
@@ -223,9 +236,7 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
           style: TextStyle(color: Colors.grey, fontSize: 13),
         ),
         const SizedBox(height: 16),
-
         _banner(statusAtual.texto, statusAtual.cor, statusAtual.corTexto),
-
         if (_erro != null) ...[
           const SizedBox(height: 12),
           _banner(_erro!, const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
@@ -239,13 +250,11 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
             _statusLabel[_resultadoStatus]?.corTexto ?? const Color(0xFF475569),
           ),
         ],
-
         const SizedBox(height: 20),
         _secao('Identificação', [
           _campo('CNPJ *', _cnpj, hint: '00.000.000/0001-00'),
           _campo('Razão Social *', _nome),
         ]),
-
         _secao('Endereço completo', [
           _campo('Logradouro', _logradouro),
           _campo('Número', _numero),
@@ -255,7 +264,6 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
           _campo('Município', _municipio),
           _campo('UF', _uf, maxLength: 2),
         ]),
-
         _secao('Localização (latitude/longitude)', [
           const Padding(
             padding: EdgeInsets.only(bottom: 8),
@@ -268,19 +276,20 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
           _campo('Latitude', _latitude, hint: '-23.550520'),
           _campo('Longitude', _longitude, hint: '-46.633308'),
         ]),
-
         _secao('Contatos', [
           _campo('Telefone de contato', _telefone),
           _campo('E-mail de contato', _email),
         ]),
-
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: _salvando ? null : _salvar,
             child: _salvando
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Salvar e verificar com a ANP'),
           ),
         ),
@@ -291,7 +300,8 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
   Widget _banner(String texto, Color fundo, Color corTexto) => Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(8)),
+        decoration:
+            BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(8)),
         child: Text(texto, style: TextStyle(color: corTexto, fontSize: 13)),
       );
 
@@ -303,7 +313,9 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(titulo,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 ...campos,
               ],
@@ -312,12 +324,16 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
         ),
       );
 
-  Widget _campo(String label, TextEditingController controller, {String? hint, int? maxLength}) => Padding(
+  Widget _campo(String label, TextEditingController controller,
+          {String? hint, int? maxLength}) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
           controller: controller,
           maxLength: maxLength,
-          textCapitalization: maxLength == 2 ? TextCapitalization.characters : TextCapitalization.none,
+          textCapitalization: maxLength == 2
+              ? TextCapitalization.characters
+              : TextCapitalization.none,
           decoration: InputDecoration(
             labelText: label,
             hintText: hint,

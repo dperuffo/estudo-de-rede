@@ -7,6 +7,8 @@ import '../fretes_veiculos_constantes.dart';
 import '../providers/fretes_provider.dart';
 import '../services/fretes_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase PWA-Fretes — porta de fretes/novo/page.tsx + FreteForm.tsx +
 // CampoLocalFrete.tsx. Busca de local reaproveita geocodificar() (mesmo
 // Nominatim já usado na Roteirização).
@@ -93,14 +95,20 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
       setState(() => _erro = 'Selecione o motorista.');
       return;
     }
-    final percentualAdiantamento = double.tryParse(_percentualAdiantamentoCtrl.text.replaceAll(',', '.')) ?? 30;
+    final percentualAdiantamento = double.tryParse(
+            _percentualAdiantamentoCtrl.text.replaceAll(',', '.')) ??
+        30;
     if (percentualAdiantamento < 0 || percentualAdiantamento > 100) {
-      setState(() => _erro = 'Percentual de adiantamento precisa estar entre 0 e 100.');
+      setState(() =>
+          _erro = 'Percentual de adiantamento precisa estar entre 0 e 100.');
       return;
     }
-    final saldoCombustivelAlocado = double.tryParse(_saldoCombustivelCtrl.text.replaceAll(',', '.'));
-    if (_tipoSaldoCombustivel.isNotEmpty && (saldoCombustivelAlocado == null || saldoCombustivelAlocado <= 0)) {
-      setState(() => _erro = 'Informe um valor válido pra reserva de combustível.');
+    final saldoCombustivelAlocado =
+        double.tryParse(_saldoCombustivelCtrl.text.replaceAll(',', '.'));
+    if (_tipoSaldoCombustivel.isNotEmpty &&
+        (saldoCombustivelAlocado == null || saldoCombustivelAlocado <= 0)) {
+      setState(
+          () => _erro = 'Informe um valor válido pra reserva de combustível.');
       return;
     }
 
@@ -123,7 +131,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
       kmEstimado: double.tryParse(_kmCtrl.text.replaceAll(',', '.')),
       valorOferecido: valor,
       motoristaId: _modo == 'direto' ? _motoristaId : null,
-      cargaComprimentoM: double.tryParse(_comprimentoCtrl.text.replaceAll(',', '.')),
+      cargaComprimentoM:
+          double.tryParse(_comprimentoCtrl.text.replaceAll(',', '.')),
       cargaLarguraM: double.tryParse(_larguraCtrl.text.replaceAll(',', '.')),
       cargaAlturaM: double.tryParse(_alturaCtrl.text.replaceAll(',', '.')),
       coleta: _coleta.paraMapa(),
@@ -131,7 +140,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
       veiculosAceitos: _veiculosSelecionados.toList(),
       carroceriasAceitas: _carroceriasSelecionadas.toList(),
       percentualAdiantamento: percentualAdiantamento,
-      saldoCombustivelTipo: _tipoSaldoCombustivel.isEmpty ? null : _tipoSaldoCombustivel,
+      saldoCombustivelTipo:
+          _tipoSaldoCombustivel.isEmpty ? null : _tipoSaldoCombustivel,
       saldoCombustivelAlocado: saldoCombustivelAlocado,
     );
     if (!mounted) return;
@@ -152,7 +162,14 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
     final empresaId = sessao?.empresaId;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Publicar frete')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Publicar frete')),
       body: empresaId == null
           ? const Center(child: Text('Selecione uma empresa primeiro.'))
           : ListView(
@@ -161,28 +178,45 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 if (_erro != null) ...[
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
-                    child: Text(_erro!, style: const TextStyle(color: Colors.red)),
+                    decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8)),
+                    child:
+                        Text(_erro!, style: const TextStyle(color: Colors.red)),
                   ),
                   const SizedBox(height: 12),
                 ],
-                const Text('Dados do frete', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Dados do frete',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                TextField(controller: _tituloCtrl, decoration: const InputDecoration(labelText: 'Título', border: OutlineInputBorder())),
+                TextField(
+                    controller: _tituloCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Título', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                _CampoLocalFrete(label: 'Origem', valor: _origem, onEscolhido: (v) => setState(() => _origem = v)),
+                _CampoLocalFrete(
+                    label: 'Origem',
+                    valor: _origem,
+                    onEscolhido: (v) => setState(() => _origem = v)),
                 const SizedBox(height: 12),
-                _CampoLocalFrete(label: 'Destino', valor: _destino, onEscolhido: (v) => setState(() => _destino = v)),
+                _CampoLocalFrete(
+                    label: 'Destino',
+                    valor: _destino,
+                    onEscolhido: (v) => setState(() => _destino = v)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _tipoCargaCtrl,
-                  decoration: const InputDecoration(labelText: 'Tipo de carga', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Tipo de carga', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _pesoCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Peso da carga (kg)', border: OutlineInputBorder()),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Peso da carga (kg)',
+                      border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -190,30 +224,43 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                     Expanded(
                       child: TextField(
                         controller: _comprimentoCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Compr. (m)', isDense: true, border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Compr. (m)',
+                            isDense: true,
+                            border: OutlineInputBorder()),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _larguraCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Largura (m)', isDense: true, border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Largura (m)',
+                            isDense: true,
+                            border: OutlineInputBorder()),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _alturaCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Altura (m)', isDense: true, border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Altura (m)',
+                            isDense: true,
+                            border: OutlineInputBorder()),
                       ),
                     ),
                   ],
                 ),
                 const Divider(height: 32),
-                const Text('Endereços completos', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Endereços completos',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text(
                   'Aparece pro motorista antes de aceitar o frete — quanto mais completo, mais fácil pra ele avaliar '
@@ -225,7 +272,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const SizedBox(height: 16),
                 _BlocoEnderecoCompleto(titulo: '📍 Entrega', dados: _entrega),
                 const Divider(height: 32),
-                const Text('Veículo e carroceria (opcional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Veículo e carroceria (opcional)',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text(
                   'Se não marcar nada, o frete aparece pra qualquer motorista. Marcando, só quem tem veículo '
@@ -239,14 +287,17 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(e.key, style: const TextStyle(fontSize: 11, color: Colors.black45)),
+                        Text(e.key,
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.black45)),
                         const SizedBox(height: 4),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: e.value
                               .map((v) => FilterChip(
-                                    label: Text(v, style: const TextStyle(fontSize: 12)),
+                                    label: Text(v,
+                                        style: const TextStyle(fontSize: 12)),
                                     selected: _veiculosSelecionados.contains(v),
                                     onSelected: (sel) => setState(() {
                                       if (sel) {
@@ -263,14 +314,16 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text('Carroceria', style: TextStyle(fontSize: 11, color: Colors.black45)),
+                const Text('Carroceria',
+                    style: TextStyle(fontSize: 11, color: Colors.black45)),
                 const SizedBox(height: 4),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: carroceriasFrete
                       .map((c) => FilterChip(
-                            label: Text(c, style: const TextStyle(fontSize: 12)),
+                            label:
+                                Text(c, style: const TextStyle(fontSize: 12)),
                             selected: _carroceriasSelecionadas.contains(c),
                             onSelected: (sel) => setState(() {
                               if (sel) {
@@ -285,15 +338,20 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _kmCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Km estimado (opcional)', border: OutlineInputBorder()),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Km estimado (opcional)',
+                      border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _valorCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Valor do frete (R\$)${_modo == 'mercado' ? ' — valor de partida' : ''}',
+                    labelText:
+                        'Valor do frete (R\$)${_modo == 'mercado' ? ' — valor de partida' : ''}',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -301,10 +359,13 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 TextField(
                   controller: _descricaoCtrl,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Descrição (opcional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Descrição (opcional)',
+                      border: OutlineInputBorder()),
                 ),
                 const Divider(height: 32),
-                const Text('Adiantamento e combustível', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Adiantamento e combustível',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text(
                   'O motorista aceita o frete → você paga o % de entrada; o resto fica pra pagar na conclusão. '
@@ -315,33 +376,44 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _percentualAdiantamentoCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Adiantamento na aceitação (%)', border: OutlineInputBorder()),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Adiantamento na aceitação (%)',
+                      border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: _tipoSaldoCombustivel,
-                  decoration: const InputDecoration(labelText: 'Reserva de combustível', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Reserva de combustível',
+                      border: OutlineInputBorder()),
                   items: const [
-                    DropdownMenuItem(value: '', child: Text('Sem reserva de combustível')),
+                    DropdownMenuItem(
+                        value: '', child: Text('Sem reserva de combustível')),
                     DropdownMenuItem(value: 'Valor', child: Text('Em R\$')),
                     DropdownMenuItem(value: 'Volume', child: Text('Em litros')),
                   ],
-                  onChanged: (v) => setState(() => _tipoSaldoCombustivel = v ?? ''),
+                  onChanged: (v) =>
+                      setState(() => _tipoSaldoCombustivel = v ?? ''),
                 ),
                 if (_tipoSaldoCombustivel.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   TextField(
                     controller: _saldoCombustivelCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      labelText: _tipoSaldoCombustivel == 'Valor' ? 'Valor da reserva (R\$)' : 'Volume da reserva (litros)',
+                      labelText: _tipoSaldoCombustivel == 'Valor'
+                          ? 'Valor da reserva (R\$)'
+                          : 'Volume da reserva (litros)',
                       border: const OutlineInputBorder(),
                     ),
                   ),
                 ],
                 const Divider(height: 32),
-                const Text('Quem vai dirigir?', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Quem vai dirigir?',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text(
                   'Se você já sabe quem vai fazer o frete, atribua direto — ele só confirma ou recusa, sem negociação. '
@@ -371,24 +443,30 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 if (_modo == 'direto') ...[
                   const SizedBox(height: 12),
                   Consumer(builder: (context, ref, _) {
-                    final motoristasAsync = ref.watch(motoristasOpcaoProvider(empresaId));
+                    final motoristasAsync =
+                        ref.watch(motoristasOpcaoProvider(empresaId));
                     return motoristasAsync.when(
-                      loading: () => const Center(child: CircularProgressIndicator()),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
                       error: (e, _) => Text('Erro ao carregar motoristas: $e'),
                       data: (motoristas) {
                         if (motoristas.isEmpty) {
                           return const Text(
                             'Nenhum motorista próprio ou parceiro ativo ainda. Cadastre motoristas ou convide parceiros em Motoristas Parceiros.',
-                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.black54),
                           );
                         }
                         return DropdownButtonFormField<String>(
                           initialValue: _motoristaId,
-                          decoration: const InputDecoration(labelText: 'Motorista', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(
+                              labelText: 'Motorista',
+                              border: OutlineInputBorder()),
                           items: motoristas
                               .map((m) => DropdownMenuItem(
                                     value: m.id,
-                                    child: Text('${m.nome} ${m.origem == 'parceiro' ? '(parceiro)' : ''}'),
+                                    child: Text(
+                                        '${m.nome} ${m.origem == 'parceiro' ? '(parceiro)' : ''}'),
                                   ))
                               .toList(),
                           onChanged: (v) => setState(() => _motoristaId = v),
@@ -401,7 +479,11 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 ElevatedButton(
                   onPressed: _enviando ? null : () => _publicar(empresaId),
                   child: _enviando
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Publicar frete'),
                 ),
               ],
@@ -415,7 +497,8 @@ class _CampoLocalFrete extends StatefulWidget {
   final SugestaoGeocoding? valor;
   final ValueChanged<SugestaoGeocoding> onEscolhido;
 
-  const _CampoLocalFrete({required this.label, required this.valor, required this.onEscolhido});
+  const _CampoLocalFrete(
+      {required this.label, required this.valor, required this.onEscolhido});
 
   @override
   State<_CampoLocalFrete> createState() => _CampoLocalFreteState();
@@ -454,14 +537,18 @@ class _CampoLocalFreteState extends State<_CampoLocalFrete> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(widget.label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _controller,
-                decoration: const InputDecoration(hintText: 'Digite a cidade e busque...', isDense: true, border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    hintText: 'Digite a cidade e busque...',
+                    isDense: true,
+                    border: OutlineInputBorder()),
                 onSubmitted: (_) => _buscar(),
               ),
             ),
@@ -469,7 +556,10 @@ class _CampoLocalFreteState extends State<_CampoLocalFrete> {
             OutlinedButton(
               onPressed: _buscando ? null : _buscar,
               child: _buscando
-                  ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Buscar'),
             ),
           ],
@@ -478,13 +568,16 @@ class _CampoLocalFreteState extends State<_CampoLocalFrete> {
           Container(
             margin: const EdgeInsets.only(top: 4),
             constraints: const BoxConstraints(maxHeight: 160),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8)),
             child: ListView(
               shrinkWrap: true,
               children: _sugestoes
                   .map((s) => ListTile(
                         dense: true,
-                        title: Text(s.label, style: const TextStyle(fontSize: 13)),
+                        title:
+                            Text(s.label, style: const TextStyle(fontSize: 13)),
                         onTap: () {
                           widget.onEscolhido(s);
                           setState(() {
@@ -499,8 +592,12 @@ class _CampoLocalFreteState extends State<_CampoLocalFrete> {
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-            widget.valor != null ? '✓ ${widget.valor!.label}' : 'Escolha uma sugestão da busca.',
-            style: TextStyle(fontSize: 11, color: widget.valor != null ? Colors.green : Colors.black45),
+            widget.valor != null
+                ? '✓ ${widget.valor!.label}'
+                : 'Escolha uma sugestão da busca.',
+            style: TextStyle(
+                fontSize: 11,
+                color: widget.valor != null ? Colors.green : Colors.black45),
           ),
         ),
       ],
@@ -513,7 +610,8 @@ class _CampoData extends StatelessWidget {
   final DateTime? valor;
   final ValueChanged<DateTime> onEscolhido;
 
-  const _CampoData({required this.label, required this.valor, required this.onEscolhido});
+  const _CampoData(
+      {required this.label, required this.valor, required this.onEscolhido});
 
   @override
   Widget build(BuildContext context) {
@@ -529,9 +627,12 @@ class _CampoData extends StatelessWidget {
         if (escolhida != null) onEscolhido(escolhida);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+            labelText: label, border: const OutlineInputBorder()),
         child: Text(
-          valor != null ? '${valor!.day.toString().padLeft(2, '0')}/${valor!.month.toString().padLeft(2, '0')}/${valor!.year}' : '—',
+          valor != null
+              ? '${valor!.day.toString().padLeft(2, '0')}/${valor!.month.toString().padLeft(2, '0')}/${valor!.year}'
+              : '—',
         ),
       ),
     );
@@ -543,17 +644,20 @@ class _CampoHora extends StatelessWidget {
   final TimeOfDay? valor;
   final ValueChanged<TimeOfDay> onEscolhido;
 
-  const _CampoHora({required this.label, required this.valor, required this.onEscolhido});
+  const _CampoHora(
+      {required this.label, required this.valor, required this.onEscolhido});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () async {
-        final escolhida = await showTimePicker(context: context, initialTime: valor ?? TimeOfDay.now());
+        final escolhida = await showTimePicker(
+            context: context, initialTime: valor ?? TimeOfDay.now());
         if (escolhida != null) onEscolhido(escolhida);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+            labelText: label, border: const OutlineInputBorder()),
         child: Text(valor != null ? valor!.format(context) : '—'),
       ),
     );
@@ -588,7 +692,8 @@ class _EnderecoCompletoDados {
     contatoTelefoneCtrl.dispose();
   }
 
-  String? _semAcento(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+  String? _semAcento(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : c.text.trim();
 
   Map<String, String?> paraMapa() => {
         'rua': _semAcento(ruaCtrl),
@@ -599,7 +704,9 @@ class _EnderecoCompletoDados {
         'cep': _semAcento(cepCtrl),
         'referencia': _semAcento(referenciaCtrl),
         'data': data?.toIso8601String().split('T').first,
-        'hora': hora != null ? '${hora!.hour.toString().padLeft(2, '0')}:${hora!.minute.toString().padLeft(2, '0')}' : null,
+        'hora': hora != null
+            ? '${hora!.hour.toString().padLeft(2, '0')}:${hora!.minute.toString().padLeft(2, '0')}'
+            : null,
         'contato_nome': _semAcento(contatoNomeCtrl),
         'contato_telefone': _semAcento(contatoTelefoneCtrl),
       };
@@ -621,23 +728,42 @@ class _BlocoEnderecoCompletoState extends State<_BlocoEnderecoCompleto> {
     final d = widget.dados;
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.titulo, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(widget.titulo,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: 8),
-          TextField(controller: d.ruaCtrl, decoration: const InputDecoration(labelText: 'Rua / Av.', isDense: true, border: OutlineInputBorder())),
+          TextField(
+              controller: d.ruaCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Rua / Av.',
+                  isDense: true,
+                  border: OutlineInputBorder())),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: TextField(controller: d.numeroCtrl, decoration: const InputDecoration(labelText: 'Número', isDense: true, border: OutlineInputBorder())),
+                child: TextField(
+                    controller: d.numeroCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Número',
+                        isDense: true,
+                        border: OutlineInputBorder())),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: TextField(controller: d.bairroCtrl, decoration: const InputDecoration(labelText: 'Bairro', isDense: true, border: OutlineInputBorder())),
+                child: TextField(
+                    controller: d.bairroCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Bairro',
+                        isDense: true,
+                        border: OutlineInputBorder())),
               ),
             ],
           ),
@@ -646,7 +772,12 @@ class _BlocoEnderecoCompletoState extends State<_BlocoEnderecoCompleto> {
             children: [
               Expanded(
                 flex: 2,
-                child: TextField(controller: d.cidadeCtrl, decoration: const InputDecoration(labelText: 'Cidade', isDense: true, border: OutlineInputBorder())),
+                child: TextField(
+                    controller: d.cidadeCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Cidade',
+                        isDense: true,
+                        border: OutlineInputBorder())),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -654,37 +785,63 @@ class _BlocoEnderecoCompletoState extends State<_BlocoEnderecoCompleto> {
                   controller: d.ufCtrl,
                   maxLength: 2,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(labelText: 'UF', isDense: true, border: OutlineInputBorder(), counterText: ''),
+                  decoration: const InputDecoration(
+                      labelText: 'UF',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      counterText: ''),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: TextField(controller: d.cepCtrl, decoration: const InputDecoration(labelText: 'CEP', isDense: true, border: OutlineInputBorder())),
+                child: TextField(
+                    controller: d.cepCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'CEP',
+                        isDense: true,
+                        border: OutlineInputBorder())),
               ),
             ],
           ),
           const SizedBox(height: 8),
           TextField(
             controller: d.referenciaCtrl,
-            decoration: const InputDecoration(labelText: 'Ponto de referência (opcional)', isDense: true, border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Ponto de referência (opcional)',
+                isDense: true,
+                border: OutlineInputBorder()),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _CampoData(label: 'Data', valor: d.data, onEscolhido: (v) => setState(() => d.data = v))),
+              Expanded(
+                  child: _CampoData(
+                      label: 'Data',
+                      valor: d.data,
+                      onEscolhido: (v) => setState(() => d.data = v))),
               const SizedBox(width: 8),
-              Expanded(child: _CampoHora(label: 'Hora', valor: d.hora, onEscolhido: (v) => setState(() => d.hora = v))),
+              Expanded(
+                  child: _CampoHora(
+                      label: 'Hora',
+                      valor: d.hora,
+                      onEscolhido: (v) => setState(() => d.hora = v))),
             ],
           ),
           const SizedBox(height: 8),
           TextField(
             controller: d.contatoNomeCtrl,
-            decoration: const InputDecoration(labelText: 'Contato no local (nome)', isDense: true, border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Contato no local (nome)',
+                isDense: true,
+                border: OutlineInputBorder()),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: d.contatoTelefoneCtrl,
-            decoration: const InputDecoration(labelText: 'Telefone do contato', isDense: true, border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Telefone do contato',
+                isDense: true,
+                border: OutlineInputBorder()),
           ),
         ],
       ),

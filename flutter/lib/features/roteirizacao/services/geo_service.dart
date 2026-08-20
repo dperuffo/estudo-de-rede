@@ -18,7 +18,8 @@ double haversineKm(Ponto a, Ponto b) {
   final dLon = (b.lon - a.lon) * math.pi / 180;
   final lat1 = a.lat * math.pi / 180;
   final lat2 = b.lat * math.pi / 180;
-  final h = math.pow(math.sin(dLat / 2), 2) + math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+  final h = math.pow(math.sin(dLat / 2), 2) +
+      math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
   return _raioTerraKm * 2 * math.atan2(math.sqrt(h), math.sqrt(1 - h));
 }
 
@@ -32,7 +33,8 @@ Ponto _projetarPontoNoSegmento(Ponto ponto, Ponto a, Ponto b) {
   return Ponto(a.lat + t * dy, a.lon + t * dx);
 }
 
-({double km, double desvioKm}) posicaoNaRotaKm(Ponto ponto, List<Ponto> rota, List<double> acumuladas) {
+({double km, double desvioKm}) posicaoNaRotaKm(
+    Ponto ponto, List<Ponto> rota, List<double> acumuladas) {
   if (rota.isEmpty) return (km: 0, desvioKm: double.infinity);
   var melhorDist = double.infinity;
   var melhorKm = 0.0;
@@ -62,7 +64,11 @@ List<double> distanciasAcumuladas(List<Ponto> rota) {
 
 class BoundingBox {
   final double minLat, maxLat, minLon, maxLon;
-  const BoundingBox({required this.minLat, required this.maxLat, required this.minLon, required this.maxLon});
+  const BoundingBox(
+      {required this.minLat,
+      required this.maxLat,
+      required this.minLon,
+      required this.maxLon});
 }
 
 // Fase 27.21 na web — divide a rota em pedaços de até `passoKm` (capado a
@@ -105,7 +111,8 @@ class SugestaoGeocoding {
   final String label;
   final double lat;
   final double lon;
-  const SugestaoGeocoding({required this.label, required this.lat, required this.lon});
+  const SugestaoGeocoding(
+      {required this.label, required this.lat, required this.lon});
 }
 
 final _dio = Dio();
@@ -125,7 +132,10 @@ Future<List<SugestaoGeocoding>> geocodificar(String texto) async {
         'addressdetails': '1',
       },
       options: Options(
-        headers: {'User-Agent': 'FNI-GestaoDeFrotas-Flutter/1.0 (contato: d.peruffo@gmail.com)'},
+        headers: {
+          'User-Agent':
+              'FNI-GestaoDeFrotas-Flutter/1.0 (contato: d.peruffo@gmail.com)'
+        },
         sendTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
       ),
@@ -136,11 +146,21 @@ Future<List<SugestaoGeocoding>> geocodificar(String texto) async {
     for (final item in itens) {
       final m = item as Map<String, dynamic>;
       final addr = (m['address'] as Map<String, dynamic>?) ?? {};
-      final cidade = (addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['municipality'] ?? addr['county'] ?? '') as String;
+      final cidade = (addr['city'] ??
+          addr['town'] ??
+          addr['village'] ??
+          addr['municipality'] ??
+          addr['county'] ??
+          '') as String;
       final estado = (addr['state'] ?? '') as String;
       final label = cidade.isNotEmpty && estado.isNotEmpty
           ? '$cidade – $estado'
-          : (estado.isNotEmpty ? estado : (m['display_name'] as String? ?? '').split(', ').take(2).join(', '));
+          : (estado.isNotEmpty
+              ? estado
+              : (m['display_name'] as String? ?? '')
+                  .split(', ')
+                  .take(2)
+                  .join(', '));
       if (!vistos.contains(label) && label.isNotEmpty) {
         vistos.add(label);
         opcoes.add(SugestaoGeocoding(
@@ -177,7 +197,8 @@ const _osrmServidores = [
 // Porta de calcularRotaOsrm() — mesmos servidores públicos OSRM tentados em
 // sequência, com fallback para linha reta se os dois falharem (garante que
 // a funcionalidade não trave por indisponibilidade do serviço externo).
-Future<ResultadoRota> calcularRotaOsrm(Ponto origem, Ponto destino, {List<Ponto> paradas = const []}) async {
+Future<ResultadoRota> calcularRotaOsrm(Ponto origem, Ponto destino,
+    {List<Ponto> paradas = const []}) async {
   final pontos = [origem, ...paradas, destino];
   final coordsStr = pontos.map((p) => '${p.lon},${p.lat}').join(';');
 
@@ -187,9 +208,12 @@ Future<ResultadoRota> calcularRotaOsrm(Ponto origem, Ponto destino, {List<Ponto>
       final resp = await _dio.get(
         url,
         queryParameters: {'overview': 'full', 'geometries': 'geojson'},
-        options: Options(sendTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 10)),
+        options: Options(
+            sendTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 10)),
       );
-      final rota = (resp.data['routes'] as List?)?.firstOrNull as Map<String, dynamic>?;
+      final rota =
+          (resp.data['routes'] as List?)?.firstOrNull as Map<String, dynamic>?;
       if (rota == null) continue;
       final coords = (rota['geometry']['coordinates'] as List)
           .map((c) => Ponto((c[1] as num).toDouble(), (c[0] as num).toDouble()))
@@ -213,7 +237,8 @@ Future<ResultadoRota> calcularRotaOsrm(Ponto origem, Ponto destino, {List<Ponto>
     final b = pontos[i + 1];
     for (var j = 0; j < segmentosPorTrecho; j++) {
       final t = j / segmentosPorTrecho;
-      coordenadas.add(Ponto(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t));
+      coordenadas
+          .add(Ponto(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t));
     }
   }
   coordenadas.add(pontos.last);
@@ -249,7 +274,8 @@ class OpcaoRota {
   });
 }
 
-Future<List<OpcaoRota>> buscarAlternativasRotaOsrm(Ponto origem, Ponto destino, {List<Ponto> paradas = const []}) async {
+Future<List<OpcaoRota>> buscarAlternativasRotaOsrm(Ponto origem, Ponto destino,
+    {List<Ponto> paradas = const []}) async {
   final pontos = [origem, ...paradas, destino];
   final coordsStr = pontos.map((p) => '${p.lon},${p.lat}').join(';');
 
@@ -258,8 +284,14 @@ Future<List<OpcaoRota>> buscarAlternativasRotaOsrm(Ponto origem, Ponto destino, 
       final url = '$servidor/$coordsStr';
       final resp = await _dio.get(
         url,
-        queryParameters: {'overview': 'full', 'geometries': 'geojson', 'alternatives': 'true'},
-        options: Options(sendTimeout: const Duration(seconds: 12), receiveTimeout: const Duration(seconds: 12)),
+        queryParameters: {
+          'overview': 'full',
+          'geometries': 'geojson',
+          'alternatives': 'true'
+        },
+        options: Options(
+            sendTimeout: const Duration(seconds: 12),
+            receiveTimeout: const Duration(seconds: 12)),
       );
       final rotas = resp.data['routes'] as List?;
       if (rotas == null || rotas.isEmpty) continue;
@@ -268,11 +300,18 @@ Future<List<OpcaoRota>> buscarAlternativasRotaOsrm(Ponto origem, Ponto destino, 
       for (var i = 0; i < rotas.length; i++) {
         final rota = rotas[i] as Map<String, dynamic>;
         final coords = (rota['geometry']['coordinates'] as List)
-            .map((c) => Ponto((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .map((c) =>
+                Ponto((c[1] as num).toDouble(), (c[0] as num).toDouble()))
             .toList();
-        final distanciaKm = ((rota['distance'] as num) / 1000 * 10).round() / 10;
+        final distanciaKm =
+            ((rota['distance'] as num) / 1000 * 10).round() / 10;
         final duracaoMin = ((rota['duration'] as num) / 60).round().toDouble();
-        opcoes.add(OpcaoRota(id: i, coordenadas: coords, distanciaKm: distanciaKm, duracaoMin: duracaoMin, linhaReta: false));
+        opcoes.add(OpcaoRota(
+            id: i,
+            coordenadas: coords,
+            distanciaKm: distanciaKm,
+            duracaoMin: duracaoMin,
+            linhaReta: false));
       }
 
       // Descarta "alternativas" praticamente idênticas à principal (mesmo
@@ -280,7 +319,9 @@ Future<List<OpcaoRota>> buscarAlternativasRotaOsrm(Ponto origem, Ponto destino, 
       final distintas = <OpcaoRota>[];
       for (final op in opcoes) {
         final duplicada = distintas.any(
-          (v) => (v.distanciaKm - op.distanciaKm).abs() < 1 && (v.duracaoMin - op.duracaoMin).abs() < 2,
+          (v) =>
+              (v.distanciaKm - op.distanciaKm).abs() < 1 &&
+              (v.duracaoMin - op.duracaoMin).abs() < 2,
         );
         if (!duplicada) distintas.add(op);
       }

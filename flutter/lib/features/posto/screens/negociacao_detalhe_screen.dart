@@ -6,6 +6,8 @@ import '../providers/negociacao_detalhe_provider.dart';
 import '../providers/negociacoes_provider.dart';
 import '../services/negociacoes_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 final _dataBr = DateFormat('dd/MM/yyyy');
@@ -45,10 +47,12 @@ class NegociacaoDetalheScreen extends ConsumerStatefulWidget {
   const NegociacaoDetalheScreen({super.key, required this.id});
 
   @override
-  ConsumerState<NegociacaoDetalheScreen> createState() => _NegociacaoDetalheScreenState();
+  ConsumerState<NegociacaoDetalheScreen> createState() =>
+      _NegociacaoDetalheScreenState();
 }
 
-class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScreen> {
+class _NegociacaoDetalheScreenState
+    extends ConsumerState<NegociacaoDetalheScreen> {
   final _service = NegociacoesService();
   bool _mostrarContraproposta = false;
   bool _processando = false;
@@ -63,9 +67,13 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
 
   void _prepararControllers(RodadaNegociacao ultimaRodada) {
     if (_controllersProntos) return;
-    _combustivel = produtosPosto.contains(ultimaRodada.combustivel) ? ultimaRodada.combustivel : produtosPosto.first;
-    _volume = TextEditingController(text: ultimaRodada.volumeMinimoMensal.toStringAsFixed(0));
-    _preco = TextEditingController(text: ultimaRodada.precoUnitario.toStringAsFixed(2));
+    _combustivel = produtosPosto.contains(ultimaRodada.combustivel)
+        ? ultimaRodada.combustivel
+        : produtosPosto.first;
+    _volume = TextEditingController(
+        text: ultimaRodada.volumeMinimoMensal.toStringAsFixed(0));
+    _preco = TextEditingController(
+        text: ultimaRodada.precoUnitario.toStringAsFixed(2));
     _inicio = TextEditingController(text: ultimaRodada.vigenciaInicio);
     _fim = TextEditingController(text: ultimaRodada.vigenciaFim);
     _controllersProntos = true;
@@ -168,18 +176,27 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Negociação'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/negociacoes'),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go('/posto/negociacoes'),
         ),
       ),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Não deu pra carregar: $e')),
         data: (negociacao) {
-          if (negociacao.minhaVezDeResponder && negociacao.ultimaRodada != null) {
+          if (negociacao.minhaVezDeResponder &&
+              negociacao.ultimaRodada != null) {
             _prepararControllers(negociacao.ultimaRodada!);
           }
 
@@ -188,7 +205,8 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
             children: [
               Text(
                 'Negociação com ${negociacao.clienteNome ?? 'cliente'}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
@@ -201,7 +219,6 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
                 '${negociacao.nomeAtualizadoPor != null ? ' por ${negociacao.nomeAtualizadoPor}' : ''}',
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
-
               if (negociacao.emAndamento) ...[
                 const SizedBox(height: 8),
                 Align(
@@ -213,32 +230,38 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
                   ),
                 ),
               ],
-
               if (_erro != null) ...[
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_erro!,
+                      style: const TextStyle(
+                          color: Color(0xFFB91C1C), fontSize: 13)),
                 ),
               ],
-
               const SizedBox(height: 16),
-
-              if (negociacao.minhaVezDeResponder && negociacao.ultimaRodada != null)
+              if (negociacao.minhaVezDeResponder &&
+                  negociacao.ultimaRodada != null)
                 _cardAcoes()
               else if (negociacao.emAndamento)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(8)),
                   child: const Text('Aguardando resposta do cliente.',
                       style: TextStyle(color: Color(0xFF92400E), fontSize: 13)),
                 ),
-
               const SizedBox(height: 20),
-              const Text('Histórico de rodadas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const Text('Histórico de rodadas',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               ...negociacao.rodadas.map((r) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -252,22 +275,30 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
                             children: [
                               Text(
                                 'Rodada #${r.numeroRodada} — ${r.autor == 'cliente' ? 'cliente' : 'posto'}',
-                                style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.bold),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text(_decisaoLabel[r.decisao] ?? r.decisao, style: const TextStyle(fontSize: 11)),
+                                child: Text(
+                                    _decisaoLabel[r.decisao] ?? r.decisao,
+                                    style: const TextStyle(fontSize: 11)),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Text(r.combustivel),
-                          Text('${_numero.format(r.volumeMinimoMensal)} L/mês · ${_moeda.format(r.precoUnitario)}/L'),
-                          Text('${_fmtData(r.vigenciaInicio)} – ${_fmtData(r.vigenciaFim)}'),
+                          Text(
+                              '${_numero.format(r.volumeMinimoMensal)} L/mês · ${_moeda.format(r.precoUnitario)}/L'),
+                          Text(
+                              '${_fmtData(r.vigenciaInicio)} – ${_fmtData(r.vigenciaFim)}'),
                         ],
                       ),
                     ),
@@ -285,7 +316,8 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('É a sua vez de responder esta negociação.', style: TextStyle(fontWeight: FontWeight.w500)),
+              const Text('É a sua vez de responder esta negociação.',
+                  style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 12),
               if (!_mostrarContraproposta) ...[
                 Wrap(
@@ -297,12 +329,15 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
                       child: const Text('Aceitar'),
                     ),
                     OutlinedButton(
-                      onPressed: _processando ? null : () => setState(() => _mostrarContraproposta = true),
+                      onPressed: _processando
+                          ? null
+                          : () => setState(() => _mostrarContraproposta = true),
                       child: const Text('Contrapropor'),
                     ),
                     OutlinedButton(
                       onPressed: _processando ? null : () => _decidir(false),
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      style:
+                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
                       child: const Text('Recusar'),
                     ),
                   ],
@@ -310,8 +345,13 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
               ] else if (_controllersProntos) ...[
                 DropdownButtonFormField<String>(
                   value: _combustivel,
-                  decoration: const InputDecoration(labelText: 'Combustível', border: OutlineInputBorder(), isDense: true),
-                  items: produtosPosto.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                  decoration: const InputDecoration(
+                      labelText: 'Combustível',
+                      border: OutlineInputBorder(),
+                      isDense: true),
+                  items: produtosPosto
+                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                      .toList(),
                   onChanged: (v) => setState(() => _combustivel = v),
                 ),
                 const SizedBox(height: 12),
@@ -327,7 +367,8 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
                 const SizedBox(height: 12),
                 TextField(
                   controller: _preco,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'Preço por litro (R\$)',
                     border: OutlineInputBorder(),
@@ -362,12 +403,18 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
                     ElevatedButton(
                       onPressed: _processando ? null : _enviarContraproposta,
                       child: _processando
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('Enviar contraproposta'),
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: _processando ? null : () => setState(() => _mostrarContraproposta = false),
+                      onPressed: _processando
+                          ? null
+                          : () =>
+                              setState(() => _mostrarContraproposta = false),
                       child: const Text('Cancelar'),
                     ),
                   ],

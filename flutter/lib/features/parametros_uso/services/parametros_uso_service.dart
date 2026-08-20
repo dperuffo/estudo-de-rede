@@ -26,9 +26,12 @@ class ParametrosUsoService {
         'empresa_id': empresaId,
         'placa': placa.trim().toUpperCase(),
         'motorista_id': motoristaId,
-        'data_inicio': dataInicio ?? DateTime.now().toIso8601String().substring(0, 10),
+        'data_inicio':
+            dataInicio ?? DateTime.now().toIso8601String().substring(0, 10),
         'data_fim': dataFim,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'status': 'Ativo',
         'criado_por': _email,
       });
@@ -54,9 +57,12 @@ class ParametrosUsoService {
       await _supabase.from('parametros_vinculo_motorista_veiculo').update({
         'placa': placa.trim().toUpperCase(),
         'motorista_id': motoristaId,
-        'data_inicio': dataInicio ?? DateTime.now().toIso8601String().substring(0, 10),
+        'data_inicio':
+            dataInicio ?? DateTime.now().toIso8601String().substring(0, 10),
         'data_fim': dataFim,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'status': ativo ? 'Ativo' : 'Inativo',
         'atualizado_em': DateTime.now().toIso8601String(),
       }).eq('id', id);
@@ -77,7 +83,8 @@ class ParametrosUsoService {
     String? observacao,
   }) async {
     if (tipo != 'Veiculo' && tipo != 'Motorista') return 'Tipo inválido.';
-    if (intervaloMinimo <= 0) return 'Tipo (Veículo/Motorista) e intervalo mínimo são obrigatórios.';
+    if (intervaloMinimo <= 0)
+      return 'Tipo (Veículo/Motorista) e intervalo mínimo são obrigatórios.';
     try {
       await _supabase.from('parametros_intervalo_abastecimento').insert({
         'empresa_id': empresaId,
@@ -86,7 +93,9 @@ class ParametrosUsoService {
         'motorista_id': tipo == 'Motorista' ? motoristaId : null,
         'intervalo_minimo': intervaloMinimo,
         'unidade': unidade == 'Dias' ? 'Dias' : 'Horas',
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -108,7 +117,9 @@ class ParametrosUsoService {
         'empresa_id': empresaId,
         'motorista_id': motoristaId,
         'valor_maximo': valorMaximo,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -130,7 +141,9 @@ class ParametrosUsoService {
         'empresa_id': empresaId,
         'placa': placa?.trim().toUpperCase(),
         'volume_maximo': volumeMaximo,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -151,7 +164,9 @@ class ParametrosUsoService {
         'empresa_id': empresaId,
         'placa': placa?.trim().toUpperCase(),
         'combustiveis_permitidos': combustiveisPermitidos,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -168,7 +183,8 @@ class ParametrosUsoService {
     required num variacaoMaximaKm,
     String? observacao,
   }) async {
-    if (classificacao != 'Leve' && classificacao != 'Pesado') return 'Classificação inválida.';
+    if (classificacao != 'Leve' && classificacao != 'Pesado')
+      return 'Classificação inválida.';
     if (variacaoMaximaKm <= 0) return 'Variação máxima (km) é obrigatória.';
     try {
       await _supabase.from('parametros_variacao_hodometro').insert({
@@ -176,7 +192,9 @@ class ParametrosUsoService {
         'classificacao': classificacao,
         'placa': placa?.trim().toUpperCase(),
         'variacao_maxima_km': variacaoMaximaKm,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -202,13 +220,17 @@ class ParametrosUsoService {
     try {
       await _supabase.from('parametros_dias_horarios').insert({
         'empresa_id': empresaId,
-        'classificacao': (classificacao == 'Leve' || classificacao == 'Pesado') ? classificacao : null,
+        'classificacao': (classificacao == 'Leve' || classificacao == 'Pesado')
+            ? classificacao
+            : null,
         'placa': placa?.trim().toUpperCase(),
         'motorista_id': motoristaId,
         'dias_permitidos': diasPermitidos,
         'hora_inicio': horaInicio,
         'hora_fim': horaFim,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -229,17 +251,23 @@ class ParametrosUsoService {
     String? observacao,
   }) async {
     if (postosCnpj.isEmpty) return 'Selecione ao menos um posto permitido.';
-    final tipo = (tipoLimite == 'Valor' || tipoLimite == 'Volume') ? tipoLimite : 'Sem limite';
+    final tipo = (tipoLimite == 'Valor' || tipoLimite == 'Volume')
+        ? tipoLimite
+        : 'Sem limite';
     try {
       await _supabase.from('parametros_postos_permitidos').insert({
         'empresa_id': empresaId,
-        'classificacao': (classificacao == 'Leve' || classificacao == 'Pesado') ? classificacao : null,
+        'classificacao': (classificacao == 'Leve' || classificacao == 'Pesado')
+            ? classificacao
+            : null,
         'placa': placa?.trim().toUpperCase(),
         'motorista_id': motoristaId,
         'postos_cnpj': postosCnpj,
         'tipo_limite': tipo,
         'valor_maximo': tipo == 'Sem limite' ? null : valorMaximo,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -257,11 +285,15 @@ class ParametrosUsoService {
     required String periodicidade,
     String? observacao,
   }) async {
-    if (placa.trim().isEmpty || (tipo != 'Valor' && tipo != 'Volume') || limite <= 0) {
+    if (placa.trim().isEmpty ||
+        (tipo != 'Valor' && tipo != 'Volume') ||
+        limite <= 0) {
       return 'Veículo, tipo de cota (Valor/Volume) e limite são obrigatórios.';
     }
     final periodicidadeValida =
-        ['Abastecimento', 'Semana', 'Quinzena', 'Mes'].contains(periodicidade) ? periodicidade : 'Mes';
+        ['Abastecimento', 'Semana', 'Quinzena', 'Mes'].contains(periodicidade)
+            ? periodicidade
+            : 'Mes';
     try {
       await _supabase.from('parametros_cota_veiculo').insert({
         'empresa_id': empresaId,
@@ -269,7 +301,9 @@ class ParametrosUsoService {
         'tipo': tipo,
         'limite': limite,
         'periodicidade': periodicidadeValida,
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'observacao': (observacao == null || observacao.trim().isEmpty)
+            ? null
+            : observacao.trim(),
         'criado_por': _email,
       });
       return null;
@@ -279,7 +313,8 @@ class ParametrosUsoService {
   }
 
   // ── Pré-Pedido — interruptor único por empresa ────────────────────────
-  Future<String?> salvarParametroPrePedido({required String empresaId, required bool habilitado}) async {
+  Future<String?> salvarParametroPrePedido(
+      {required String empresaId, required bool habilitado}) async {
     try {
       await _supabase.from('parametros_pre_pedido').upsert(
         {
@@ -297,11 +332,12 @@ class ParametrosUsoService {
   }
 
   // ── Ações genéricas (iguais nas 8 tabelas de regra + Vínculo) ─────────
-  Future<void> alternarStatus({required String tabela, required String id, required bool ativo}) async {
-    await _supabase
-        .from(tabela)
-        .update({'status': ativo ? 'Ativo' : 'Inativo', 'atualizado_em': DateTime.now().toIso8601String()}).eq(
-            'id', id);
+  Future<void> alternarStatus(
+      {required String tabela, required String id, required bool ativo}) async {
+    await _supabase.from(tabela).update({
+      'status': ativo ? 'Ativo' : 'Inativo',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   Future<void> excluir({required String tabela, required String id}) async {

@@ -5,6 +5,8 @@ import '../../veiculos/providers/veiculos_provider.dart';
 import '../providers/oficinas_provider.dart';
 import '../services/oficinas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Onda-2 (benchmark TicketLog, item #5) — Rede de Oficinas
 // Credenciadas: catálogo + solicitação de orçamento (aba 1) e
 // acompanhamento das solicitações (aba 2), porta de oficinas/page.tsx.
@@ -47,7 +49,8 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
     if (empresaId == null || _selecionadas.isEmpty) return;
     if (!mounted) return;
     final veiculos = await ref.read(veiculosClienteProvider.future);
-    final oficinasSelecionadas = todasOficinas.where((o) => _selecionadas.contains(o.id)).toList();
+    final oficinasSelecionadas =
+        todasOficinas.where((o) => _selecionadas.contains(o.id)).toList();
 
     String? placa;
     final descricaoCtrl = TextEditingController();
@@ -55,34 +58,46 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+        padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
         child: StatefulBuilder(
           builder: (ctx, setStateLocal) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Pedir cotação — ${oficinasSelecionadas.length} oficina${oficinasSelecionadas.length > 1 ? 's' : ''}',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(
+                  'Pedir cotação — ${oficinasSelecionadas.length} oficina${oficinasSelecionadas.length > 1 ? 's' : ''}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
                 children: oficinasSelecionadas
                     .map((o) => Chip(
-                          label: Text(o.nome, style: const TextStyle(fontSize: 10)),
+                          label: Text(o.nome,
+                              style: const TextStyle(fontSize: 10)),
                           padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         ))
                     .toList(),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
                 value: placa,
-                decoration: const InputDecoration(labelText: 'Veículo (opcional)', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Veículo (opcional)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('—')),
-                  for (final v in veiculos) DropdownMenuItem(value: v.placa, child: Text(v.placa)),
+                  for (final v in veiculos)
+                    DropdownMenuItem(value: v.placa, child: Text(v.placa)),
                 ],
                 onChanged: (v) => setStateLocal(() => placa = v),
               ),
@@ -90,7 +105,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
               TextField(
                 controller: descricaoCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Serviço desejado *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Serviço desejado *',
+                    border: OutlineInputBorder()),
               ),
               const SizedBox(height: 14),
               SizedBox(
@@ -121,10 +138,12 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       if (!mounted) return;
       setState(() => _selecionadas.clear());
       ref.invalidate(meusPedidosOrcamentoProvider);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido enviado pra todas as oficinas selecionadas.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Pedido enviado pra todas as oficinas selecionadas.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível enviar: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Não foi possível enviar: $e')));
     }
   }
 
@@ -136,30 +155,51 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+        padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Registrar retorno da oficina', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            const Text('Registrar retorno da oficina',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 4),
-            const Text('Cotação recebida por telefone/e-mail — documente aqui pra decidir depois.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const Text(
+                'Cotação recebida por telefone/e-mail — documente aqui pra decidir depois.',
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 12),
             TextField(
               controller: valorCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Valor orçado (R\$) *', border: OutlineInputBorder(), isDense: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Valor orçado (R\$) *',
+                  border: OutlineInputBorder(),
+                  isDense: true),
             ),
             const SizedBox(height: 10),
-            TextField(controller: prazoCtrl, decoration: const InputDecoration(labelText: 'Prazo de execução', border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: prazoCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Prazo de execução',
+                    border: OutlineInputBorder(),
+                    isDense: true)),
             const SizedBox(height: 10),
-            TextField(controller: obsCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Observações', border: OutlineInputBorder())),
+            TextField(
+                controller: obsCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    labelText: 'Observações', border: OutlineInputBorder())),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  if (double.tryParse(valorCtrl.text.replaceAll(',', '.')) == null) return;
+                  if (double.tryParse(valorCtrl.text.replaceAll(',', '.')) ==
+                      null) return;
                   Navigator.pop(ctx, true);
                 },
                 child: const Text('Salvar'),
@@ -172,11 +212,17 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
     final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.'));
     if (ok != true || valor == null) return;
     try {
-      await OficinasService().registrarResposta(s.id, valorOrcado: valor, prazoExecucao: prazoCtrl.text.trim().isEmpty ? null : prazoCtrl.text.trim(), observacoes: obsCtrl.text.trim().isEmpty ? null : obsCtrl.text.trim());
+      await OficinasService().registrarResposta(s.id,
+          valorOrcado: valor,
+          prazoExecucao:
+              prazoCtrl.text.trim().isEmpty ? null : prazoCtrl.text.trim(),
+          observacoes:
+              obsCtrl.text.trim().isEmpty ? null : obsCtrl.text.trim());
       ref.invalidate(meusPedidosOrcamentoProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível registrar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível registrar: $e')));
     }
   }
 
@@ -187,7 +233,8 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       ref.invalidate(meusPedidosOrcamentoProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível atualizar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível atualizar: $e')));
     }
   }
 
@@ -197,10 +244,16 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Rede de Oficinas'),
           bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
+            labelColor: AppTheme.glassTextoAtivo,
+            unselectedLabelColor: AppTheme.glassTextoMuted,
             indicatorColor: Colors.white,
             tabs: [
               Tab(text: '🔧 Catálogo'),
@@ -216,14 +269,19 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
   }
 
   Widget _abaCatalogo() {
-    final oficinasAsync = ref.watch(catalogoOficinasProvider((uf: _uf, especialidade: _especialidade)));
+    final oficinasAsync = ref.watch(
+        catalogoOficinasProvider((uf: _uf, especialidade: _especialidade)));
 
     return oficinasAsync.when(
       data: (lista) {
         final termo = _busca.trim().toLowerCase();
         final filtradas = termo.isEmpty
             ? lista
-            : lista.where((o) => o.nome.toLowerCase().contains(termo) || (o.municipio?.toLowerCase().contains(termo) ?? false)).toList();
+            : lista
+                .where((o) =>
+                    o.nome.toLowerCase().contains(termo) ||
+                    (o.municipio?.toLowerCase().contains(termo) ?? false))
+                .toList();
 
         return Column(
           children: [
@@ -233,16 +291,25 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                 children: [
                   TextField(
                     controller: _buscaCtrl,
-                    decoration: const InputDecoration(labelText: 'Buscar', hintText: 'Nome ou município...', border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.search)),
+                    decoration: const InputDecoration(
+                        labelText: 'Buscar',
+                        hintText: 'Nome ou município...',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: Icon(Icons.search)),
                     onChanged: (v) => setState(() => _busca = v),
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String?>(
                     value: _especialidade,
-                    decoration: const InputDecoration(labelText: 'Especialidade', border: OutlineInputBorder(), isDense: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Especialidade',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Todas')),
-                      for (final e in especialidadesOficina) DropdownMenuItem(value: e, child: Text(e)),
+                      for (final e in especialidadesOficina)
+                        DropdownMenuItem(value: e, child: Text(e)),
                     ],
                     onChanged: (v) => setState(() => _especialidade = v),
                   ),
@@ -250,7 +317,10 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                   if (filtradas.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('Nenhuma oficina encontrada para esse filtro.', style: TextStyle(color: Colors.grey))),
+                      child: Center(
+                          child: Text(
+                              'Nenhuma oficina encontrada para esse filtro.',
+                              style: TextStyle(color: Colors.grey))),
                     )
                   else
                     Column(children: filtradas.map(_cardOficina).toList()),
@@ -262,10 +332,12 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
             // só aparece com pelo menos 1 oficina marcada.
             if (_selecionadas.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: Theme.of(context).scaffoldBackgroundColor,
-                  border: const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                  border:
+                      const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
                 ),
                 child: SafeArea(
                   top: false,
@@ -274,10 +346,13 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                       Expanded(
                         child: Text(
                           '${_selecionadas.length} oficina${_selecionadas.length > 1 ? 's' : ''} selecionada${_selecionadas.length > 1 ? 's' : ''}',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                       ),
-                      FilledButton(onPressed: () => _abrirSolicitarMulti(lista), child: const Text('Pedir cotação')),
+                      FilledButton(
+                          onPressed: () => _abrirSolicitarMulti(lista),
+                          child: const Text('Pedir cotação')),
                     ],
                   ),
                 ),
@@ -286,7 +361,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro ao carregar: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => Center(
+          child: Text('Erro ao carregar: $e',
+              style: const TextStyle(color: Colors.red))),
     );
   }
 
@@ -296,7 +373,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: selecionada ? const BorderSide(color: Colors.blue, width: 2) : BorderSide.none,
+        side: selecionada
+            ? const BorderSide(color: Colors.blue, width: 2)
+            : BorderSide.none,
       ),
       child: InkWell(
         onTap: () => _alternarSelecao(o.id),
@@ -309,10 +388,15 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(o.nome, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(o.nome,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(height: 2),
                     Text(
-                      '${[o.municipio, o.uf].where((s) => s != null && s.isNotEmpty).join(' / ')}${o.avaliacaoMedia != null ? ' · ⭐ ${o.avaliacaoMedia!.toStringAsFixed(1)}' : ''}',
+                      '${[
+                        o.municipio,
+                        o.uf
+                      ].where((s) => s != null && s.isNotEmpty).join(' / ')}${o.avaliacaoMedia != null ? ' · ⭐ ${o.avaliacaoMedia!.toStringAsFixed(1)}' : ''}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     if (o.especialidades.isNotEmpty) ...[
@@ -322,10 +406,12 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                         runSpacing: 4,
                         children: o.especialidades
                             .map((e) => Chip(
-                                  label: Text(e, style: const TextStyle(fontSize: 10)),
+                                  label: Text(e,
+                                      style: const TextStyle(fontSize: 10)),
                                   padding: EdgeInsets.zero,
                                   visualDensity: VisualDensity.compact,
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ))
                             .toList(),
                       ),
@@ -333,12 +419,15 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                     if (o.telefone != null || o.email != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Text('${o.telefone ?? ''} ${o.email ?? ''}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        child: Text('${o.telefone ?? ''} ${o.email ?? ''}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey)),
                       ),
                   ],
                 ),
               ),
-              Checkbox(value: selecionada, onChanged: (_) => _alternarSelecao(o.id)),
+              Checkbox(
+                  value: selecionada, onChanged: (_) => _alternarSelecao(o.id)),
             ],
           ),
         ),
@@ -351,7 +440,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
     return pedidosAsync.when(
       data: (lista) {
         if (lista.isEmpty) {
-          return const Center(child: Text('Nenhuma solicitação de orçamento ainda.', style: TextStyle(color: Colors.grey)));
+          return const Center(
+              child: Text('Nenhuma solicitação de orçamento ainda.',
+                  style: TextStyle(color: Colors.grey)));
         }
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -380,24 +471,36 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                 Expanded(
                   child: Text(
                     '${p.descricaoServico}${p.placa != null ? ' · ${p.placa}' : ''}',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: p.status == 'decidido' ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                    color: p.status == 'decidido'
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    p.status == 'decidido' ? 'Decidido' : 'Aguardando propostas',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: p.status == 'decidido' ? const Color(0xFF166534) : const Color(0xFF92400E)),
+                    p.status == 'decidido'
+                        ? 'Decidido'
+                        : 'Aguardando propostas',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: p.status == 'decidido'
+                            ? const Color(0xFF166534)
+                            : const Color(0xFF92400E)),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 2),
-            Text('${p.propostas.length} oficina${p.propostas.length > 1 ? 's' : ''} cotada${p.propostas.length > 1 ? 's' : ''}',
+            Text(
+                '${p.propostas.length} oficina${p.propostas.length > 1 ? 's' : ''} cotada${p.propostas.length > 1 ? 's' : ''}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 8),
             ...p.propostas.map(_cardProposta),
@@ -411,7 +514,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -419,13 +524,22 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(s.oficinaNome ?? 'Oficina', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                child: Text(s.oficinaNome ?? 'Oficina',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 12)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: statusOrcamentoCorFundo[s.status] ?? const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                    color: statusOrcamentoCorFundo[s.status] ??
+                        const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12)),
                 child: Text(statusOrcamentoLabel[s.status] ?? s.status,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusOrcamentoCorTexto[s.status] ?? Colors.grey.shade700)),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusOrcamentoCorTexto[s.status] ??
+                            Colors.grey.shade700)),
               ),
             ],
           ),
@@ -438,19 +552,26 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
           ],
           if (s.observacoesOficina != null) ...[
             const SizedBox(height: 4),
-            Text(s.observacoesOficina!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(s.observacoesOficina!,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
           if (s.status == 'solicitado') ...[
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: () => _abrirRegistrarResposta(s), child: const Text('Registrar retorno da oficina')),
+            OutlinedButton(
+                onPressed: () => _abrirRegistrarResposta(s),
+                child: const Text('Registrar retorno da oficina')),
           ],
           if (s.status == 'respondido') ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                FilledButton(onPressed: () => _decidir(s, 'aceito'), child: const Text('Aceitar')),
+                FilledButton(
+                    onPressed: () => _decidir(s, 'aceito'),
+                    child: const Text('Aceitar')),
                 const SizedBox(width: 8),
-                OutlinedButton(onPressed: () => _decidir(s, 'recusado'), child: const Text('Recusar')),
+                OutlinedButton(
+                    onPressed: () => _decidir(s, 'recusado'),
+                    child: const Text('Recusar')),
               ],
             ),
           ],

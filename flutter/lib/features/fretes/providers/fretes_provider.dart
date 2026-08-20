@@ -150,11 +150,19 @@ class Frete {
         cargaComprimentoM: (m['carga_comprimento_m'] as num?)?.toDouble(),
         cargaLarguraM: (m['carga_largura_m'] as num?)?.toDouble(),
         cargaAlturaM: (m['carga_altura_m'] as num?)?.toDouble(),
-        veiculosAceitos: (m['veiculos_aceitos'] as List?)?.map((v) => v as String).toList() ?? const [],
-        carroceriasAceitas: (m['carrocerias_aceitas'] as List?)?.map((v) => v as String).toList() ?? const [],
-        percentualAdiantamento: (m['percentual_adiantamento'] as num?)?.toDouble() ?? 30,
+        veiculosAceitos: (m['veiculos_aceitos'] as List?)
+                ?.map((v) => v as String)
+                .toList() ??
+            const [],
+        carroceriasAceitas: (m['carrocerias_aceitas'] as List?)
+                ?.map((v) => v as String)
+                .toList() ??
+            const [],
+        percentualAdiantamento:
+            (m['percentual_adiantamento'] as num?)?.toDouble() ?? 30,
         saldoCombustivelTipo: m['saldo_combustivel_tipo'] as String?,
-        saldoCombustivelAlocado: (m['saldo_combustivel_alocado'] as num?)?.toDouble(),
+        saldoCombustivelAlocado:
+            (m['saldo_combustivel_alocado'] as num?)?.toDouble(),
       );
 }
 
@@ -232,7 +240,8 @@ class EnderecoFrete {
     return partes.join(' — ');
   }
 
-  factory EnderecoFrete.fromMap(Map<String, dynamic> m, String prefixo) => EnderecoFrete(
+  factory EnderecoFrete.fromMap(Map<String, dynamic> m, String prefixo) =>
+      EnderecoFrete(
         rua: m['${prefixo}_rua'] as String?,
         numero: m['${prefixo}_numero'] as String?,
         bairro: m['${prefixo}_bairro'] as String?,
@@ -317,7 +326,8 @@ class ReputacaoMotorista {
     this.tagsDestaque = const [],
   });
 
-  factory ReputacaoMotorista.fromMap(Map<String, dynamic> m) => ReputacaoMotorista(
+  factory ReputacaoMotorista.fromMap(Map<String, dynamic> m) =>
+      ReputacaoMotorista(
         mediaEstrelas: (m['media_estrelas'] as num?)?.toDouble(),
         totalAvaliacoes: (m['total_avaliacoes'] as num?)?.toInt() ?? 0,
         fretesConcluidos: (m['fretes_concluidos'] as num?)?.toInt() ?? 0,
@@ -348,7 +358,11 @@ class PostoRecomendado {
   final String? observacao;
   final String? itemCatalogoId;
 
-  const PostoRecomendado({required this.id, required this.nomePosto, this.observacao, this.itemCatalogoId});
+  const PostoRecomendado(
+      {required this.id,
+      required this.nomePosto,
+      this.observacao,
+      this.itemCatalogoId});
 
   factory PostoRecomendado.fromMap(Map<String, dynamic> m) => PostoRecomendado(
         id: m['id'] as String,
@@ -390,13 +404,19 @@ class AvaliacaoFrete {
   final String? comentario;
   final List<String> tags;
 
-  const AvaliacaoFrete({required this.avaliador, required this.estrelas, this.comentario, this.tags = const []});
+  const AvaliacaoFrete(
+      {required this.avaliador,
+      required this.estrelas,
+      this.comentario,
+      this.tags = const []});
 
   factory AvaliacaoFrete.fromMap(Map<String, dynamic> m) => AvaliacaoFrete(
         avaliador: m['avaliador'] as String? ?? '',
         estrelas: (m['estrelas'] as num?)?.toInt() ?? 0,
         comentario: m['comentario'] as String?,
-        tags: (m['tags'] as List<dynamic>? ?? []).map((t) => t as String).toList(),
+        tags: (m['tags'] as List<dynamic>? ?? [])
+            .map((t) => t as String)
+            .toList(),
       );
 }
 
@@ -419,9 +439,11 @@ class ItemParceriaOpcao {
   final String titulo;
   final String? parceiroNome;
 
-  const ItemParceriaOpcao({required this.id, required this.titulo, this.parceiroNome});
+  const ItemParceriaOpcao(
+      {required this.id, required this.titulo, this.parceiroNome});
 
-  factory ItemParceriaOpcao.fromMap(Map<String, dynamic> m) => ItemParceriaOpcao(
+  factory ItemParceriaOpcao.fromMap(Map<String, dynamic> m) =>
+      ItemParceriaOpcao(
         id: m['id'] as String,
         titulo: m['titulo'] as String? ?? '',
         parceiroNome: m['parceiro_nome'] as String?,
@@ -433,7 +455,8 @@ class MotoristaOpcao {
   final String nome;
   final String origem; // 'proprio' | 'parceiro'
 
-  const MotoristaOpcao({required this.id, required this.nome, required this.origem});
+  const MotoristaOpcao(
+      {required this.id, required this.nome, required this.origem});
 }
 
 class ParceiroRow {
@@ -466,15 +489,20 @@ class ParceiroRow {
       );
 }
 
-final meusFretesProvider = FutureProvider.autoDispose<List<FreteRow>>((ref) async {
+final meusFretesProvider =
+    FutureProvider.autoDispose<List<FreteRow>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('meus_fretes_empresa', params: {'p_empresa_id': empresaId});
-  return (rows as List).map((r) => FreteRow.fromMap(r as Map<String, dynamic>)).toList();
+  final rows = await SupabaseService.client
+      .rpc('meus_fretes_empresa', params: {'p_empresa_id': empresaId});
+  return (rows as List)
+      .map((r) => FreteRow.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final freteDetalheProvider = FutureProvider.autoDispose.family<Frete?, String>((ref, freteId) async {
+final freteDetalheProvider =
+    FutureProvider.autoDispose.family<Frete?, String>((ref, freteId) async {
   final row = await SupabaseService.client
       .from('fretes')
       .select(
@@ -488,52 +516,72 @@ final freteDetalheProvider = FutureProvider.autoDispose.family<Frete?, String>((
   return row == null ? null : Frete.fromMap(row);
 });
 
-final pagamentosFreteProvider = FutureProvider.autoDispose.family<List<PagamentoFrete>, String>((ref, freteId) async {
+final pagamentosFreteProvider = FutureProvider.autoDispose
+    .family<List<PagamentoFrete>, String>((ref, freteId) async {
   final rows = await SupabaseService.client
       .from('fretes_pagamentos')
       .select('id, tipo, percentual, valor, status, pago_em')
       .eq('frete_id', freteId)
       .order('tipo');
-  return (rows as List).map((r) => PagamentoFrete.fromMap(r as Map<String, dynamic>)).toList();
+  return (rows as List)
+      .map((r) => PagamentoFrete.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final propostasFreteProvider = FutureProvider.autoDispose.family<List<Proposta>, String>((ref, freteId) async {
-  final rows = await SupabaseService.client.rpc('negociacoes_frete_empresa', params: {'p_frete_id': freteId});
-  return (rows as List).map((r) => Proposta.fromMap(r as Map<String, dynamic>)).toList();
+final propostasFreteProvider = FutureProvider.autoDispose
+    .family<List<Proposta>, String>((ref, freteId) async {
+  final rows = await SupabaseService.client
+      .rpc('negociacoes_frete_empresa', params: {'p_frete_id': freteId});
+  return (rows as List)
+      .map((r) => Proposta.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final postosRecomendadosProvider = FutureProvider.autoDispose.family<List<PostoRecomendado>, String>((ref, freteId) async {
+final postosRecomendadosProvider = FutureProvider.autoDispose
+    .family<List<PostoRecomendado>, String>((ref, freteId) async {
   final rows = await SupabaseService.client
       .from('fretes_postos_recomendados')
       .select('id, nome_posto, observacao, item_catalogo_id')
       .eq('frete_id', freteId)
       .order('ordem', ascending: true);
-  return (rows as List).map((r) => PostoRecomendado.fromMap(r as Map<String, dynamic>)).toList();
+  return (rows as List)
+      .map((r) => PostoRecomendado.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Fase foto-evidência-checkpoints — bucket privado `fretes-evidencias`;
 // gera signed URL por foto (1h), best-effort (foto ausente/corrompida não
 // pode derrubar a tela — mesmo tratamento de ticket_anexos).
-final eventosFreteProvider = FutureProvider.autoDispose.family<List<EventoFrete>, String>((ref, freteId) async {
+final eventosFreteProvider = FutureProvider.autoDispose
+    .family<List<EventoFrete>, String>((ref, freteId) async {
   final rows = await SupabaseService.client
       .from('fretes_eventos')
       .select('id, tipo_evento, observacao, criado_em, foto_path')
       .eq('frete_id', freteId)
       .order('criado_em', ascending: true);
-  final eventos = (rows as List).map((r) => EventoFrete.fromMap(r as Map<String, dynamic>)).toList();
+  final eventos = (rows as List)
+      .map((r) => EventoFrete.fromMap(r as Map<String, dynamic>))
+      .toList();
   for (final e in eventos) {
     if (e.fotoPath == null) continue;
     try {
-      e.fotoUrlAssinada = await SupabaseService.client.storage.from('fretes-evidencias').createSignedUrl(e.fotoPath!, 3600);
+      e.fotoUrlAssinada = await SupabaseService.client.storage
+          .from('fretes-evidencias')
+          .createSignedUrl(e.fotoPath!, 3600);
     } catch (_) {}
   }
   return eventos;
 });
 
-final avaliacoesFreteProvider = FutureProvider.autoDispose.family<List<AvaliacaoFrete>, String>((ref, freteId) async {
-  final rows =
-      await SupabaseService.client.from('fretes_avaliacoes').select('avaliador, estrelas, comentario, tags').eq('frete_id', freteId);
-  return (rows as List).map((r) => AvaliacaoFrete.fromMap(r as Map<String, dynamic>)).toList();
+final avaliacoesFreteProvider = FutureProvider.autoDispose
+    .family<List<AvaliacaoFrete>, String>((ref, freteId) async {
+  final rows = await SupabaseService.client
+      .from('fretes_avaliacoes')
+      .select('avaliador, estrelas, comentario, tags')
+      .eq('frete_id', freteId);
+  return (rows as List)
+      .map((r) => AvaliacaoFrete.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Fase Fretes-CIOT-CTe (18/07) — porta de FretesDocumentos.tsx (web).
@@ -606,57 +654,77 @@ class CiotRow {
       );
 }
 
-final ctesFreteProvider = FutureProvider.autoDispose.family<List<CteRow>, String>((ref, freteId) async {
+final ctesFreteProvider = FutureProvider.autoDispose
+    .family<List<CteRow>, String>((ref, freteId) async {
   final rows = await SupabaseService.client
       .from('fretes_cte')
-      .select('id, numero_cte, serie, protocolo_autorizacao, valor_prestacao, data_emissao, xml_storage_path')
+      .select(
+          'id, numero_cte, serie, protocolo_autorizacao, valor_prestacao, data_emissao, xml_storage_path')
       .eq('frete_id', freteId)
       .order('criado_em', ascending: false);
-  final ctes = (rows as List).map((r) => CteRow.fromMap(r as Map<String, dynamic>)).toList();
+  final ctes = (rows as List)
+      .map((r) => CteRow.fromMap(r as Map<String, dynamic>))
+      .toList();
   for (final c in ctes) {
     if (c.xmlStoragePath == null) continue;
     try {
-      c.xmlUrlAssinada = await SupabaseService.client.storage.from('fretes-documentos').createSignedUrl(c.xmlStoragePath!, 3600);
+      c.xmlUrlAssinada = await SupabaseService.client.storage
+          .from('fretes-documentos')
+          .createSignedUrl(c.xmlStoragePath!, 3600);
     } catch (_) {}
   }
   return ctes;
 });
 
-final ciotsFreteProvider = FutureProvider.autoDispose.family<List<CiotRow>, String>((ref, freteId) async {
+final ciotsFreteProvider = FutureProvider.autoDispose
+    .family<List<CiotRow>, String>((ref, freteId) async {
   final rows = await SupabaseService.client
       .from('fretes_ciot')
-      .select('id, numero_ciot, rntrc, placa_veiculo, valor_frete, data_emissao, observacao, anexo_storage_path')
+      .select(
+          'id, numero_ciot, rntrc, placa_veiculo, valor_frete, data_emissao, observacao, anexo_storage_path')
       .eq('frete_id', freteId)
       .order('criado_em', ascending: false);
-  final ciots = (rows as List).map((r) => CiotRow.fromMap(r as Map<String, dynamic>)).toList();
+  final ciots = (rows as List)
+      .map((r) => CiotRow.fromMap(r as Map<String, dynamic>))
+      .toList();
   for (final c in ciots) {
     if (c.anexoStoragePath == null) continue;
     try {
-      c.anexoUrlAssinada = await SupabaseService.client.storage.from('fretes-documentos').createSignedUrl(c.anexoStoragePath!, 3600);
+      c.anexoUrlAssinada = await SupabaseService.client.storage
+          .from('fretes-documentos')
+          .createSignedUrl(c.anexoStoragePath!, 3600);
     } catch (_) {}
   }
   return ciots;
 });
 
-final itensConvenienciaPostoProvider = FutureProvider.autoDispose<List<ItemParceriaOpcao>>((ref) async {
+final itensConvenienciaPostoProvider =
+    FutureProvider.autoDispose<List<ItemParceriaOpcao>>((ref) async {
   final rows = await SupabaseService.client
       .from('fidelidade_catalogo_itens')
       .select('id, titulo, parceiro_nome')
       .eq('categoria', 'conveniencia_posto')
       .eq('ativo', true);
-  return (rows as List).map((r) => ItemParceriaOpcao.fromMap(r as Map<String, dynamic>)).toList();
+  return (rows as List)
+      .map((r) => ItemParceriaOpcao.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final motoristasOpcaoProvider = FutureProvider.autoDispose.family<List<MotoristaOpcao>, String>((ref, empresaId) async {
+final motoristasOpcaoProvider = FutureProvider.autoDispose
+    .family<List<MotoristaOpcao>, String>((ref, empresaId) async {
   final proprios = await SupabaseService.client
       .from('motoristas')
       .select('id, nome_completo')
       .eq('empresa_id', empresaId)
       .eq('status', 'Ativo');
-  final parceiros = await SupabaseService.client.rpc('meus_parceiros_empresa', params: {'p_empresa_id': empresaId});
+  final parceiros = await SupabaseService.client
+      .rpc('meus_parceiros_empresa', params: {'p_empresa_id': empresaId});
 
   final lista = <MotoristaOpcao>[
-    ...(proprios as List).map((m) => MotoristaOpcao(id: m['id'] as String, nome: m['nome_completo'] as String? ?? '', origem: 'proprio')),
+    ...(proprios as List).map((m) => MotoristaOpcao(
+        id: m['id'] as String,
+        nome: m['nome_completo'] as String? ?? '',
+        origem: 'proprio')),
     ...(parceiros as List)
         .where((p) => (p as Map<String, dynamic>)['status'] == 'ativo')
         .map((p) => MotoristaOpcao(
@@ -668,10 +736,14 @@ final motoristasOpcaoProvider = FutureProvider.autoDispose.family<List<Motorista
   return lista;
 });
 
-final parceirosProvider = FutureProvider.autoDispose<List<ParceiroRow>>((ref) async {
+final parceirosProvider =
+    FutureProvider.autoDispose<List<ParceiroRow>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('meus_parceiros_empresa', params: {'p_empresa_id': empresaId});
-  return (rows as List).map((r) => ParceiroRow.fromMap(r as Map<String, dynamic>)).toList();
+  final rows = await SupabaseService.client
+      .rpc('meus_parceiros_empresa', params: {'p_empresa_id': empresaId});
+  return (rows as List)
+      .map((r) => ParceiroRow.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

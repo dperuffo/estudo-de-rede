@@ -24,19 +24,27 @@ class AbaMapaMunicipios extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('🗺️ Mapa de Densidade', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                  Text('Distribuição geográfica dos postos GF.', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                  const Text('🗺️ Mapa de Densidade',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text('Distribuição geográfica dos postos GF.',
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                   const SizedBox(height: 12),
                   MapaCirculos(
                     height: 420,
-                    mensagemVazio: 'Nenhum posto com coordenadas cadastradas para exibir no mapa.',
+                    mensagemVazio:
+                        'Nenhum posto com coordenadas cadastradas para exibir no mapa.',
                     pontos: d.pontosMapa
                         .map((p) => PontoCirculo(
                               lat: p.lat,
                               lon: p.lon,
                               cor: const Color(0xFF1565C0),
                               raio: 4,
-                              tooltip: '${p.razaoSocial ?? "Posto GF"}\n${[p.municipio, p.uf].where((v) => v != null && v.isNotEmpty).join(" / ")}',
+                              tooltip: '${p.razaoSocial ?? "Posto GF"}\n${[
+                                p.municipio,
+                                p.uf
+                              ].where((v) => v != null && v.isNotEmpty).join(" / ")}',
                             ))
                         .toList(),
                   ),
@@ -51,14 +59,21 @@ class AbaMapaMunicipios extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Top 10 Municípios com Mais Postos GF', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('Top 10 Municípios com Mais Postos GF',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 12),
                   if (d.topMunicipios.isEmpty)
-                    const Text('Ainda não há postos cadastrados.', style: TextStyle(color: Colors.grey))
+                    const Text('Ainda não há postos cadastrados.',
+                        style: TextStyle(color: Colors.grey))
                   else
                     BarraHorizontal(
                       dados: d.topMunicipios
-                          .map((m) => BarraHorizontalItem(label: '${m.municipio}/${m.uf}', valor: m.total.toDouble(), cor: const Color(0xFF1565C0), texto: '${m.total}'))
+                          .map((m) => BarraHorizontalItem(
+                              label: '${m.municipio}/${m.uf}',
+                              valor: m.total.toDouble(),
+                              cor: const Color(0xFF1565C0),
+                              texto: '${m.total}'))
                           .toList(),
                       eixoX: 'Postos GF',
                     ),
@@ -73,15 +88,26 @@ class AbaMapaMunicipios extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Cobertura por estado (vs referência ANP)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('Cobertura por estado (vs referência ANP)',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 12),
                   if (d.cobertura.isEmpty)
-                    const Text('Ainda não há postos cadastrados. Importe a planilha em Postos Revendedores.', style: TextStyle(color: Colors.grey))
+                    const Text(
+                        'Ainda não há postos cadastrados. Importe a planilha em Postos Revendedores.',
+                        style: TextStyle(color: Colors.grey))
                   else
                     TabelaSimples(
                       colunas: const ['UF', 'Rede', 'Total ANP', 'Penetração'],
                       linhas: d.cobertura
-                          .map((c) => [c.uf, '${c.postosGf}', c.totalAnp > 0 ? '${c.totalAnp}' : '—', c.totalAnp > 0 ? '${c.penetracao.toStringAsFixed(2)}%' : '—'])
+                          .map((c) => [
+                                c.uf,
+                                '${c.postosGf}',
+                                c.totalAnp > 0 ? '${c.totalAnp}' : '—',
+                                c.totalAnp > 0
+                                    ? '${c.penetracao.toStringAsFixed(2)}%'
+                                    : '—'
+                              ])
                           .toList(),
                     ),
                 ],

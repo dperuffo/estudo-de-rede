@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/motoristas_provider.dart';
 import '../services/motoristas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataIso = DateFormat('yyyy-MM-dd');
 
 // Fase FLT-3 — editar motorista existente + ativar/inativar, porta de
@@ -15,7 +17,8 @@ class MotoristaEditarScreen extends ConsumerStatefulWidget {
   const MotoristaEditarScreen({super.key, required this.id});
 
   @override
-  ConsumerState<MotoristaEditarScreen> createState() => _MotoristaEditarScreenState();
+  ConsumerState<MotoristaEditarScreen> createState() =>
+      _MotoristaEditarScreenState();
 }
 
 class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
@@ -112,47 +115,64 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
     final centrosAsync = ref.watch(centrosCustoOpcoesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar motorista')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Editar motorista')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (m) {
-          if (m == null) return const Center(child: Text('Motorista não encontrado.'));
+          if (m == null)
+            return const Center(child: Text('Motorista não encontrado.'));
           _inicializar(m);
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               TextField(
                 controller: _nomeCtrl,
-                decoration: const InputDecoration(labelText: 'Nome completo *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Nome completo *', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _cpfCtrl,
-                decoration: const InputDecoration(labelText: 'CPF *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'CPF *', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _telefoneCtrl,
-                decoration: const InputDecoration(labelText: 'Telefone', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Telefone', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _emailCtrl,
-                decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'E-mail', border: OutlineInputBorder()),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: _classificacao,
-                decoration: const InputDecoration(labelText: 'Classificação', border: OutlineInputBorder()),
-                items: classificacoesMotorista.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (v) => setState(() => _classificacao = v ?? 'Próprio'),
+                decoration: const InputDecoration(
+                    labelText: 'Classificação', border: OutlineInputBorder()),
+                items: classificacoesMotorista
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) =>
+                    setState(() => _classificacao = v ?? 'Próprio'),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _cnhCtrl,
-                decoration: const InputDecoration(labelText: 'CNH (número)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'CNH (número)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -172,11 +192,17 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
                 data: (centros) {
                   if (centros.isEmpty) return const SizedBox.shrink();
                   return DropdownButtonFormField<String>(
-                    value: centros.any((c) => c.id == _centroCustoId) ? _centroCustoId : null,
-                    decoration: const InputDecoration(labelText: 'Centro de custo', border: OutlineInputBorder()),
+                    value: centros.any((c) => c.id == _centroCustoId)
+                        ? _centroCustoId
+                        : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Centro de custo',
+                        border: OutlineInputBorder()),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Nenhum')),
-                      ...centros.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nome))),
+                      const DropdownMenuItem(
+                          value: null, child: Text('Nenhum')),
+                      ...centros.map((c) =>
+                          DropdownMenuItem(value: c.id, child: Text(c.nome))),
                     ],
                     onChanged: (v) => setState(() => _centroCustoId = v),
                   );
@@ -193,16 +219,24 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_erro!,
+                      style: const TextStyle(
+                          color: Color(0xFFB91C1C), fontSize: 13)),
                 ),
               ],
               if (_sucesso != null) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_sucesso!, style: const TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_sucesso!,
+                      style: const TextStyle(
+                          color: Color(0xFF15803D), fontSize: 13)),
                 ),
               ],
               const SizedBox(height: 16),

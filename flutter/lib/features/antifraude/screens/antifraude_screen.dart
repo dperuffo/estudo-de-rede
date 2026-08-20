@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show motoristasClienteProvider;
-import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show motoristasClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show veiculosClienteProvider;
 import '../providers/antifraude_provider.dart';
 import '../services/antifraude_service.dart';
 import 'regra_antifraude_form.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 // Fase 27.15x — "Regras Antifraude" (PWA), porta de
 // src/app/(dashboard)/antifraude/page.tsx (web): chips de tipo + lista +
@@ -28,8 +32,12 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
         title: const Text('Excluir regra?'),
         content: Text('"$nome" — esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -61,7 +69,14 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
     final falhasAsync = ref.watch(falhasVerificacaoAntifraudeCountProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Antifraude')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Antifraude')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirFormRegra(),
         icon: const Icon(Icons.add),
@@ -123,7 +138,8 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
               await AntifraudeService().marcarFalhasComoLidas();
               ref.invalidate(falhasVerificacaoAntifraudeCountProvider);
             },
-            child: const Text('Marcar como lidas', style: TextStyle(fontSize: 12)),
+            child:
+                const Text('Marcar como lidas', style: TextStyle(fontSize: 12)),
           ),
         ],
       ),
@@ -136,7 +152,9 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
       data: (lista) {
-        final filtrados = _statusFiltro == null ? lista : lista.where((r) => r.status == _statusFiltro).toList();
+        final filtrados = _statusFiltro == null
+            ? lista
+            : lista.where((r) => r.status == _statusFiltro).toList();
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
           children: [
@@ -170,7 +188,8 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('Nenhuma regra cadastrada.', style: TextStyle(color: Colors.grey.shade600)),
+                  child: Text('Nenhuma regra cadastrada.',
+                      style: TextStyle(color: Colors.grey.shade600)),
                 ),
               ),
             ...filtrados.map((r) => Card(
@@ -180,39 +199,51 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.nome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(r.nome,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13)),
                         const SizedBox(height: 2),
                         Text(
                           '${labelEscopoAntifraude[r.escopo] ?? r.escopo}${r.escopoReferencia != null ? ' — ${r.escopoReferencia}' : ''}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         Text(
                           'Vigência: ${r.vigenciaInicio} até ${r.vigenciaFim ?? 'sem prazo'}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: (r.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                                color: (r.ativo
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFF64748B))
+                                    .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(r.status,
                                   style: TextStyle(
                                       fontSize: 11,
-                                      color: r.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                      color: r.ativo
+                                          ? const Color(0xFF16A34A)
+                                          : const Color(0xFF64748B),
                                       fontWeight: FontWeight.w600)),
                             ),
                             const Spacer(),
                             TextButton(
-                              onPressed: () => _abrirFormRegra(regraExistente: r),
+                              onPressed: () =>
+                                  _abrirFormRegra(regraExistente: r),
                               child: const Text('Editar'),
                             ),
                             TextButton(
                               onPressed: () async {
-                                await AntifraudeService().alternarStatus(id: r.id, ativo: !r.ativo);
+                                await AntifraudeService()
+                                    .alternarStatus(id: r.id, ativo: !r.ativo);
                                 ref.invalidate(regrasAntifraudeProvider(_tipo));
                               },
                               child: Text(r.ativo ? 'Inativar' : 'Ativar'),

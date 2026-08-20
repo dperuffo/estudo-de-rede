@@ -17,7 +17,16 @@ import '../services/manutencao_preditiva_service.dart';
 // escopo relevante, a tela já é auto-contida (lista + detalhe + form de
 // registro + histórico).
 
-const ordemComponentes = ['oleo', 'pneus', 'filtros', 'alinhamento', 'arrefecimento', 'lubrificacao', 'revisao', 'ruidos'];
+const ordemComponentes = [
+  'oleo',
+  'pneus',
+  'filtros',
+  'alinhamento',
+  'arrefecimento',
+  'lubrificacao',
+  'revisao',
+  'ruidos'
+];
 
 const labelStatus = {'ok': 'OK', 'alerta': 'Alerta', 'critico': 'Crítico'};
 
@@ -108,7 +117,8 @@ class VeiculoResumoManutencao {
     required this.nAlertas,
     required this.totalCount,
   });
-  factory VeiculoResumoManutencao.fromMap(Map<String, dynamic> m) => VeiculoResumoManutencao(
+  factory VeiculoResumoManutencao.fromMap(Map<String, dynamic> m) =>
+      VeiculoResumoManutencao(
         placa: m['placa'] as String,
         marca: m['marca'] as String?,
         modelo: m['modelo'] as String?,
@@ -137,41 +147,62 @@ class KpisManutencao {
     required this.totalOk,
     required this.scoreMedio,
   });
-  static const vazio = KpisManutencao(totalVeiculos: 0, totalCriticos: 0, totalAlertas: 0, totalOk: 0, scoreMedio: 0);
+  static const vazio = KpisManutencao(
+      totalVeiculos: 0,
+      totalCriticos: 0,
+      totalAlertas: 0,
+      totalOk: 0,
+      scoreMedio: 0);
 }
 
 // Filtros da listagem — record (equality estrutural automática, ótimo pra
 // chave de family do Riverpod).
-typedef FiltrosResumoManutencao = ({String? busca, String? centroCustoId, String? status, String ordenar, int pagina});
+typedef FiltrosResumoManutencao = ({
+  String? busca,
+  String? centroCustoId,
+  String? status,
+  String ordenar,
+  int pagina
+});
 typedef FiltrosKpisManutencao = ({String? busca, String? centroCustoId});
 
 const _tamanhoPagina = 50;
 
-final manutencaoResumoProvider =
-    FutureProvider.autoDispose.family<List<VeiculoResumoManutencao>, FiltrosResumoManutencao>((ref, filtros) async {
+final manutencaoResumoProvider = FutureProvider.autoDispose
+    .family<List<VeiculoResumoManutencao>, FiltrosResumoManutencao>(
+        (ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('manutencao_preditiva_resumo', params: {
+  final rows =
+      await SupabaseService.client.rpc('manutencao_preditiva_resumo', params: {
     'p_empresa_id': empresaId,
     'p_centro_custo_id': filtros.centroCustoId,
-    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty) ? null : filtros.busca!.trim(),
+    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty)
+        ? null
+        : filtros.busca!.trim(),
     'p_status': filtros.status,
     'p_ordenar': filtros.ordenar,
     'p_limit': _tamanhoPagina,
     'p_offset': (filtros.pagina - 1) * _tamanhoPagina,
   }) as List;
-  return rows.map((r) => VeiculoResumoManutencao.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => VeiculoResumoManutencao.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final manutencaoKpisProvider = FutureProvider.autoDispose.family<KpisManutencao, FiltrosKpisManutencao>((ref, filtros) async {
+final manutencaoKpisProvider = FutureProvider.autoDispose
+    .family<KpisManutencao, FiltrosKpisManutencao>((ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return KpisManutencao.vazio;
-  final rows = await SupabaseService.client.rpc('manutencao_preditiva_kpis', params: {
+  final rows =
+      await SupabaseService.client.rpc('manutencao_preditiva_kpis', params: {
     'p_empresa_id': empresaId,
     'p_centro_custo_id': filtros.centroCustoId,
-    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty) ? null : filtros.busca!.trim(),
+    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty)
+        ? null
+        : filtros.busca!.trim(),
   }) as List;
   if (rows.isEmpty) return KpisManutencao.vazio;
   final r = rows.first as Map<String, dynamic>;
@@ -201,7 +232,8 @@ class ComponenteResultado {
     required this.pct,
     required this.fonte,
   });
-  factory ComponenteResultado.fromMap(Map<String, dynamic> m) => ComponenteResultado(
+  factory ComponenteResultado.fromMap(Map<String, dynamic> m) =>
+      ComponenteResultado(
         componente: m['componente'] as String,
         componenteLabel: m['componente_label'] as String,
         componenteIcone: m['componente_icone'] as String,
@@ -242,7 +274,8 @@ class VeiculoDetalheManutencao {
 }
 
 // Porta fiel de gerarRecomendacoes (src/lib/manutencaoPreditiva.ts).
-List<String> gerarRecomendacoes(List<ComponenteResultado> componentes, double degradacao, int idadeAnos) {
+List<String> gerarRecomendacoes(
+    List<ComponenteResultado> componentes, double degradacao, int idadeAnos) {
   final recs = <String>[];
   final criticos = componentes.where((c) => c.urgencia == 'critico').toList();
   final alertas = componentes.where((c) => c.urgencia == 'alerta').toList();
@@ -252,15 +285,22 @@ List<String> gerarRecomendacoes(List<ComponenteResultado> componentes, double de
     recs.add('🔴 Ação imediata: $nomes — vencido(s) pelo hodômetro.');
   }
   if (degradacao > 0.15) {
-    recs.add('🛢️ Consumo degradado ${(degradacao * 100).round()}%. Verificar filtros e injeção.');
+    recs.add(
+        '🛢️ Consumo degradado ${(degradacao * 100).round()}%. Verificar filtros e injeção.');
   } else if (degradacao > 0.07) {
-    recs.add('⚠️ Leve queda de rendimento (${(degradacao * 100).round()}%). Monitorar tendência.');
+    recs.add(
+        '⚠️ Leve queda de rendimento (${(degradacao * 100).round()}%). Monitorar tendência.');
   }
   if (idadeAnos >= 10) {
-    recs.add('📅 Veículo com $idadeAnos anos. Reduzir intervalos de manutenção em 20-30%.');
+    recs.add(
+        '📅 Veículo com $idadeAnos anos. Reduzir intervalos de manutenção em 20-30%.');
   }
   if (alertas.isNotEmpty && criticos.isEmpty) {
-    final proximos = alertas.take(2).map((c) => '${c.componenteIcone} ${c.componenteLabel} (~${c.kmNext.round()} km)').join(', ');
+    final proximos = alertas
+        .take(2)
+        .map((c) =>
+            '${c.componenteIcone} ${c.componenteLabel} (~${c.kmNext.round()} km)')
+        .join(', ');
     recs.add('🟡 Próximos: $proximos');
   }
   if (criticos.isEmpty && alertas.isEmpty) {
@@ -269,11 +309,13 @@ List<String> gerarRecomendacoes(List<ComponenteResultado> componentes, double de
   return recs;
 }
 
-final manutencaoDetalheProvider = FutureProvider.autoDispose.family<VeiculoDetalheManutencao?, String>((ref, placa) async {
+final manutencaoDetalheProvider = FutureProvider.autoDispose
+    .family<VeiculoDetalheManutencao?, String>((ref, placa) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
-  final rows = await SupabaseService.client.rpc('manutencao_preditiva_base', params: {
+  final rows =
+      await SupabaseService.client.rpc('manutencao_preditiva_base', params: {
     'p_empresa_id': empresaId,
     'p_placa': placa,
   }) as List;
@@ -282,12 +324,21 @@ final manutencaoDetalheProvider = FutureProvider.autoDispose.family<VeiculoDetal
   final mapas = rows.cast<Map<String, dynamic>>();
   final primeiro = mapas.first;
   final componentes = mapas.map((m) => ComponenteResultado.fromMap(m)).toList()
-    ..sort((a, b) => ordemComponentes.indexOf(a.componente).compareTo(ordemComponentes.indexOf(b.componente)));
+    ..sort((a, b) => ordemComponentes
+        .indexOf(a.componente)
+        .compareTo(ordemComponentes.indexOf(b.componente)));
 
-  final somaPeso = mapas.fold<double>(0, (s, m) => s + ((m['peso'] as num?)?.toDouble() ?? 0));
-  final somaScorePeso = mapas.fold<double>(0, (s, m) => s + ((m['score'] as num? ?? 0).toDouble() * ((m['peso'] as num?)?.toDouble() ?? 0)));
+  final somaPeso = mapas.fold<double>(
+      0, (s, m) => s + ((m['peso'] as num?)?.toDouble() ?? 0));
+  final somaScorePeso = mapas.fold<double>(
+      0,
+      (s, m) =>
+          s +
+          ((m['score'] as num? ?? 0).toDouble() *
+              ((m['peso'] as num?)?.toDouble() ?? 0)));
   final scoreGeral = somaPeso > 0 ? (somaScorePeso / somaPeso).round() : 0;
-  final status = scoreGeral >= 70 ? 'ok' : (scoreGeral >= 40 ? 'alerta' : 'critico');
+  final status =
+      scoreGeral >= 70 ? 'ok' : (scoreGeral >= 40 ? 'alerta' : 'critico');
   final degradacao = (primeiro['degradacao'] as num?)?.toDouble() ?? 0;
   final idadeAnos = (primeiro['idade_anos'] as num?)?.toInt() ?? 0;
 
@@ -338,7 +389,8 @@ class RegistroManutencao {
     this.fotos = const [],
     this.fotosUrls = const [],
   });
-  factory RegistroManutencao.fromMap(Map<String, dynamic> m) => RegistroManutencao(
+  factory RegistroManutencao.fromMap(Map<String, dynamic> m) =>
+      RegistroManutencao(
         id: (m['id'] as num).toInt(),
         dataManutencao: m['data_manutencao'] as String?,
         oficina: m['oficina'] as String?,
@@ -347,7 +399,8 @@ class RegistroManutencao {
         custoTotal: (m['custo_total'] as num?)?.toDouble(),
         diasParado: (m['dias_parado'] as num?)?.toInt(),
         tipo: m['tipo'] as String?,
-        itensRealizados: ((m['itens_realizados'] as List?) ?? []).cast<String>(),
+        itensRealizados:
+            ((m['itens_realizados'] as List?) ?? []).cast<String>(),
         fotos: ((m['fotos'] as List?) ?? []).cast<String>(),
       );
 
@@ -366,14 +419,18 @@ class RegistroManutencao {
       );
 }
 
-final historicoManutencaoProvider = FutureProvider.autoDispose.family<List<RegistroManutencao>, String>((ref, placa) async {
+final historicoManutencaoProvider = FutureProvider.autoDispose
+    .family<List<RegistroManutencao>, String>((ref, placa) async {
   final rows = await SupabaseService.client
       .from('manutencoes_realizadas')
-      .select('id, data_manutencao, hodometro, itens_realizados, oficina, custo_total, dias_parado, tipo, criado_por, fotos')
+      .select(
+          'id, data_manutencao, hodometro, itens_realizados, oficina, custo_total, dias_parado, tipo, criado_por, fotos')
       .eq('placa', placa)
       .order('data_manutencao', ascending: false)
       .limit(100) as List;
-  final registros = rows.map((r) => RegistroManutencao.fromMap(r as Map<String, dynamic>)).toList();
+  final registros = rows
+      .map((r) => RegistroManutencao.fromMap(r as Map<String, dynamic>))
+      .toList();
 
   // Resolve URL assinada só de quem tem foto — best-effort, uma falha não
   // derruba o histórico inteiro (mesmo espírito de "falha vira vazio" já
@@ -381,7 +438,12 @@ final historicoManutencaoProvider = FutureProvider.autoDispose.family<List<Regis
   final servico = ManutencaoPreditivaService();
   final comFotos = registros.where((r) => r.fotos.isNotEmpty).toList();
   if (comFotos.isEmpty) return registros;
-  final listasUrls = await Future.wait(comFotos.map((r) => servico.urlsAssinadas(r.fotos)));
-  final porId = {for (var i = 0; i < comFotos.length; i++) comFotos[i].id: listasUrls[i]};
-  return registros.map((r) => porId.containsKey(r.id) ? r.comFotosUrls(porId[r.id]!) : r).toList();
+  final listasUrls =
+      await Future.wait(comFotos.map((r) => servico.urlsAssinadas(r.fotos)));
+  final porId = {
+    for (var i = 0; i < comFotos.length; i++) comFotos[i].id: listasUrls[i]
+  };
+  return registros
+      .map((r) => porId.containsKey(r.id) ? r.comFotosUrls(porId[r.id]!) : r)
+      .toList();
 });

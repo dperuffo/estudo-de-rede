@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/pisos_antt_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de Piso mínimo
@@ -17,7 +19,14 @@ class PisosAnttScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(pisosAnttProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Piso Mínimo ANTT')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Piso Mínimo ANTT')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
@@ -31,7 +40,8 @@ class PisosAnttScreen extends ConsumerWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Nenhum piso ANTT cadastrado ainda.', style: TextStyle(color: Colors.grey.shade600)),
+          child: Text('Nenhum piso ANTT cadastrado ainda.',
+              style: TextStyle(color: Colors.grey.shade600)),
         ),
       );
     }
@@ -51,7 +61,8 @@ class PisosAnttScreen extends ConsumerWidget {
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 12),
-        for (final entrada in porTipo.entries) _cardTipoCarga(entrada.key, entrada.value),
+        for (final entrada in porTipo.entries)
+          _cardTipoCarga(entrada.key, entrada.value),
       ],
     );
   }
@@ -64,7 +75,9 @@ class PisosAnttScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(tipo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(tipo,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             const SizedBox(height: 8),
             ...linhas.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
@@ -72,19 +85,23 @@ class PisosAnttScreen extends ConsumerWidget {
                     children: [
                       SizedBox(
                         width: 68,
-                        child: Text('${p.numeroEixos} eixos', style: const TextStyle(fontSize: 12.5)),
+                        child: Text('${p.numeroEixos} eixos',
+                            style: const TextStyle(fontSize: 12.5)),
                       ),
                       Expanded(
                         child: Text(
                           '${_moeda.format(p.coeficienteDeslocamento)}/km + ${_moeda.format(p.coeficienteCargaDescarga)}',
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),
                       ),
                       Text(
                         DateTime.tryParse(p.vigenciaInicio) != null
-                            ? DateFormat('dd/MM/yyyy').format(DateTime.parse(p.vigenciaInicio))
+                            ? DateFormat('dd/MM/yyyy')
+                                .format(DateTime.parse(p.vigenciaInicio))
                             : p.vigenciaInicio,
-                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                        style: TextStyle(
+                            fontSize: 11.5, color: Colors.grey.shade600),
                       ),
                     ],
                   ),

@@ -5,6 +5,8 @@ import '../providers/fretes_provider.dart';
 import '../services/motoristas_parceiros_service.dart';
 import 'chips_reputacao_motorista.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase PWA-Fretes — porta de motoristas-parceiros/page.tsx: busca por
 // CPF/telefone + convite + tabela de status.
 class MotoristasParceirosScreen extends ConsumerWidget {
@@ -17,7 +19,14 @@ class MotoristasParceirosScreen extends ConsumerWidget {
     final parceirosAsync = ref.watch(parceirosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Motoristas Parceiros')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Motoristas Parceiros')),
       body: empresaId == null
           ? const Center(child: Text('Selecione uma empresa primeiro.'))
           : RefreshIndicator(
@@ -31,16 +40,25 @@ class MotoristasParceirosScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 12.5, color: Colors.black54),
                   ),
                   const SizedBox(height: 16),
-                  _FormConvidarParceiro(empresaId: empresaId, onConvidado: () => ref.invalidate(parceirosProvider)),
+                  _FormConvidarParceiro(
+                      empresaId: empresaId,
+                      onConvidado: () => ref.invalidate(parceirosProvider)),
                   const SizedBox(height: 20),
-                  const Text('Parceiros', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Parceiros',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   parceirosAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Text('Erro: $e'),
                     data: (parceiros) {
-                      if (parceiros.isEmpty) return const Text('Nenhum parceiro convidado ainda.', style: TextStyle(color: Colors.black45));
-                      return Column(children: parceiros.map((p) => _CardParceiro(parceiro: p)).toList());
+                      if (parceiros.isEmpty)
+                        return const Text('Nenhum parceiro convidado ainda.',
+                            style: TextStyle(color: Colors.black45));
+                      return Column(
+                          children: parceiros
+                              .map((p) => _CardParceiro(parceiro: p))
+                              .toList());
                     },
                   ),
                 ],
@@ -73,7 +91,8 @@ class _CardParceiro extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: ListTile(
-          title: Text(parceiro.nomeCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Text(parceiro.nomeCompleto,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Column(
@@ -88,10 +107,13 @@ class _CardParceiro extends StatelessWidget {
           isThreeLine: true,
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: cor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+                color: cor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12)),
             child: Text(
               _labelStatus[parceiro.status] ?? parceiro.status,
-              style: TextStyle(color: cor, fontSize: 10.5, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: cor, fontSize: 10.5, fontWeight: FontWeight.bold),
             ),
           ),
         ),
@@ -103,7 +125,8 @@ class _CardParceiro extends StatelessWidget {
 class _FormConvidarParceiro extends StatefulWidget {
   final String empresaId;
   final VoidCallback onConvidado;
-  const _FormConvidarParceiro({required this.empresaId, required this.onConvidado});
+  const _FormConvidarParceiro(
+      {required this.empresaId, required this.onConvidado});
 
   @override
   State<_FormConvidarParceiro> createState() => _FormConvidarParceiroState();
@@ -130,7 +153,8 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
       _encontrado = null;
       _convidado = false;
     });
-    final resultado = await MotoristasParceirosService().buscarMotoristaPorDocumento(_documentoCtrl.text);
+    final resultado = await MotoristasParceirosService()
+        .buscarMotoristaPorDocumento(_documentoCtrl.text);
     if (!mounted) return;
     setState(() {
       _buscando = false;
@@ -146,7 +170,8 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
       _convidando = true;
       _erro = null;
     });
-    final erro = await MotoristasParceirosService().convidarParceiro(empresaId: widget.empresaId, motoristaId: encontrado.motoristaId);
+    final erro = await MotoristasParceirosService().convidarParceiro(
+        empresaId: widget.empresaId, motoristaId: encontrado.motoristaId);
     if (!mounted) return;
     setState(() {
       _convidando = false;
@@ -164,7 +189,8 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Convidar motorista parceiro', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Convidar motorista parceiro',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             const Text(
               'Busque pelo CPF ou telefone — o motorista precisa já ter conta no app "Estrada que Cuida". Ele recebe o '
@@ -177,35 +203,51 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
                 Expanded(
                   child: TextField(
                     controller: _documentoCtrl,
-                    decoration: const InputDecoration(labelText: 'CPF ou telefone', isDense: true, border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'CPF ou telefone',
+                        isDense: true,
+                        border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: _buscando ? null : _buscar,
                   child: _buscando
-                      ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Buscar'),
                 ),
               ],
             ),
             if (_erro != null) ...[
               const SizedBox(height: 8),
-              Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              Text(_erro!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
             ],
             if (_encontrado != null && !_convidado) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_encontrado!.nomeCompleto, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          Text(_encontrado!.telefone ?? 'sem telefone cadastrado', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                          Text(_encontrado!.nomeCompleto,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text(
+                              _encontrado!.telefone ??
+                                  'sem telefone cadastrado',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.black54)),
                         ],
                       ),
                     ),
@@ -219,7 +261,9 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
             ],
             if (_convidado) ...[
               const SizedBox(height: 10),
-              const Text('Convite enviado! Aparece como "Convidado" até o motorista responder.', style: TextStyle(color: Colors.green, fontSize: 12.5)),
+              const Text(
+                  'Convite enviado! Aparece como "Convidado" até o motorista responder.',
+                  style: TextStyle(color: Colors.green, fontSize: 12.5)),
             ],
           ],
         ),

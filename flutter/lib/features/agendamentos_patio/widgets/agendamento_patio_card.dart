@@ -41,7 +41,8 @@ class AgendamentoPatioCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AgendamentoPatioCard> createState() => _AgendamentoPatioCardState();
+  ConsumerState<AgendamentoPatioCard> createState() =>
+      _AgendamentoPatioCardState();
 }
 
 class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
@@ -85,7 +86,9 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
     if (!mounted) return null;
     final hora = await showTimePicker(
       context: context,
-      initialTime: valorAtual != null ? TimeOfDay.fromDateTime(valorAtual) : TimeOfDay.now(),
+      initialTime: valorAtual != null
+          ? TimeOfDay.fromDateTime(valorAtual)
+          : TimeOfDay.now(),
     );
     if (hora == null) return null;
     return DateTime(data.year, data.month, data.day, hora.hour, hora.minute);
@@ -102,8 +105,10 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
   String _formatarJanela(DateTime inicio, DateTime fim) {
     final dd = inicio.day.toString().padLeft(2, '0');
     final mm = inicio.month.toString().padLeft(2, '0');
-    final hi = '${inicio.hour.toString().padLeft(2, '0')}:${inicio.minute.toString().padLeft(2, '0')}';
-    final hf = '${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}';
+    final hi =
+        '${inicio.hour.toString().padLeft(2, '0')}:${inicio.minute.toString().padLeft(2, '0')}';
+    final hf =
+        '${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}';
     return '$dd/$mm, $hi–$hf';
   }
 
@@ -160,10 +165,15 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Cancelar agendamento de ${labelTipoAgendamentoPatio[widget.tipo]?.toLowerCase()}?'),
+        title: Text(
+            'Cancelar agendamento de ${labelTipoAgendamentoPatio[widget.tipo]?.toLowerCase()}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cancelar agendamento')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Voltar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cancelar agendamento')),
         ],
       ),
     );
@@ -182,13 +192,19 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
 
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(border: Border.all(color: Colors.black12), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.black12),
+          borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            labelTipoAgendamentoPatio[widget.tipo]?.toUpperCase() ?? widget.tipo.toUpperCase(),
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black45),
+            labelTipoAgendamentoPatio[widget.tipo]?.toUpperCase() ??
+                widget.tipo.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.black45),
           ),
           const SizedBox(height: 8),
           if (mostrarFormulario) ...[
@@ -200,7 +216,9 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
                       final v = await _escolherDataHora(_inicio);
                       if (v != null) setState(() => _inicio = v);
                     },
-                    child: Text(_inicio != null ? 'Início: ${_formatarDataHora(_inicio!)}' : 'Início da janela'),
+                    child: Text(_inicio != null
+                        ? 'Início: ${_formatarDataHora(_inicio!)}'
+                        : 'Início da janela'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -210,7 +228,9 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
                       final v = await _escolherDataHora(_fim);
                       if (v != null) setState(() => _fim = v);
                     },
-                    child: Text(_fim != null ? 'Fim: ${_formatarDataHora(_fim!)}' : 'Fim da janela'),
+                    child: Text(_fim != null
+                        ? 'Fim: ${_formatarDataHora(_fim!)}'
+                        : 'Fim da janela'),
                   ),
                 ),
               ],
@@ -218,19 +238,26 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
             const SizedBox(height: 8),
             TextField(
               controller: _docaCtrl,
-              decoration: const InputDecoration(labelText: 'Doca/vaga (opcional)', isDense: true, border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Doca/vaga (opcional)',
+                  isDense: true,
+                  border: OutlineInputBorder()),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _obsCtrl,
-              decoration: const InputDecoration(labelText: 'Observações (opcional)', isDense: true, border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Observações (opcional)',
+                  isDense: true,
+                  border: OutlineInputBorder()),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 ElevatedButton(
                   onPressed: _carregando ? null : _salvar,
-                  child: Text(_carregando ? '...' : (_editando ? 'Salvar' : 'Agendar')),
+                  child: Text(
+                      _carregando ? '...' : (_editando ? 'Salvar' : 'Agendar')),
                 ),
                 if (_editando) ...[
                   const SizedBox(width: 8),
@@ -249,7 +276,8 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
             ),
             if (_erro != null) ...[
               const SizedBox(height: 6),
-              Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 12.5)),
+              Text(_erro!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12.5)),
             ],
           ] else ...[
             Wrap(
@@ -258,23 +286,38 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _corStatus[agendamento.status] ?? const Color(0xFFF1F5F9),
+                    color: _corStatus[agendamento.status] ??
+                        const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    labelStatusAgendamentoPatio[agendamento.status] ?? agendamento.status,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _corTextoStatus[agendamento.status] ?? Colors.black54),
+                    labelStatusAgendamentoPatio[agendamento.status] ??
+                        agendamento.status,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _corTextoStatus[agendamento.status] ??
+                            Colors.black54),
                   ),
                 ),
-                Text(_formatarJanela(agendamento.janelaInicio, agendamento.janelaFim), style: const TextStyle(fontSize: 13)),
-                if (agendamento.doca != null) Text('· doca ${agendamento.doca}', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                Text(
+                    _formatarJanela(
+                        agendamento.janelaInicio, agendamento.janelaFim),
+                    style: const TextStyle(fontSize: 13)),
+                if (agendamento.doca != null)
+                  Text('· doca ${agendamento.doca}',
+                      style:
+                          const TextStyle(fontSize: 13, color: Colors.black54)),
               ],
             ),
             if (agendamento.observacoes != null) ...[
               const SizedBox(height: 4),
-              Text(agendamento.observacoes!, style: const TextStyle(fontSize: 11.5, color: Colors.black45)),
+              Text(agendamento.observacoes!,
+                  style:
+                      const TextStyle(fontSize: 11.5, color: Colors.black45)),
             ],
             if (['agendado', 'confirmado'].contains(agendamento.status)) ...[
               const SizedBox(height: 6),
@@ -282,8 +325,14 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
                 spacing: 12,
                 children: [
                   if (agendamento.status == 'agendado')
-                    TextButton(onPressed: _carregando ? null : _confirmar, child: const Text('Confirmar')),
-                  TextButton(onPressed: _carregando ? null : () => setState(() => _editando = true), child: const Text('Reagendar')),
+                    TextButton(
+                        onPressed: _carregando ? null : _confirmar,
+                        child: const Text('Confirmar')),
+                  TextButton(
+                      onPressed: _carregando
+                          ? null
+                          : () => setState(() => _editando = true),
+                      child: const Text('Reagendar')),
                   TextButton(
                     onPressed: _carregando ? null : _cancelar,
                     style: TextButton.styleFrom(foregroundColor: Colors.red),

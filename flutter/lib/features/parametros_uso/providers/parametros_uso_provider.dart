@@ -18,7 +18,16 @@ import '../../../core/services/supabase_service.dart';
 // Volume Diário + Produto + Hodômetro Leve/Pesado + Dias/Horários +
 // Postos + Cotas) têm CRUD completo aqui.
 const diasSemanaParametro = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-const combustiveisParametro = ['Diesel', 'Arla 32 + Diesel', 'Gasolina', 'Etanol', 'Flex', 'GNV', 'GLP', 'Elétrico'];
+const combustiveisParametro = [
+  'Diesel',
+  'Arla 32 + Diesel',
+  'Gasolina',
+  'Etanol',
+  'Flex',
+  'GNV',
+  'GLP',
+  'Elétrico'
+];
 const periodicidadeLabel = {
   'Abastecimento': 'Por abastecimento',
   'Semana': 'Por semana',
@@ -27,7 +36,8 @@ const periodicidadeLabel = {
 };
 
 String? _txt(Map<String, dynamic> m, String campo) => m[campo] as String?;
-String? _motoristaNome(Map<String, dynamic> m) => (m['motoristas'] as Map<String, dynamic>?)?['nome_completo'] as String?;
+String? _motoristaNome(Map<String, dynamic> m) =>
+    (m['motoristas'] as Map<String, dynamic>?)?['nome_completo'] as String?;
 
 class PostoOpcao {
   final String cnpj;
@@ -42,7 +52,8 @@ class PostoOpcao {
 // automaticamente um Pré-Pedido (ver planos_viagem_provider.dart e
 // planos_viagem_service.dart), e o antifraude/verificar passa a só
 // autorizar abastecimento nos postos/placas pré-agendados.
-final parametroPrePedidoProvider = FutureProvider.autoDispose<bool>((ref) async {
+final parametroPrePedidoProvider =
+    FutureProvider.autoDispose<bool>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return false;
@@ -54,7 +65,8 @@ final parametroPrePedidoProvider = FutureProvider.autoDispose<bool>((ref) async 
   return row?['habilitado'] == true;
 });
 
-final postosNegociadosOpcoesProvider = FutureProvider.autoDispose<List<PostoOpcao>>((ref) async {
+final postosNegociadosOpcoesProvider =
+    FutureProvider.autoDispose<List<PostoOpcao>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -70,7 +82,8 @@ final postosNegociadosOpcoesProvider = FutureProvider.autoDispose<List<PostoOpca
     final cnpj = m['posto_cnpj'] as String?;
     if (cnpj == null || vistos.contains(cnpj)) continue;
     vistos.add(cnpj);
-    resultado.add(PostoOpcao(cnpj: cnpj, nome: m['posto_nome'] as String? ?? cnpj));
+    resultado
+        .add(PostoOpcao(cnpj: cnpj, nome: m['posto_nome'] as String? ?? cnpj));
   }
   return resultado;
 });
@@ -117,19 +130,24 @@ class VinculoRow {
   }
 }
 
-final vinculosProvider = FutureProvider.autoDispose<List<VinculoRow>>((ref) async {
+final vinculosProvider =
+    FutureProvider.autoDispose<List<VinculoRow>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
       .from('parametros_vinculo_motorista_veiculo')
-      .select('id, placa, motorista_id, data_inicio, data_fim, status, observacao, motoristas(nome_completo, cpf)')
+      .select(
+          'id, placa, motorista_id, data_inicio, data_fim, status, observacao, motoristas(nome_completo, cpf)')
       .eq('empresa_id', empresaId)
       .order('placa') as List;
-  return rows.map((m) => VinculoRow.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => VinculoRow.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
-final vinculoDetalheProvider = FutureProvider.autoDispose.family<VinculoRow?, String>((ref, id) async {
+final vinculoDetalheProvider =
+    FutureProvider.autoDispose.family<VinculoRow?, String>((ref, id) async {
   final lista = await ref.watch(vinculosProvider.future);
   for (final v in lista) {
     if (v.id == id) return v;
@@ -172,16 +190,20 @@ class RegraIntervalo {
       );
 }
 
-final intervalosProvider = FutureProvider.autoDispose<List<RegraIntervalo>>((ref) async {
+final intervalosProvider =
+    FutureProvider.autoDispose<List<RegraIntervalo>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
       .from('parametros_intervalo_abastecimento')
-      .select('id, tipo, placa, intervalo_minimo, unidade, status, observacao, motoristas(nome_completo)')
+      .select(
+          'id, tipo, placa, intervalo_minimo, unidade, status, observacao, motoristas(nome_completo)')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraIntervalo.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraIntervalo.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Valor Diário Permitido — Motorista ──────────────────────────────────
@@ -210,7 +232,8 @@ class RegraValorDiario {
       );
 }
 
-final valoresDiariosProvider = FutureProvider.autoDispose<List<RegraValorDiario>>((ref) async {
+final valoresDiariosProvider =
+    FutureProvider.autoDispose<List<RegraValorDiario>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -219,7 +242,9 @@ final valoresDiariosProvider = FutureProvider.autoDispose<List<RegraValorDiario>
       .select('id, valor_maximo, status, observacao, motoristas(nome_completo)')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraValorDiario.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraValorDiario.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Volume Diário Permitido — Veículo ───────────────────────────────────
@@ -236,7 +261,8 @@ class RegraVolumeDiario {
     required this.status,
     this.observacao,
   });
-  factory RegraVolumeDiario.fromMap(Map<String, dynamic> m) => RegraVolumeDiario(
+  factory RegraVolumeDiario.fromMap(Map<String, dynamic> m) =>
+      RegraVolumeDiario(
         id: m['id'] as String,
         placa: _txt(m, 'placa'),
         volumeMaximo: m['volume_maximo'] as num? ?? 0,
@@ -245,7 +271,8 @@ class RegraVolumeDiario {
       );
 }
 
-final volumesDiariosProvider = FutureProvider.autoDispose<List<RegraVolumeDiario>>((ref) async {
+final volumesDiariosProvider =
+    FutureProvider.autoDispose<List<RegraVolumeDiario>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -254,7 +281,9 @@ final volumesDiariosProvider = FutureProvider.autoDispose<List<RegraVolumeDiario
       .select('id, placa, volume_maximo, status, observacao')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraVolumeDiario.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraVolumeDiario.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Produto Abastecido ──────────────────────────────────────────────────
@@ -274,13 +303,15 @@ class RegraProduto {
   factory RegraProduto.fromMap(Map<String, dynamic> m) => RegraProduto(
         id: m['id'] as String,
         placa: _txt(m, 'placa'),
-        combustiveisPermitidos: (m['combustiveis_permitidos'] as List? ?? []).cast<String>(),
+        combustiveisPermitidos:
+            (m['combustiveis_permitidos'] as List? ?? []).cast<String>(),
         status: m['status'] as String? ?? 'Ativo',
         observacao: _txt(m, 'observacao'),
       );
 }
 
-final produtosProvider = FutureProvider.autoDispose<List<RegraProduto>>((ref) async {
+final produtosProvider =
+    FutureProvider.autoDispose<List<RegraProduto>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -289,7 +320,9 @@ final produtosProvider = FutureProvider.autoDispose<List<RegraProduto>>((ref) as
       .select('id, placa, combustiveis_permitidos, status, observacao')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraProduto.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraProduto.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Variação Máx. de Hodômetro (Leve/Pesado) ────────────────────────────
@@ -308,7 +341,8 @@ class RegraVariacaoHodometro {
     required this.status,
     this.observacao,
   });
-  factory RegraVariacaoHodometro.fromMap(Map<String, dynamic> m) => RegraVariacaoHodometro(
+  factory RegraVariacaoHodometro.fromMap(Map<String, dynamic> m) =>
+      RegraVariacaoHodometro(
         id: m['id'] as String,
         placa: _txt(m, 'placa'),
         classificacao: m['classificacao'] as String? ?? 'Leve',
@@ -318,18 +352,21 @@ class RegraVariacaoHodometro {
       );
 }
 
-final variacoesHodometroProvider =
-    FutureProvider.autoDispose.family<List<RegraVariacaoHodometro>, String>((ref, classificacao) async {
+final variacoesHodometroProvider = FutureProvider.autoDispose
+    .family<List<RegraVariacaoHodometro>, String>((ref, classificacao) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
       .from('parametros_variacao_hodometro')
-      .select('id, placa, classificacao, variacao_maxima_km, status, observacao')
+      .select(
+          'id, placa, classificacao, variacao_maxima_km, status, observacao')
       .eq('empresa_id', empresaId)
       .eq('classificacao', classificacao)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraVariacaoHodometro.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraVariacaoHodometro.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Dias e Horários Permitidos ───────────────────────────────────────────
@@ -356,7 +393,8 @@ class RegraDiasHorarios {
     required this.status,
     this.observacao,
   });
-  factory RegraDiasHorarios.fromMap(Map<String, dynamic> m) => RegraDiasHorarios(
+  factory RegraDiasHorarios.fromMap(Map<String, dynamic> m) =>
+      RegraDiasHorarios(
         id: m['id'] as String,
         classificacao: _txt(m, 'classificacao'),
         placa: _txt(m, 'placa'),
@@ -370,7 +408,8 @@ class RegraDiasHorarios {
       );
 }
 
-final diasHorariosProvider = FutureProvider.autoDispose<List<RegraDiasHorarios>>((ref) async {
+final diasHorariosProvider =
+    FutureProvider.autoDispose<List<RegraDiasHorarios>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -380,7 +419,9 @@ final diasHorariosProvider = FutureProvider.autoDispose<List<RegraDiasHorarios>>
           'id, classificacao, placa, motorista_id, dias_permitidos, hora_inicio, hora_fim, status, observacao, motoristas(nome_completo)')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraDiasHorarios.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraDiasHorarios.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Postos Permitidos para Abastecimento ─────────────────────────────────
@@ -407,7 +448,8 @@ class RegraPostosPermitidos {
     required this.status,
     this.observacao,
   });
-  factory RegraPostosPermitidos.fromMap(Map<String, dynamic> m) => RegraPostosPermitidos(
+  factory RegraPostosPermitidos.fromMap(Map<String, dynamic> m) =>
+      RegraPostosPermitidos(
         id: m['id'] as String,
         classificacao: _txt(m, 'classificacao'),
         placa: _txt(m, 'placa'),
@@ -421,7 +463,8 @@ class RegraPostosPermitidos {
       );
 }
 
-final postosPermitidosProvider = FutureProvider.autoDispose<List<RegraPostosPermitidos>>((ref) async {
+final postosPermitidosProvider =
+    FutureProvider.autoDispose<List<RegraPostosPermitidos>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -431,7 +474,9 @@ final postosPermitidosProvider = FutureProvider.autoDispose<List<RegraPostosPerm
           'id, classificacao, placa, motorista_id, postos_cnpj, tipo_limite, valor_maximo, status, observacao, motoristas(nome_completo)')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
-  return rows.map((m) => RegraPostosPermitidos.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => RegraPostosPermitidos.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 // ── Cota por Veículo ──────────────────────────────────────────────────────
@@ -487,7 +532,9 @@ final cotasProvider = FutureProvider.autoDispose<List<RegraCota>>((ref) async {
 
   final hoje = DateTime.now().toUtc();
   final amanha = hoje.add(const Duration(days: 1));
-  final fimExclusivo = DateTime.utc(amanha.year, amanha.month, amanha.day).toIso8601String().substring(0, 10);
+  final fimExclusivo = DateTime.utc(amanha.year, amanha.month, amanha.day)
+      .toIso8601String()
+      .substring(0, 10);
 
   final resultado = <RegraCota>[];
   for (final r in rows) {
@@ -495,7 +542,9 @@ final cotasProvider = FutureProvider.autoDispose<List<RegraCota>>((ref) async {
     final periodicidade = m['periodicidade'] as String? ?? 'Mes';
     final tipo = m['tipo'] as String? ?? 'Valor';
     final placa = m['placa'] as String? ?? '';
-    final inicio = _inicioDoPeriodo(periodicidade, hoje).toIso8601String().substring(0, 10);
+    final inicio = _inicioDoPeriodo(periodicidade, hoje)
+        .toIso8601String()
+        .substring(0, 10);
 
     final abastecimentos = await supabase
         .from('abastecimentos_unificado')
@@ -508,7 +557,10 @@ final cotasProvider = FutureProvider.autoDispose<List<RegraCota>>((ref) async {
     num consumido = 0;
     for (final a in abastecimentos) {
       final am = a as Map<String, dynamic>;
-      consumido += (tipo == 'Valor' ? (am['valor_total'] as num?) : (am['litros'] as num?)) ?? 0;
+      consumido += (tipo == 'Valor'
+              ? (am['valor_total'] as num?)
+              : (am['litros'] as num?)) ??
+          0;
     }
 
     resultado.add(RegraCota(

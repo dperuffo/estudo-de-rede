@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show motoristasClienteProvider;
-import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show motoristasClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show veiculosClienteProvider;
 import '../../replicacao_grupo/widgets/replicar_para_grupo_button.dart';
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
 import 'regras_forms.dart';
 import 'secao_pre_pedido.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 // Fase Replicação-Grupo — mesmo mapeamento aba→chave da web
 // (CHAVE_REPLICACAO_POR_ABA em parametros-uso/page.tsx). "vinculo" e
@@ -48,22 +52,28 @@ class ParametrosUsoScreen extends ConsumerStatefulWidget {
   const ParametrosUsoScreen({super.key});
 
   @override
-  ConsumerState<ParametrosUsoScreen> createState() => _ParametrosUsoScreenState();
+  ConsumerState<ParametrosUsoScreen> createState() =>
+      _ParametrosUsoScreenState();
 }
 
 class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
   String _aba = 'vinculo';
   String? _statusFiltroVinculo;
 
-  Future<void> _confirmarExcluir(String tabela, String id, ProviderOrFamily providerParaInvalidar) async {
+  Future<void> _confirmarExcluir(
+      String tabela, String id, ProviderOrFamily providerParaInvalidar) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Excluir regra?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -72,15 +82,24 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
     ref.invalidate(providerParaInvalidar);
   }
 
-  Future<void> _alternarStatus(String tabela, String id, bool ativo, ProviderOrFamily providerParaInvalidar) async {
-    await ParametrosUsoService().alternarStatus(tabela: tabela, id: id, ativo: ativo);
+  Future<void> _alternarStatus(String tabela, String id, bool ativo,
+      ProviderOrFamily providerParaInvalidar) async {
+    await ParametrosUsoService()
+        .alternarStatus(tabela: tabela, id: id, ativo: ativo);
     ref.invalidate(providerParaInvalidar);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Parâmetros de Uso')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Parâmetros de Uso')),
       floatingActionButton: _fab(),
       body: Column(
         children: [
@@ -114,7 +133,8 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
 
   Widget _linhaReplicar() {
     final sessaoAsync = ref.watch(sessaoProvider);
-    final empresaId = sessaoAsync.maybeWhen(data: (s) => s.empresaId, orElse: () => null);
+    final empresaId =
+        sessaoAsync.maybeWhen(data: (s) => s.empresaId, orElse: () => null);
     if (empresaId == null) return const SizedBox.shrink();
     return Align(
       alignment: Alignment.centerRight,
@@ -157,7 +177,8 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
 
     switch (_aba) {
       case 'intervalo':
-        await mostrarFormIntervalo(context, ref, empresaId, veiculos, motoristas);
+        await mostrarFormIntervalo(
+            context, ref, empresaId, veiculos, motoristas);
         break;
       case 'valor-diario':
         await mostrarFormValorDiario(context, ref, empresaId, motoristas);
@@ -175,12 +196,14 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
         await mostrarFormHodometro(context, ref, empresaId, 'Pesado', veiculos);
         break;
       case 'dias-horarios':
-        await mostrarFormDiasHorarios(context, ref, empresaId, veiculos, motoristas);
+        await mostrarFormDiasHorarios(
+            context, ref, empresaId, veiculos, motoristas);
         break;
       case 'postos':
         final postos = await ref.read(postosNegociadosOpcoesProvider.future);
         if (!mounted) return;
-        await mostrarFormPostos(context, ref, empresaId, veiculos, motoristas, postos);
+        await mostrarFormPostos(
+            context, ref, empresaId, veiculos, motoristas, postos);
         break;
       case 'cotas':
         await mostrarFormCota(context, ref, empresaId, veiculos);
@@ -215,7 +238,11 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
     }
   }
 
-  Widget _card({required List<Widget> linhas, required String status, required VoidCallback onToggle, required VoidCallback onExcluir}) {
+  Widget _card(
+      {required List<Widget> linhas,
+      required String status,
+      required VoidCallback onToggle,
+      required VoidCallback onExcluir}) {
     final ativo = status == 'Ativo';
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -229,19 +256,27 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                    color: (ativo
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFF64748B))
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(status,
                       style: TextStyle(
                           fontSize: 11,
-                          color: ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                          color: ativo
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFF64748B),
                           fontWeight: FontWeight.w600)),
                 ),
                 const Spacer(),
-                TextButton(onPressed: onToggle, child: Text(ativo ? 'Desativar' : 'Ativar')),
+                TextButton(
+                    onPressed: onToggle,
+                    child: Text(ativo ? 'Desativar' : 'Ativar')),
                 TextButton(onPressed: onExcluir, child: const Text('Excluir')),
               ],
             ),
@@ -252,7 +287,10 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
   }
 
   Widget _linhaTexto(String texto, {bool destaque = false}) => Text(texto,
-      style: TextStyle(fontSize: destaque ? 13 : 12, fontWeight: destaque ? FontWeight.w600 : FontWeight.normal, color: destaque ? null : Colors.grey.shade700));
+      style: TextStyle(
+          fontSize: destaque ? 13 : 12,
+          fontWeight: destaque ? FontWeight.w600 : FontWeight.normal,
+          color: destaque ? null : Colors.grey.shade700));
 
   Widget _vazio(String texto) => Card(
         child: Padding(
@@ -286,17 +324,20 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
                 ChoiceChip(
                   label: Text('Todos (${lista.length})'),
                   selected: _statusFiltroVinculo == null,
-                  onSelected: (_) => setState(() => _statusFiltroVinculo = null),
+                  onSelected: (_) =>
+                      setState(() => _statusFiltroVinculo = null),
                 ),
                 ChoiceChip(
                   label: const Text('Ativos'),
                   selected: _statusFiltroVinculo == 'Ativo',
-                  onSelected: (_) => setState(() => _statusFiltroVinculo = 'Ativo'),
+                  onSelected: (_) =>
+                      setState(() => _statusFiltroVinculo = 'Ativo'),
                 ),
                 ChoiceChip(
                   label: const Text('Inativos'),
                   selected: _statusFiltroVinculo == 'Inativo',
-                  onSelected: (_) => setState(() => _statusFiltroVinculo = 'Inativo'),
+                  onSelected: (_) =>
+                      setState(() => _statusFiltroVinculo = 'Inativo'),
                 ),
               ],
             ),
@@ -306,18 +347,27 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     onTap: () => context.push('/parametros-uso/${v.id}/editar'),
-                    title: Text(v.placa, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    subtitle: Text(v.motoristaNome ?? '—', style: const TextStyle(fontSize: 12)),
+                    title: Text(v.placa,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    subtitle: Text(v.motoristaNome ?? '—',
+                        style: const TextStyle(fontSize: 12)),
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (v.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                        color: (v.ativo
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFF64748B))
+                            .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(v.status,
                           style: TextStyle(
                               fontSize: 11,
-                              color: v.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                              color: v.ativo
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFF64748B),
                               fontWeight: FontWeight.w600)),
                     ),
                   ),
@@ -340,11 +390,21 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           if (lista.isEmpty) _vazio('Nenhuma regra de intervalo cadastrada.'),
           ...lista.map((r) => _card(
                 status: r.status,
-                onToggle: () => _alternarStatus('parametros_intervalo_abastecimento', r.id, r.status != 'Ativo', intervalosProvider),
-                onExcluir: () => _confirmarExcluir('parametros_intervalo_abastecimento', r.id, intervalosProvider),
+                onToggle: () => _alternarStatus(
+                    'parametros_intervalo_abastecimento',
+                    r.id,
+                    r.status != 'Ativo',
+                    intervalosProvider),
+                onExcluir: () => _confirmarExcluir(
+                    'parametros_intervalo_abastecimento',
+                    r.id,
+                    intervalosProvider),
                 linhas: [
-                  _linhaTexto('${r.tipo == 'Veiculo' ? 'Veículo' : 'Motorista'}: ${r.tipo == 'Veiculo' ? (r.placa ?? 'Todos') : (r.motoristaNome ?? 'Todos')}', destaque: true),
-                  _linhaTexto('${r.intervaloMinimo} ${r.unidade == 'Horas' ? 'hora(s)' : 'dia(s)'}'),
+                  _linhaTexto(
+                      '${r.tipo == 'Veiculo' ? 'Veículo' : 'Motorista'}: ${r.tipo == 'Veiculo' ? (r.placa ?? 'Todos') : (r.motoristaNome ?? 'Todos')}',
+                      destaque: true),
+                  _linhaTexto(
+                      '${r.intervaloMinimo} ${r.unidade == 'Horas' ? 'hora(s)' : 'dia(s)'}'),
                   if (r.observacao != null) _linhaTexto(r.observacao!),
                 ],
               )),
@@ -365,11 +425,20 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           if (lista.isEmpty) _vazio('Nenhuma regra cadastrada.'),
           ...lista.map((r) => _card(
                 status: r.status,
-                onToggle: () => _alternarStatus('parametros_valor_diario_motorista', r.id, r.status != 'Ativo', valoresDiariosProvider),
-                onExcluir: () => _confirmarExcluir('parametros_valor_diario_motorista', r.id, valoresDiariosProvider),
+                onToggle: () => _alternarStatus(
+                    'parametros_valor_diario_motorista',
+                    r.id,
+                    r.status != 'Ativo',
+                    valoresDiariosProvider),
+                onExcluir: () => _confirmarExcluir(
+                    'parametros_valor_diario_motorista',
+                    r.id,
+                    valoresDiariosProvider),
                 linhas: [
-                  _linhaTexto(r.motoristaNome ?? 'Todos os motoristas', destaque: true),
-                  _linhaTexto('Máximo diário: R\$ ${r.valorMaximo.toStringAsFixed(2)}'),
+                  _linhaTexto(r.motoristaNome ?? 'Todos os motoristas',
+                      destaque: true),
+                  _linhaTexto(
+                      'Máximo diário: R\$ ${r.valorMaximo.toStringAsFixed(2)}'),
                   if (r.observacao != null) _linhaTexto(r.observacao!),
                 ],
               )),
@@ -390,8 +459,15 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           if (lista.isEmpty) _vazio('Nenhuma regra cadastrada.'),
           ...lista.map((r) => _card(
                 status: r.status,
-                onToggle: () => _alternarStatus('parametros_volume_diario_veiculo', r.id, r.status != 'Ativo', volumesDiariosProvider),
-                onExcluir: () => _confirmarExcluir('parametros_volume_diario_veiculo', r.id, volumesDiariosProvider),
+                onToggle: () => _alternarStatus(
+                    'parametros_volume_diario_veiculo',
+                    r.id,
+                    r.status != 'Ativo',
+                    volumesDiariosProvider),
+                onExcluir: () => _confirmarExcluir(
+                    'parametros_volume_diario_veiculo',
+                    r.id,
+                    volumesDiariosProvider),
                 linhas: [
                   _linhaTexto(r.placa ?? 'Todos os veículos', destaque: true),
                   _linhaTexto('Máximo diário: ${r.volumeMaximo} L'),
@@ -415,11 +491,15 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           if (lista.isEmpty) _vazio('Nenhuma regra cadastrada.'),
           ...lista.map((r) => _card(
                 status: r.status,
-                onToggle: () => _alternarStatus('parametros_produto_abastecido', r.id, r.status != 'Ativo', produtosProvider),
-                onExcluir: () => _confirmarExcluir('parametros_produto_abastecido', r.id, produtosProvider),
+                onToggle: () => _alternarStatus('parametros_produto_abastecido',
+                    r.id, r.status != 'Ativo', produtosProvider),
+                onExcluir: () => _confirmarExcluir(
+                    'parametros_produto_abastecido', r.id, produtosProvider),
                 linhas: [
                   _linhaTexto(r.placa ?? 'Todos os veículos', destaque: true),
-                  _linhaTexto(r.combustiveisPermitidos.isEmpty ? 'Do cadastro' : r.combustiveisPermitidos.join(', ')),
+                  _linhaTexto(r.combustiveisPermitidos.isEmpty
+                      ? 'Do cadastro'
+                      : r.combustiveisPermitidos.join(', ')),
                   if (r.observacao != null) _linhaTexto(r.observacao!),
                 ],
               )),
@@ -440,8 +520,15 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           if (lista.isEmpty) _vazio('Nenhuma regra cadastrada.'),
           ...lista.map((r) => _card(
                 status: r.status,
-                onToggle: () => _alternarStatus('parametros_variacao_hodometro', r.id, r.status != 'Ativo', variacoesHodometroProvider(classificacao)),
-                onExcluir: () => _confirmarExcluir('parametros_variacao_hodometro', r.id, variacoesHodometroProvider(classificacao)),
+                onToggle: () => _alternarStatus(
+                    'parametros_variacao_hodometro',
+                    r.id,
+                    r.status != 'Ativo',
+                    variacoesHodometroProvider(classificacao)),
+                onExcluir: () => _confirmarExcluir(
+                    'parametros_variacao_hodometro',
+                    r.id,
+                    variacoesHodometroProvider(classificacao)),
                 linhas: [
                   _linhaTexto(r.placa ?? 'Todos os veículos', destaque: true),
                   _linhaTexto('Variação máxima: ${r.variacaoMaximaKm} km'),
@@ -465,14 +552,17 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           if (lista.isEmpty) _vazio('Nenhuma restrição cadastrada.'),
           ...lista.map((r) => _card(
                 status: r.status,
-                onToggle: () => _alternarStatus('parametros_dias_horarios', r.id, r.status != 'Ativo', diasHorariosProvider),
-                onExcluir: () => _confirmarExcluir('parametros_dias_horarios', r.id, diasHorariosProvider),
+                onToggle: () => _alternarStatus('parametros_dias_horarios',
+                    r.id, r.status != 'Ativo', diasHorariosProvider),
+                onExcluir: () => _confirmarExcluir(
+                    'parametros_dias_horarios', r.id, diasHorariosProvider),
                 linhas: [
                   _linhaTexto(
                       '${r.classificacao ?? 'Todos'} · ${r.placa ?? 'Todos os veículos'} · ${r.motoristaNome ?? 'Todos os motoristas'}',
                       destaque: true),
                   _linhaTexto(r.diasPermitidos.join(', ')),
-                  _linhaTexto('${r.horaInicio.substring(0, 5)}–${r.horaFim.substring(0, 5)}'),
+                  _linhaTexto(
+                      '${r.horaInicio.substring(0, 5)}–${r.horaFim.substring(0, 5)}'),
                   if (r.observacao != null) _linhaTexto(r.observacao!),
                 ],
               )),
@@ -499,13 +589,21 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
             if (lista.isEmpty) _vazio('Nenhuma restrição cadastrada.'),
             ...lista.map((r) => _card(
                   status: r.status,
-                  onToggle: () => _alternarStatus('parametros_postos_permitidos', r.id, r.status != 'Ativo', postosPermitidosProvider),
-                  onExcluir: () => _confirmarExcluir('parametros_postos_permitidos', r.id, postosPermitidosProvider),
+                  onToggle: () => _alternarStatus(
+                      'parametros_postos_permitidos',
+                      r.id,
+                      r.status != 'Ativo',
+                      postosPermitidosProvider),
+                  onExcluir: () => _confirmarExcluir(
+                      'parametros_postos_permitidos',
+                      r.id,
+                      postosPermitidosProvider),
                   linhas: [
                     _linhaTexto(
                         '${r.classificacao ?? 'Todos'} · ${r.placa ?? 'Todos os veículos'} · ${r.motoristaNome ?? 'Todos os motoristas'}',
                         destaque: true),
-                    _linhaTexto(r.postosCnpj.map((c) => nomes[c] ?? c).join(', ')),
+                    _linhaTexto(
+                        r.postosCnpj.map((c) => nomes[c] ?? c).join(', ')),
                     _linhaTexto(r.tipoLimite == 'Sem limite'
                         ? 'Sem limite'
                         : '${r.tipoLimite == 'Valor' ? 'R\$' : 'L'} ${r.valorMaximo ?? '—'}'),
@@ -529,16 +627,27 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
         children: [
           if (lista.isEmpty) _vazio('Nenhuma cota cadastrada.'),
           ...lista.map((r) {
-            final pct = r.limite > 0 ? (r.consumido / r.limite * 100).clamp(0, 100).round() : 0;
-            final formatarValor = r.tipo == 'Valor' ? 'R\$ ${r.consumido.toStringAsFixed(2)}' : '${r.consumido} L';
-            final formatarLimite = r.tipo == 'Valor' ? 'R\$ ${r.limite.toStringAsFixed(2)}' : '${r.limite} L';
+            final pct = r.limite > 0
+                ? (r.consumido / r.limite * 100).clamp(0, 100).round()
+                : 0;
+            final formatarValor = r.tipo == 'Valor'
+                ? 'R\$ ${r.consumido.toStringAsFixed(2)}'
+                : '${r.consumido} L';
+            final formatarLimite = r.tipo == 'Valor'
+                ? 'R\$ ${r.limite.toStringAsFixed(2)}'
+                : '${r.limite} L';
             return _card(
               status: r.status,
-              onToggle: () => _alternarStatus('parametros_cota_veiculo', r.id, r.status != 'Ativo', cotasProvider),
-              onExcluir: () => _confirmarExcluir('parametros_cota_veiculo', r.id, cotasProvider),
+              onToggle: () => _alternarStatus('parametros_cota_veiculo', r.id,
+                  r.status != 'Ativo', cotasProvider),
+              onExcluir: () => _confirmarExcluir(
+                  'parametros_cota_veiculo', r.id, cotasProvider),
               linhas: [
-                _linhaTexto('${r.placa} · ${r.tipo == 'Valor' ? 'Valor (R\$)' : 'Volume (L)'}', destaque: true),
-                _linhaTexto('Limite: $formatarLimite · ${periodicidadeLabel[r.periodicidade] ?? r.periodicidade}'),
+                _linhaTexto(
+                    '${r.placa} · ${r.tipo == 'Valor' ? 'Valor (R\$)' : 'Volume (L)'}',
+                    destaque: true),
+                _linhaTexto(
+                    'Limite: $formatarLimite · ${periodicidadeLabel[r.periodicidade] ?? r.periodicidade}'),
                 _linhaTexto('Consumido: $formatarValor ($pct%)'),
                 if (r.observacao != null) _linhaTexto(r.observacao!),
               ],

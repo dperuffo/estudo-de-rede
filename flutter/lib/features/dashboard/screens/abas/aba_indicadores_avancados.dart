@@ -3,13 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../inteligencia_rede/widgets/inteligencia_shared.dart';
-import '../../../roteirizacao/providers/roteirizacao_provider.dart' show produtosPosto;
+import '../../../roteirizacao/providers/roteirizacao_provider.dart'
+    show produtosPosto;
 import '../../providers/indicadores_avancados_provider.dart';
 
 final _moeda2 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 
-const _coresPostos = [Color(0xFF0EA5E9), Color(0xFFF97316), Color(0xFF16A34A), Color(0xFFDB2777), Color(0xFF7C3AED)];
+const _coresPostos = [
+  Color(0xFF0EA5E9),
+  Color(0xFFF97316),
+  Color(0xFF16A34A),
+  Color(0xFFDB2777),
+  Color(0xFF7C3AED)
+];
 
 // Achado real (reportado pelo Daniel com print): rótulos do eixo X em
 // gráficos de barra com várias categorias (placas, nomes de motoristas,
@@ -34,7 +41,11 @@ Widget _rotuloEixoX(String texto, {double fontSize = 8}) {
 // área reservada, o que é bem menos confuso que ver "R$ 2.000,0" numa
 // linha e "0" sozinho na linha de baixo).
 Widget _rotuloEixoY(String texto, {double fontSize = 9}) {
-  return Text(texto, style: TextStyle(fontSize: fontSize), maxLines: 1, softWrap: false, overflow: TextOverflow.visible);
+  return Text(texto,
+      style: TextStyle(fontSize: fontSize),
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.visible);
 }
 
 // Fase FLT-6 — 2ª aba do Dashboard ("Indicadores Avançados"): os 8 gráficos
@@ -45,10 +56,12 @@ Widget _rotuloEixoY(String texto, {double fontSize = 9}) {
 class AbaIndicadoresAvancados extends ConsumerStatefulWidget {
   const AbaIndicadoresAvancados({super.key});
   @override
-  ConsumerState<AbaIndicadoresAvancados> createState() => _AbaIndicadoresAvancadosState();
+  ConsumerState<AbaIndicadoresAvancados> createState() =>
+      _AbaIndicadoresAvancadosState();
 }
 
-class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancados> {
+class _AbaIndicadoresAvancadosState
+    extends ConsumerState<AbaIndicadoresAvancados> {
   late ({int ano, int mes}) _periodo;
   String? _combustivel; // null = todos os combustíveis
 
@@ -61,18 +74,22 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
 
   @override
   Widget build(BuildContext context) {
-    final chave = (ano: _periodo.ano, mes: _periodo.mes, combustivel: _combustivel);
+    final chave =
+        (ano: _periodo.ano, mes: _periodo.mes, combustivel: _combustivel);
     final dadosAsync = ref.watch(indicadoresAvancadosProvider(chave));
     final opcoes = opcoesMes();
 
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(indicadoresAvancadosProvider(chave)),
+      onRefresh: () async =>
+          ref.invalidate(indicadoresAvancadosProvider(chave)),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          const Text('Indicadores avançados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Indicadores avançados',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text('Preços, consumo e rankings do período selecionado.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const Text('Preços, consumo e rankings do período selecionado.',
+              style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 12),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -82,13 +99,17 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Período:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Text('Período:',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
                   const SizedBox(width: 8),
                   DropdownButton<({int ano, int mes})>(
                     value: _periodo,
                     isDense: true,
                     items: opcoes
-                        .map((o) => DropdownMenuItem(value: o, child: Text(rotuloMesAno(o.ano, o.mes), style: const TextStyle(fontSize: 13))))
+                        .map((o) => DropdownMenuItem(
+                            value: o,
+                            child: Text(rotuloMesAno(o.ano, o.mes),
+                                style: const TextStyle(fontSize: 13))))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setState(() => _periodo = v);
@@ -102,14 +123,21 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Combustível:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Text('Combustível:',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
                   const SizedBox(width: 8),
                   DropdownButton<String?>(
                     value: _combustivel,
                     isDense: true,
                     items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('Todos os combustíveis', style: TextStyle(fontSize: 13))),
-                      ...produtosPosto.map((p) => DropdownMenuItem<String?>(value: p, child: Text(p, style: const TextStyle(fontSize: 13)))),
+                      const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Todos os combustíveis',
+                              style: TextStyle(fontSize: 13))),
+                      ...produtosPosto.map((p) => DropdownMenuItem<String?>(
+                          value: p,
+                          child:
+                              Text(p, style: const TextStyle(fontSize: 13)))),
                     ],
                     onChanged: (v) => setState(() => _combustivel = v),
                   ),
@@ -121,25 +149,38 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF0F9FF),
+                  borderRadius: BorderRadius.circular(8)),
               child: Row(
                 children: [
                   Expanded(
                     child: Text.rich(
                       TextSpan(
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF0369A1)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF0369A1)),
                         children: [
-                          const TextSpan(text: 'Indicadores 2, 3, 4 e 5 filtrados por '),
-                          TextSpan(text: _combustivel, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          const TextSpan(text: '. O indicador 1 já compara todos os combustíveis lado a lado.'),
+                          const TextSpan(
+                              text: 'Indicadores 2, 3, 4 e 5 filtrados por '),
+                          TextSpan(
+                              text: _combustivel,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          const TextSpan(
+                              text:
+                                  '. O indicador 1 já compara todos os combustíveis lado a lado.'),
                         ],
                       ),
                     ),
                   ),
                   TextButton(
                     onPressed: () => setState(() => _combustivel = null),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                    child: const Text('Limpar filtro', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: const Text('Limpar filtro',
+                        style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
@@ -153,11 +194,13 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
             ),
             error: (e, _) => Padding(
               padding: const EdgeInsets.only(top: 40),
-              child: Text('Não deu pra carregar os indicadores.\n$e', textAlign: TextAlign.center),
+              child: Text('Não deu pra carregar os indicadores.\n$e',
+                  textAlign: TextAlign.center),
             ),
             data: (dados) {
               if (!dados.temEmpresa) {
-                return _cardVazio('Selecione um cliente para ver os indicadores avançados.');
+                return _cardVazio(
+                    'Selecione um cliente para ver os indicadores avançados.');
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,11 +236,14 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(texto, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            Text(texto,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
             if (subtitulo != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text(subtitulo, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                child: Text(subtitulo,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ),
           ],
         ),
@@ -206,7 +252,8 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
   Widget _cardVazio(String texto) => Card(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Center(child: Text(texto, style: const TextStyle(color: Colors.grey))),
+          child: Center(
+              child: Text(texto, style: const TextStyle(color: Colors.grey))),
         ),
       );
 
@@ -220,41 +267,72 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _tituloItem('1. Variação de preços por combustível',
-                subtitulo: 'Faixa de preço paga na rede, comparada à referência ANP do estado mais frequente.'),
+                subtitulo:
+                    'Faixa de preço paga na rede, comparada à referência ANP do estado mais frequente.'),
             if (itens.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem abastecimentos no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem abastecimentos no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 220,
                 child: BarChart(BarChartData(
                   barTouchData: barTouchPadrao(
                     formatarY: (v) => formatarMoeda(v, casas: 3),
-                    formatarX: (i) => i >= 0 && i < itens.length ? itens[i].itemNome : '',
+                    formatarX: (i) =>
+                        i >= 0 && i < itens.length ? itens[i].itemNome : '',
                   ),
                   barGroups: itens.asMap().entries.map((e) {
                     final i = e.value;
                     return BarChartGroupData(x: e.key, barRods: [
-                      BarChartRodData(toY: i.precoMed, color: const Color(0xFF0EA5E9), width: 10, borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+                      BarChartRodData(
+                          toY: i.precoMed,
+                          color: const Color(0xFF0EA5E9),
+                          width: 10,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(2))),
                       if (i.anpPrecoMed != null)
-                        BarChartRodData(toY: i.anpPrecoMed!, color: const Color(0xFF94A3B8), width: 10, borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+                        BarChartRodData(
+                            toY: i.anpPrecoMed!,
+                            color: const Color(0xFF94A3B8),
+                            width: 10,
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(2))),
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(2)))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= itens.length) return const SizedBox.shrink();
-                      return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(itens[i].itemNome, 8)));
-                    })),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            getTitlesWidget: (v, _) =>
+                                _rotuloEixoY(v.toStringAsFixed(2)))),
+                    bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 42,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= itens.length)
+                                return const SizedBox.shrink();
+                              return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: _rotuloEixoX(
+                                      truncarTexto(itens[i].itemNome, 8)));
+                            })),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(drawVerticalLine: false),
                   borderData: FlBorderData(show: false),
                 )),
               ),
               const SizedBox(height: 4),
-              const Text('🔵 Preço pago  ·  ⚪ Referência ANP', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              const Text('🔵 Preço pago  ·  ⚪ Referência ANP',
+                  style: TextStyle(fontSize: 10, color: Colors.grey)),
               const SizedBox(height: 10),
               TabelaSimples(
                 colunas: const ['Combustível', 'Qtd', 'Méd.', 'CV', 'ANP Méd.'],
@@ -264,8 +342,12 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                           truncarTexto(i.itemNome, 16),
                           '${i.qtdAbastecimentos}',
                           formatarMoeda(i.precoMed, casas: 3),
-                          i.coefVariacao > 0.08 ? '⚠️ ${(i.coefVariacao * 100).toStringAsFixed(1)}%' : '${(i.coefVariacao * 100).toStringAsFixed(1)}%',
-                          i.anpPrecoMed != null ? formatarMoeda(i.anpPrecoMed!, casas: 3) : '—',
+                          i.coefVariacao > 0.08
+                              ? '⚠️ ${(i.coefVariacao * 100).toStringAsFixed(1)}%'
+                              : '${(i.coefVariacao * 100).toStringAsFixed(1)}%',
+                          i.anpPrecoMed != null
+                              ? formatarMoeda(i.anpPrecoMed!, casas: 3)
+                              : '—',
                         ])
                     .toList(),
                 maxHeight: 240,
@@ -280,17 +362,23 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
   // Item 2 — Previsão de consumo.
   Widget _item2PrevisaoConsumo(IndicadoresAvancadosDados dados) {
     final pontos = dados.previsaoConsumo;
-    final maxY = pontos.map((p) => p.litros).fold<double>(0, (a, b) => a > b ? a : b);
+    final maxY =
+        pontos.map((p) => p.litros).fold<double>(0, (a, b) => a > b ? a : b);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _tituloItem('2. Previsão de consumo — ${rotuloMesAno(dados.ano, dados.mes)}',
-                subtitulo: 'Litros por dia; dias restantes projetados pelo padrão de consumo por dia da semana (últimos 90 dias).'),
+            _tituloItem(
+                '2. Previsão de consumo — ${rotuloMesAno(dados.ano, dados.mes)}',
+                subtitulo:
+                    'Litros por dia; dias restantes projetados pelo padrão de consumo por dia da semana (últimos 90 dias).'),
             if (pontos.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem dados de consumo no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem dados de consumo no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 200,
@@ -298,30 +386,50 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                   maxY: maxY <= 0 ? 1 : maxY * 1.2,
                   barTouchData: barTouchPadrao(
                     formatarY: (v) => '${_numero.format(v.round())} L',
-                    formatarX: (i) => i >= 0 && i < pontos.length ? 'Dia ${pontos[i].diaLabel}' : '',
+                    formatarX: (i) => i >= 0 && i < pontos.length
+                        ? 'Dia ${pontos[i].diaLabel}'
+                        : '',
                   ),
                   barGroups: pontos.asMap().entries.map((e) {
-                    final cor = e.value.tipo == 'real' ? const Color(0xFF0EA5E9) : const Color(0xFFBAE6FD);
+                    final cor = e.value.tipo == 'real'
+                        ? const Color(0xFF0EA5E9)
+                        : const Color(0xFFBAE6FD);
                     return BarChartGroupData(x: e.key, barRods: [
-                      BarChartRodData(toY: e.value.litros, color: cor, width: 6),
+                      BarChartRodData(
+                          toY: e.value.litros, color: cor, width: 6),
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => _rotuloEixoY(_numero.format(v.round())))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, interval: 5, getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= pontos.length) return const SizedBox.shrink();
-                      return Text(pontos[i].diaLabel, style: const TextStyle(fontSize: 8));
-                    })),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 44,
+                            getTitlesWidget: (v, _) =>
+                                _rotuloEixoY(_numero.format(v.round())))),
+                    bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 22,
+                            interval: 5,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= pontos.length)
+                                return const SizedBox.shrink();
+                              return Text(pontos[i].diaLabel,
+                                  style: const TextStyle(fontSize: 8));
+                            })),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(drawVerticalLine: false),
                   borderData: FlBorderData(show: false),
                 )),
               ),
               const SizedBox(height: 4),
-              const Text('🔵 Realizado  ·  🔵 Projetado (claro)', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              const Text('🔵 Realizado  ·  🔵 Projetado (claro)',
+                  style: TextStyle(fontSize: 10, color: Colors.grey)),
               if (dados.isMesAtual && dados.diaAtual < dados.diasNoMes) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -349,15 +457,24 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           children: [
             _tituloItem('3. Evolução do preço médio por abastecimento (R\$/L)'),
             if (pontos.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem dados no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem dados no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else
               SizedBox(
                 height: 180,
                 child: LineChart(LineChartData(
-                  lineTouchData: lineTouchPadrao(formatarY: (v) => formatarMoeda(v, casas: 3)),
+                  lineTouchData: lineTouchPadrao(
+                      formatarY: (v) => formatarMoeda(v, casas: 3)),
                   lineBarsData: [
                     LineChartBarData(
-                      spots: pontos.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.precoMedio)).toList(),
+                      spots: pontos
+                          .asMap()
+                          .entries
+                          .map((e) =>
+                              FlSpot(e.key.toDouble(), e.value.precoMedio))
+                          .toList(),
                       isCurved: false,
                       color: const Color(0xFF0F2A4A),
                       barWidth: 2,
@@ -365,14 +482,28 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     ),
                   ],
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(2)))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, interval: 5, getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= pontos.length) return const SizedBox.shrink();
-                      return Text(pontos[i].diaLabel, style: const TextStyle(fontSize: 8));
-                    })),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 44,
+                            getTitlesWidget: (v, _) =>
+                                _rotuloEixoY(v.toStringAsFixed(2)))),
+                    bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 22,
+                            interval: 5,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= pontos.length)
+                                return const SizedBox.shrink();
+                              return Text(pontos[i].diaLabel,
+                                  style: const TextStyle(fontSize: 8));
+                            })),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(drawVerticalLine: false),
                   borderData: FlBorderData(show: false),
@@ -396,12 +527,16 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           children: [
             _tituloItem('4. Evolutivo de volume — Top 5 postos'),
             if (pontos.isEmpty || postos.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem abastecimentos em postos no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem abastecimentos em postos no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 200,
                 child: LineChart(LineChartData(
-                  lineTouchData: lineTouchPadrao(formatarY: (v) => '${_numero.format(v.round())} L'),
+                  lineTouchData: lineTouchPadrao(
+                      formatarY: (v) => '${_numero.format(v.round())} L'),
                   lineBarsData: postos.asMap().entries.map((pe) {
                     final cor = _coresPostos[pe.key % _coresPostos.length];
                     final spots = <FlSpot>[];
@@ -409,17 +544,36 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                       final valor = pontos[i].valores[pe.value];
                       if (valor != null) spots.add(FlSpot(i.toDouble(), valor));
                     }
-                    return LineChartBarData(spots: spots, isCurved: false, color: cor, barWidth: 2, dotData: const FlDotData(show: false));
+                    return LineChartBarData(
+                        spots: spots,
+                        isCurved: false,
+                        color: cor,
+                        barWidth: 2,
+                        dotData: const FlDotData(show: false));
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => _rotuloEixoY(_numero.format(v.round())))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, interval: 5, getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= pontos.length) return const SizedBox.shrink();
-                      return Text(pontos[i].diaLabel, style: const TextStyle(fontSize: 8));
-                    })),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 44,
+                            getTitlesWidget: (v, _) =>
+                                _rotuloEixoY(_numero.format(v.round())))),
+                    bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 22,
+                            interval: 5,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= pontos.length)
+                                return const SizedBox.shrink();
+                              return Text(pontos[i].diaLabel,
+                                  style: const TextStyle(fontSize: 8));
+                            })),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(drawVerticalLine: false),
                   borderData: FlBorderData(show: false),
@@ -432,9 +586,14 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                 children: postos.asMap().entries.map((pe) {
                   final cor = _coresPostos[pe.key % _coresPostos.length];
                   return Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(width: 8, height: 8, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
+                    Container(
+                        width: 8,
+                        height: 8,
+                        decoration:
+                            BoxDecoration(color: cor, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
-                    Text(truncarTexto(pe.value, 20), style: const TextStyle(fontSize: 10)),
+                    Text(truncarTexto(pe.value, 20),
+                        style: const TextStyle(fontSize: 10)),
                   ]);
                 }).toList(),
               ),
@@ -456,26 +615,50 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           children: [
             _tituloItem('5. Top 5 postos — maior volume no período'),
             if (top.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem abastecimentos em postos no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem abastecimentos em postos no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else
               SizedBox(
                 height: 200,
                 child: BarChart(BarChartData(
-                  barTouchData: barTouchPadrao(formatarY: (v) => '${_numero.format(v.round())} L'),
+                  barTouchData: barTouchPadrao(
+                      formatarY: (v) => '${_numero.format(v.round())} L'),
                   barGroups: top.asMap().entries.map((e) {
                     return BarChartGroupData(x: e.key, barRods: [
-                      BarChartRodData(toY: e.value.litros, color: const Color(0xFF0EA5E9), width: 20, borderRadius: const BorderRadius.vertical(top: Radius.circular(3))),
+                      BarChartRodData(
+                          toY: e.value.litros,
+                          color: const Color(0xFF0EA5E9),
+                          width: 20,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(3))),
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => _rotuloEixoY(_numero.format(v.round())))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 46, getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= top.length) return const SizedBox.shrink();
-                      return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(top[i].posto, 8)));
-                    })),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            getTitlesWidget: (v, _) =>
+                                _rotuloEixoY(_numero.format(v.round())))),
+                    bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 46,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= top.length)
+                                return const SizedBox.shrink();
+                              return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: _rotuloEixoX(
+                                      truncarTexto(top[i].posto, 8)));
+                            })),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(drawVerticalLine: false),
                   borderData: FlBorderData(show: false),
@@ -487,38 +670,66 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
     );
   }
 
-  Widget _rankingGasto(String titulo, List<ItemRankingGasto> itens, String colunaExtra) {
+  Widget _rankingGasto(
+      String titulo, List<ItemRankingGasto> itens, String colunaExtra) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _tituloItem(titulo, subtitulo: 'Top 10 no gráfico; frota completa não cabe num único painel.'),
+            _tituloItem(titulo,
+                subtitulo:
+                    'Top 10 no gráfico; frota completa não cabe num único painel.'),
             if (itens.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem abastecimentos no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem abastecimentos no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 220,
                 child: BarChart(BarChartData(
                   barTouchData: barTouchPadrao(
                     formatarY: (v) => formatarMoeda(v, casas: 2),
-                    formatarX: (i) => i >= 0 && i < itens.length ? itens[i].label : '',
+                    formatarX: (i) =>
+                        i >= 0 && i < itens.length ? itens[i].label : '',
                   ),
                   barGroups: itens.asMap().entries.map((e) {
                     return BarChartGroupData(x: e.key, barRods: [
-                      BarChartRodData(toY: e.value.gasto, color: const Color(0xFF0F2A4A), width: 14, borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+                      BarChartRodData(
+                          toY: e.value.gasto,
+                          color: const Color(0xFF0F2A4A),
+                          width: 14,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(2))),
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 52, getTitlesWidget: (v, _) => _rotuloEixoY(formatarMoeda(v, casas: 2), fontSize: 8))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= itens.length) return const SizedBox.shrink();
-                      return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(itens[i].label, 8)));
-                    })),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 52,
+                            getTitlesWidget: (v, _) => _rotuloEixoY(
+                                formatarMoeda(v, casas: 2),
+                                fontSize: 8))),
+                    bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 42,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= itens.length)
+                                return const SizedBox.shrink();
+                              return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: _rotuloEixoX(
+                                      truncarTexto(itens[i].label, 8)));
+                            })),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(drawVerticalLine: false),
                   borderData: FlBorderData(show: false),
@@ -546,17 +757,20 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
   }
 
   Widget _item6RankingVeiculos(IndicadoresAvancadosDados dados) =>
-      _rankingGasto('6. Ranking de veículos — maior gasto no período', dados.rankingVeiculos, 'Placa');
+      _rankingGasto('6. Ranking de veículos — maior gasto no período',
+          dados.rankingVeiculos, 'Placa');
 
   Widget _item7RankingMotoristas(IndicadoresAvancadosDados dados) =>
-      _rankingGasto('7. Ranking de motoristas — maior gasto no período', dados.rankingMotoristas, 'Motorista');
+      _rankingGasto('7. Ranking de motoristas — maior gasto no período',
+          dados.rankingMotoristas, 'Motorista');
 
   // Item 8 — Eficiência real por veículo (km rodado e km/L via hodômetros
   // consecutivos reais). Tercis (q33/q66) coloram o gráfico de km/L: verde
   // (bom), laranja (médio), vermelho (ruim) — mesmos limiares da web.
   Widget _item8EficienciaVeiculos(IndicadoresAvancadosDados dados) {
     final itens = dados.eficienciaVeiculos;
-    final comKmL = itens.where((i) => i.mediaKmL != null).map((i) => i.mediaKmL!).toList();
+    final comKmL =
+        itens.where((i) => i.mediaKmL != null).map((i) => i.mediaKmL!).toList();
     final q33 = quantil(comKmL, 0.33);
     final q66 = quantil(comKmL, 0.66);
     Color corKmL(double v) {
@@ -565,29 +779,56 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
       return const Color(0xFFE53935);
     }
 
-    final top15KmMedio = [...itens]..sort((a, b) => b.kmMedio.compareTo(a.kmMedio));
-    final top15KmL = itens.where((i) => i.mediaKmL != null).toList()..sort((a, b) => b.mediaKmL!.compareTo(a.mediaKmL!));
+    final top15KmMedio = [...itens]
+      ..sort((a, b) => b.kmMedio.compareTo(a.kmMedio));
+    final top15KmL = itens.where((i) => i.mediaKmL != null).toList()
+      ..sort((a, b) => b.mediaKmL!.compareTo(a.mediaKmL!));
 
-    Widget miniBarChart(List<ItemEficienciaVeiculo> lista, double Function(ItemEficienciaVeiculo) valor, Color Function(ItemEficienciaVeiculo) cor, String Function(double) formatarY) {
+    Widget miniBarChart(
+        List<ItemEficienciaVeiculo> lista,
+        double Function(ItemEficienciaVeiculo) valor,
+        Color Function(ItemEficienciaVeiculo) cor,
+        String Function(double) formatarY) {
       final top = lista.take(15).toList();
       return SizedBox(
         height: 200,
         child: BarChart(BarChartData(
-          barTouchData: barTouchPadrao(formatarY: formatarY, formatarX: (i) => i >= 0 && i < top.length ? top[i].placa : ''),
+          barTouchData: barTouchPadrao(
+              formatarY: formatarY,
+              formatarX: (i) => i >= 0 && i < top.length ? top[i].placa : ''),
           barGroups: top.asMap().entries.map((e) {
             return BarChartGroupData(x: e.key, barRods: [
-              BarChartRodData(toY: valor(e.value), color: cor(e.value), width: 10, borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+              BarChartRodData(
+                  toY: valor(e.value),
+                  color: cor(e.value),
+                  width: 10,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(2))),
             ]);
           }).toList(),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 36, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(0)))),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 36, getTitlesWidget: (v, _) {
-              final i = v.toInt();
-              if (i < 0 || i >= top.length) return const SizedBox.shrink();
-              return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(top[i].placa));
-            })),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 36,
+                    getTitlesWidget: (v, _) =>
+                        _rotuloEixoY(v.toStringAsFixed(0)))),
+            bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 36,
+                    getTitlesWidget: (v, _) {
+                      final i = v.toInt();
+                      if (i < 0 || i >= top.length)
+                        return const SizedBox.shrink();
+                      return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: _rotuloEixoX(top[i].placa));
+                    })),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           gridData: const FlGridData(drawVerticalLine: false),
           borderData: FlBorderData(show: false),
@@ -602,27 +843,49 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _tituloItem('8. Eficiência real por veículo',
-                subtitulo: 'KM rodado e km/L a partir de hodômetros consecutivos reais dos abastecimentos (integração PróFrotas). Sem dado de GPS/trajetória.'),
+                subtitulo:
+                    'KM rodado e km/L a partir de hodômetros consecutivos reais dos abastecimentos (integração PróFrotas). Sem dado de GPS/trajetória.'),
             if (itens.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem dados suficientes no período.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Sem dados suficientes no período.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else ...[
-              Text('Top 15 — KM médio por abastecimento', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text('Top 15 — KM médio por abastecimento',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               const SizedBox(height: 6),
-              miniBarChart(top15KmMedio, (i) => i.kmMedio, (_) => const Color(0xFF2E7D32), (v) => '${v.toStringAsFixed(0)} km'),
+              miniBarChart(
+                  top15KmMedio,
+                  (i) => i.kmMedio,
+                  (_) => const Color(0xFF2E7D32),
+                  (v) => '${v.toStringAsFixed(0)} km'),
               const SizedBox(height: 16),
-              Text('Top 15 — km/L (🟢 ≥ q66 · 🟠 ≥ q33 · 🔴 abaixo)', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text('Top 15 — km/L (🟢 ≥ q66 · 🟠 ≥ q33 · 🔴 abaixo)',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               const SizedBox(height: 6),
-              miniBarChart(top15KmL, (i) => i.mediaKmL!, (i) => corKmL(i.mediaKmL!), (v) => '${v.toStringAsFixed(2)} km/l'),
+              miniBarChart(
+                  top15KmL,
+                  (i) => i.mediaKmL!,
+                  (i) => corKmL(i.mediaKmL!),
+                  (v) => '${v.toStringAsFixed(2)} km/l'),
               const SizedBox(height: 12),
               TabelaSimples(
-                colunas: const ['Placa', 'Km total', 'Km médio', 'km/l', 'Custo'],
+                colunas: const [
+                  'Placa',
+                  'Km total',
+                  'Km médio',
+                  'km/l',
+                  'Custo'
+                ],
                 flexColunas: const [2, 2, 2, 2, 2],
                 linhas: itens
                     .map((i) => [
                           i.placa,
                           formatarInt(i.kmTotal.round()),
                           i.kmMedio.toStringAsFixed(0),
-                          i.mediaKmL != null ? i.mediaKmL!.toStringAsFixed(2) : '—',
+                          i.mediaKmL != null
+                              ? i.mediaKmL!.toStringAsFixed(2)
+                              : '—',
                           _moeda2.format(i.custoTotal),
                         ])
                     .toList(),
@@ -648,18 +911,27 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
 
     final q33Kml = quantil(comKmL.map((i) => i.mediaKmL!).toList(), 0.33);
     final q66Kml = quantil(comKmL.map((i) => i.mediaKmL!).toList(), 0.66);
-    Color corKml(double v) => v >= q66Kml ? const Color(0xFF43A047) : (v >= q33Kml ? const Color(0xFFF57C00) : const Color(0xFFE53935));
+    Color corKml(double v) => v >= q66Kml
+        ? const Color(0xFF43A047)
+        : (v >= q33Kml ? const Color(0xFFF57C00) : const Color(0xFFE53935));
 
-    final q33Custo = quantil(comCustoKm.map((i) => i.custoPorKm!).toList(), 0.33);
-    final q66Custo = quantil(comCustoKm.map((i) => i.custoPorKm!).toList(), 0.66);
+    final q33Custo =
+        quantil(comCustoKm.map((i) => i.custoPorKm!).toList(), 0.33);
+    final q66Custo =
+        quantil(comCustoKm.map((i) => i.custoPorKm!).toList(), 0.66);
     // Aqui o "melhor" é o MENOR custo/km — tercis invertidos em relação ao km/L.
-    Color corCusto(double v) => v <= q33Custo ? const Color(0xFF43A047) : (v <= q66Custo ? const Color(0xFFF57C00) : const Color(0xFFE53935));
+    Color corCusto(double v) => v <= q33Custo
+        ? const Color(0xFF43A047)
+        : (v <= q66Custo ? const Color(0xFFF57C00) : const Color(0xFFE53935));
 
-    String rotuloAtivo(ItemDesempenhoAtivo i) => '${i.marca} ${i.modelo}${i.motor != 'Não informado' ? ' (${i.motor})' : ''}';
+    String rotuloAtivo(ItemDesempenhoAtivo i) =>
+        '${i.marca} ${i.modelo}${i.motor != 'Não informado' ? ' (${i.motor})' : ''}';
 
-    final top12Kml = [...comKmL]..sort((a, b) => b.mediaKmL!.compareTo(a.mediaKmL!));
+    final top12Kml = [...comKmL]
+      ..sort((a, b) => b.mediaKmL!.compareTo(a.mediaKmL!));
     final top12KmlFinal = top12Kml.take(12).toList();
-    final top12Custo = [...comCustoKm]..sort((a, b) => a.custoPorKm!.compareTo(b.custoPorKm!));
+    final top12Custo = [...comCustoKm]
+      ..sort((a, b) => a.custoPorKm!.compareTo(b.custoPorKm!));
     final top12CustoFinal = top12Custo.take(12).toList();
 
     Widget miniBarChart(
@@ -671,21 +943,44 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
       return SizedBox(
         height: 200,
         child: BarChart(BarChartData(
-          barTouchData: barTouchPadrao(formatarY: formatarY, formatarX: (i) => i >= 0 && i < lista.length ? rotuloAtivo(lista[i]) : ''),
+          barTouchData: barTouchPadrao(
+              formatarY: formatarY,
+              formatarX: (i) =>
+                  i >= 0 && i < lista.length ? rotuloAtivo(lista[i]) : ''),
           barGroups: lista.asMap().entries.map((e) {
             return BarChartGroupData(x: e.key, barRods: [
-              BarChartRodData(toY: valor(e.value), color: cor(e.value), width: 10, borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+              BarChartRodData(
+                  toY: valor(e.value),
+                  color: cor(e.value),
+                  width: 10,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(2))),
             ]);
           }).toList(),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(v >= 100 ? 0 : 1)))),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 46, getTitlesWidget: (v, _) {
-              final i = v.toInt();
-              if (i < 0 || i >= lista.length) return const SizedBox.shrink();
-              return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(rotuloAtivo(lista[i]), 10)));
-            })),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 40,
+                    getTitlesWidget: (v, _) =>
+                        _rotuloEixoY(v.toStringAsFixed(v >= 100 ? 0 : 1)))),
+            bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 46,
+                    getTitlesWidget: (v, _) {
+                      final i = v.toInt();
+                      if (i < 0 || i >= lista.length)
+                        return const SizedBox.shrink();
+                      return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: _rotuloEixoX(
+                              truncarTexto(rotuloAtivo(lista[i]), 10)));
+                    })),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           gridData: const FlGridData(drawVerticalLine: false),
           borderData: FlBorderData(show: false),
@@ -693,7 +988,10 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
       );
     }
 
-    final mediaKmLGeral = comKmL.isEmpty ? null : comKmL.map((i) => i.mediaKmL!).reduce((a, b) => a + b) / comKmL.length;
+    final mediaKmLGeral = comKmL.isEmpty
+        ? null
+        : comKmL.map((i) => i.mediaKmL!).reduce((a, b) => a + b) /
+            comKmL.length;
 
     return Card(
       child: Padding(
@@ -702,43 +1000,94 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _tituloItem('9. Desempenho por marca/modelo/motor',
-                subtitulo: 'km/L, R\$/L, custo/km (TCO) e manutenção agrupados pelas características do veículo — apoia decisão de customização.'),
+                subtitulo:
+                    'km/L, R\$/L, custo/km (TCO) e manutenção agrupados pelas características do veículo — apoia decisão de customização.'),
             if (itens.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Sem dados suficientes no período (precisa de veículos com marca, modelo e abastecimentos).', style: TextStyle(color: Colors.grey, fontSize: 12)))
+              const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                      'Sem dados suficientes no período (precisa de veículos com marca, modelo e abastecimentos).',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)))
             else ...[
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  SizedBox(width: 150, child: CartaoIndicador(label: 'Combinações marca/modelo/motor', valor: formatarInt(itens.length), mini: true)),
-                  SizedBox(width: 150, child: CartaoIndicador(label: 'Veículos considerados', valor: formatarInt(itens.fold<int>(0, (s, i) => s + i.qtdVeiculos)), mini: true)),
-                  SizedBox(width: 150, child: CartaoIndicador(label: 'Média km/L (todos)', valor: mediaKmLGeral != null ? '${mediaKmLGeral.toStringAsFixed(1)} km/L' : '—', mini: true)),
-                  SizedBox(width: 150, child: CartaoIndicador(label: 'Veículos críticos', valor: formatarInt(itens.fold<int>(0, (s, i) => s + i.qtdCriticos)), mini: true)),
+                  SizedBox(
+                      width: 150,
+                      child: CartaoIndicador(
+                          label: 'Combinações marca/modelo/motor',
+                          valor: formatarInt(itens.length),
+                          mini: true)),
+                  SizedBox(
+                      width: 150,
+                      child: CartaoIndicador(
+                          label: 'Veículos considerados',
+                          valor: formatarInt(
+                              itens.fold<int>(0, (s, i) => s + i.qtdVeiculos)),
+                          mini: true)),
+                  SizedBox(
+                      width: 150,
+                      child: CartaoIndicador(
+                          label: 'Média km/L (todos)',
+                          valor: mediaKmLGeral != null
+                              ? '${mediaKmLGeral.toStringAsFixed(1)} km/L'
+                              : '—',
+                          mini: true)),
+                  SizedBox(
+                      width: 150,
+                      child: CartaoIndicador(
+                          label: 'Veículos críticos',
+                          valor: formatarInt(
+                              itens.fold<int>(0, (s, i) => s + i.qtdCriticos)),
+                          mini: true)),
                 ],
               ),
               const SizedBox(height: 16),
               if (top12KmlFinal.isNotEmpty) ...[
-                Text('⛽ Consumo médio km/L por marca/modelo/motor', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text('⛽ Consumo médio km/L por marca/modelo/motor',
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 const SizedBox(height: 6),
-                miniBarChart(top12KmlFinal, (i) => i.mediaKmL!, (i) => corKml(i.mediaKmL!), (v) => '${v.toStringAsFixed(1)} km/L'),
+                miniBarChart(
+                    top12KmlFinal,
+                    (i) => i.mediaKmL!,
+                    (i) => corKml(i.mediaKmL!),
+                    (v) => '${v.toStringAsFixed(1)} km/L'),
                 const SizedBox(height: 16),
               ],
               if (top12CustoFinal.isNotEmpty) ...[
-                Text('💰 Custo por km (TCO) por marca/modelo/motor', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text('💰 Custo por km (TCO) por marca/modelo/motor',
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 const SizedBox(height: 6),
-                miniBarChart(top12CustoFinal, (i) => i.custoPorKm!, (i) => corCusto(i.custoPorKm!), (v) => formatarMoeda(v, casas: 2)),
+                miniBarChart(
+                    top12CustoFinal,
+                    (i) => i.custoPorKm!,
+                    (i) => corCusto(i.custoPorKm!),
+                    (v) => formatarMoeda(v, casas: 2)),
                 const SizedBox(height: 12),
               ],
               TabelaSimples(
-                colunas: const ['Marca/Modelo', 'Motor', 'Veíc.', 'km/L', 'Custo/km'],
+                colunas: const [
+                  'Marca/Modelo',
+                  'Motor',
+                  'Veíc.',
+                  'km/L',
+                  'Custo/km'
+                ],
                 flexColunas: const [3, 2, 1, 2, 2],
                 linhas: itens
                     .map((i) => [
                           '${i.marca} ${i.modelo}',
                           i.motor,
                           '${i.qtdVeiculos}',
-                          i.mediaKmL != null ? i.mediaKmL!.toStringAsFixed(1) : '—',
-                          i.custoPorKm != null ? formatarMoeda(i.custoPorKm!, casas: 2) : '—',
+                          i.mediaKmL != null
+                              ? i.mediaKmL!.toStringAsFixed(1)
+                              : '—',
+                          i.custoPorKm != null
+                              ? formatarMoeda(i.custoPorKm!, casas: 2)
+                              : '—',
                         ])
                     .toList(),
                 maxHeight: 260,

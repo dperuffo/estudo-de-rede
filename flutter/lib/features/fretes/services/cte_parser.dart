@@ -54,7 +54,8 @@ class ResultadoParseCte {
 
 String? _tag(String xml, String tag, [String? dentro]) {
   final fonte = dentro ?? xml;
-  final match = RegExp('<$tag[^>]*>(.*?)</$tag>', dotAll: true).firstMatch(fonte);
+  final match =
+      RegExp('<$tag[^>]*>(.*?)</$tag>', dotAll: true).firstMatch(fonte);
   return match?.group(1)?.trim();
 }
 
@@ -66,28 +67,37 @@ String? _bloco(String xml, String tag) {
 ResultadoParseCte parsearXmlCte(String xmlTexto) {
   final idMatch = RegExp(r'<infCte[^>]*\bId="([^"]*)"').firstMatch(xmlTexto);
   if (idMatch == null) {
-    return ResultadoParseCte.falha('Estrutura do CT-e inválida: tag <infCte> com atributo Id não encontrada.');
+    return ResultadoParseCte.falha(
+        'Estrutura do CT-e inválida: tag <infCte> com atributo Id não encontrada.');
   }
-  final chaveAcesso = idMatch.group(1)!.replaceFirst(RegExp('^CTe', caseSensitive: false), '').trim();
+  final chaveAcesso = idMatch
+      .group(1)!
+      .replaceFirst(RegExp('^CTe', caseSensitive: false), '')
+      .trim();
   if (chaveAcesso.length != 44 || !RegExp(r'^\d{44}$').hasMatch(chaveAcesso)) {
-    return ResultadoParseCte.falha('Chave de acesso inválida (esperado 44 dígitos, veio "$chaveAcesso").');
+    return ResultadoParseCte.falha(
+        'Chave de acesso inválida (esperado 44 dígitos, veio "$chaveAcesso").');
   }
 
   final ideBloco = _bloco(xmlTexto, 'ide');
   final emitBloco = _bloco(xmlTexto, 'emit');
   final vPrestBloco = _bloco(xmlTexto, 'vPrest');
   if (ideBloco == null || emitBloco == null) {
-    return ResultadoParseCte.falha('Estrutura do CT-e inválida: faltam os grupos <ide> e/ou <emit>.');
+    return ResultadoParseCte.falha(
+        'Estrutura do CT-e inválida: faltam os grupos <ide> e/ou <emit>.');
   }
 
   final modelo = _tag(xmlTexto, 'mod', ideBloco) ?? '';
-  final cnpjEmitente = (_tag(xmlTexto, 'CNPJ', emitBloco) ?? '').replaceAll(RegExp(r'\D'), '');
+  final cnpjEmitente =
+      (_tag(xmlTexto, 'CNPJ', emitBloco) ?? '').replaceAll(RegExp(r'\D'), '');
   if (modelo != '57') {
-    return ResultadoParseCte.falha('Este XML não é um CT-e (modelo "$modelo", esperado "57").');
+    return ResultadoParseCte.falha(
+        'Este XML não é um CT-e (modelo "$modelo", esperado "57").');
   }
 
   final protCteBloco = _bloco(xmlTexto, 'protCTe');
-  final infProtBloco = protCteBloco != null ? _bloco(protCteBloco, 'infProt') : null;
+  final infProtBloco =
+      protCteBloco != null ? _bloco(protCteBloco, 'infProt') : null;
   if (infProtBloco == null) {
     return ResultadoParseCte.falha(
         'Este XML não tem o protocolo de autorização da SEFAZ anexado (<protCTe>) — envie o XML completo (cteProc), não só o CT-e sem o protocolo.');
@@ -100,7 +110,8 @@ ResultadoParseCte parsearXmlCte(String xmlTexto) {
         'CT-e não autorizado pela SEFAZ (status ${statusCodigo.isEmpty ? "desconhecido" : statusCodigo}: ${motivoStatus.isEmpty ? "sem motivo informado" : motivoStatus}).');
   }
 
-  final valorPrestacaoTxt = vPrestBloco != null ? _tag(xmlTexto, 'vTPrest', vPrestBloco) : null;
+  final valorPrestacaoTxt =
+      vPrestBloco != null ? _tag(xmlTexto, 'vTPrest', vPrestBloco) : null;
   final valorPrestacao = double.tryParse(valorPrestacaoTxt ?? '') ?? 0;
 
   return ResultadoParseCte.sucesso(CteExtraida(

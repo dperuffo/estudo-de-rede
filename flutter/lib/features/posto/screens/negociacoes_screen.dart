@@ -49,16 +49,21 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
       onRefresh: () async => ref.invalidate(negociacoesPostoProvider),
       child: listaAsync.when(
         loading: () => const Center(
-          child: Padding(padding: EdgeInsets.only(top: 80), child: CircularProgressIndicator()),
+          child: Padding(
+              padding: EdgeInsets.only(top: 80),
+              child: CircularProgressIndicator()),
         ),
         error: (e, _) => ListView(
           padding: const EdgeInsets.all(24),
-          children: [Text('Não deu pra carregar: $e', textAlign: TextAlign.center)],
+          children: [
+            Text('Não deu pra carregar: $e', textAlign: TextAlign.center)
+          ],
         ),
         data: (lista) {
           final hojeIso = hojeIsoUtc();
           final totalVigentes = lista.where((n) => n.vigenteEm(hojeIso)).length;
-          final pendentes = lista.where((n) => n.status == 'pendente_posto').length;
+          final pendentes =
+              lista.where((n) => n.status == 'pendente_posto').length;
           final aceitas = lista.where((n) => n.status == 'aceita').length;
 
           final filtrada = switch (_filtro) {
@@ -75,7 +80,8 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
                 children: [
                   const Expanded(
                     child: Text('Negociação com Clientes',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
                   ),
                   ElevatedButton(
                     onPressed: () => context.push('/posto/negociacoes/novo'),
@@ -90,7 +96,6 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
                 style: TextStyle(color: Colors.grey, fontSize: 13),
               ),
               const SizedBox(height: 16),
-
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -105,26 +110,28 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
                   _indicador('Vigentes agora', '$totalVigentes'),
                 ],
               ),
-
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _chip('Todos', _filtro == null, () => setState(() => _filtro = null)),
-                  _chip('Vigentes', _filtro == _filtroVigente, () => setState(() => _filtro = _filtroVigente)),
+                  _chip('Todos', _filtro == null,
+                      () => setState(() => _filtro = null)),
+                  _chip('Vigentes', _filtro == _filtroVigente,
+                      () => setState(() => _filtro = _filtroVigente)),
                   for (final s in statusNegociacao)
-                    _chip(statusNegociacaoLabel[s] ?? s, _filtro == s, () => setState(() => _filtro = s)),
+                    _chip(statusNegociacaoLabel[s] ?? s, _filtro == s,
+                        () => setState(() => _filtro = s)),
                 ],
               ),
-
               const SizedBox(height: 16),
               if (filtrada.isEmpty)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Center(
-                      child: Text('Nenhuma negociação encontrada.', style: TextStyle(color: Colors.grey.shade600)),
+                      child: Text('Nenhuma negociação encontrada.',
+                          style: TextStyle(color: Colors.grey.shade600)),
                     ),
                   ),
                 )
@@ -141,7 +148,8 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
                               ),
                               isThreeLine: true,
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: () => context.push('/posto/negociacoes/${n.id}'),
+                              onTap: () =>
+                                  context.push('/posto/negociacoes/${n.id}'),
                             ))
                         .toList(),
                   ),
@@ -160,15 +168,21 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(label,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
-              Text(valor, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(valor,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
       );
 
-  Widget _chip(String label, bool selecionado, VoidCallback onTap) => ChoiceChip(
+  Widget _chip(String label, bool selecionado, VoidCallback onTap) =>
+      ChoiceChip(
         label: Text(label, style: const TextStyle(fontSize: 12)),
         selected: selecionado,
         onSelected: (_) => onTap(),

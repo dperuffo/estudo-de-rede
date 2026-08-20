@@ -15,9 +15,11 @@ import '../../../core/services/supabase_service.dart';
 // estruturalmente idêntico ao RedePostosService, incluindo o mesmo
 // "achado real" de exigir documentação aprovada em código (a RLS não
 // valida isso sozinha — confirmado ao portar Rede de Postos).
-Future<String?> _exigirDocumentacaoAprovada(String empresaId, String contexto) async {
-  final linhas = await SupabaseService.client
-      .rpc('status_documentacao_empresa_publico', params: {'p_empresa_id': empresaId}) as List;
+Future<String?> _exigirDocumentacaoAprovada(
+    String empresaId, String contexto) async {
+  final linhas = await SupabaseService.client.rpc(
+      'status_documentacao_empresa_publico',
+      params: {'p_empresa_id': empresaId}) as List;
   if (linhas.isEmpty) return 'Empresa não encontrada.';
   final empresa = linhas.first as Map<String, dynamic>;
   if (empresa['documentacao_status'] == 'aprovada') return null;
@@ -33,16 +35,23 @@ class GrupoEconomicoAdminService {
   final _supabase = SupabaseService.client;
 
   // Retorna o id do Grupo criado, ou null + preenche [erro] em caso de erro.
-  Future<({String? id, String? erro})> criarGrupo({required String nome, String? cnpjMatriz}) async {
+  Future<({String? id, String? erro})> criarGrupo(
+      {required String nome, String? cnpjMatriz}) async {
     final nomeTrim = nome.trim();
     if (nomeTrim.isEmpty) return (id: null, erro: 'Nome é obrigatório.');
     try {
-      final resultado = await _supabase.from('grupos_economicos').insert({
-        'nome': nomeTrim,
-        'cnpj_matriz': (cnpjMatriz == null || cnpjMatriz.trim().isEmpty) ? null : cnpjMatriz.trim(),
-        'segmento': 'Frota',
-        'ativo': true,
-      }).select('id').single();
+      final resultado = await _supabase
+          .from('grupos_economicos')
+          .insert({
+            'nome': nomeTrim,
+            'cnpj_matriz': (cnpjMatriz == null || cnpjMatriz.trim().isEmpty)
+                ? null
+                : cnpjMatriz.trim(),
+            'segmento': 'Frota',
+            'ativo': true,
+          })
+          .select('id')
+          .single();
       return (id: resultado['id'] as String, erro: null);
     } on PostgrestException catch (e) {
       return (id: null, erro: e.message);
@@ -60,7 +69,9 @@ class GrupoEconomicoAdminService {
     try {
       await _supabase.from('grupos_economicos').update({
         'nome': nomeTrim,
-        'cnpj_matriz': (cnpjMatriz == null || cnpjMatriz.trim().isEmpty) ? null : cnpjMatriz.trim(),
+        'cnpj_matriz': (cnpjMatriz == null || cnpjMatriz.trim().isEmpty)
+            ? null
+            : cnpjMatriz.trim(),
         'ativo': ativo,
         'atualizado_em': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', grupoId);
@@ -70,8 +81,10 @@ class GrupoEconomicoAdminService {
     }
   }
 
-  Future<String?> vincularEmpresa({required String grupoId, required String empresaId}) async {
-    final erroDoc = await _exigirDocumentacaoAprovada(empresaId, 'Vincular esta empresa a um Grupo Econômico');
+  Future<String?> vincularEmpresa(
+      {required String grupoId, required String empresaId}) async {
+    final erroDoc = await _exigirDocumentacaoAprovada(
+        empresaId, 'Vincular esta empresa a um Grupo Econômico');
     if (erroDoc != null) return erroDoc;
     try {
       await _supabase.from('grupos_economicos_empresas').insert({
@@ -86,7 +99,10 @@ class GrupoEconomicoAdminService {
 
   Future<String?> desvincularEmpresa({required String vinculoId}) async {
     try {
-      await _supabase.from('grupos_economicos_empresas').delete().eq('id', vinculoId);
+      await _supabase
+          .from('grupos_economicos_empresas')
+          .delete()
+          .eq('id', vinculoId);
       return null;
     } on PostgrestException catch (e) {
       return e.message;

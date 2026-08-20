@@ -14,13 +14,15 @@ class DocumentosEmpresasAdminService {
     required String revisadoPor,
   }) async {
     if (decisao == 'rejeitada' && (motivo == null || motivo.trim().isEmpty)) {
-      throw Exception('Informe o motivo da rejeição, pra a empresa saber o que corrigir.');
+      throw Exception(
+          'Informe o motivo da rejeição, pra a empresa saber o que corrigir.');
     }
     await _supabase.from('empresas').update({
       'documentacao_status': decisao,
       'documentacao_revisado_em': DateTime.now().toIso8601String(),
       'documentacao_revisado_por': revisadoPor,
-      'documentacao_motivo_rejeicao': decisao == 'rejeitada' ? motivo!.trim() : null,
+      'documentacao_motivo_rejeicao':
+          decisao == 'rejeitada' ? motivo!.trim() : null,
     }).eq('id', empresaId);
   }
 }

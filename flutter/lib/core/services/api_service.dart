@@ -25,17 +25,20 @@ class ApiService {
 
   void init() {}
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? params}) async {
+  Future<Map<String, dynamic>> get(String path,
+      {Map<String, dynamic>? params}) async {
     final r = await _dio.get(path, queryParameters: params);
     return r.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? data}) async {
+  Future<Map<String, dynamic>> post(String path,
+      {Map<String, dynamic>? data}) async {
     final r = await _dio.post(path, data: data);
     return r.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? data}) async {
+  Future<Map<String, dynamic>> put(String path,
+      {Map<String, dynamic>? data}) async {
     final r = await _dio.put(path, data: data);
     return r.data as Map<String, dynamic>;
   }

@@ -18,7 +18,11 @@ class ChecklistVeiculosService {
     required Map<String, String?> itensObservacao,
     String? criadoPor,
   }) async {
-    final veiculo = await _supabase.from('cadastro_veiculos').select('cnpj_frota').eq('placa', placa).maybeSingle();
+    final veiculo = await _supabase
+        .from('cadastro_veiculos')
+        .select('cnpj_frota')
+        .eq('placa', placa)
+        .maybeSingle();
 
     final inspecao = await _supabase
         .from('inspecoes_veiculos')

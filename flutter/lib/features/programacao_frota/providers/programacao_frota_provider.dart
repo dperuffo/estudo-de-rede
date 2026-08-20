@@ -38,7 +38,8 @@ class VeiculoProgramacao {
     this.disponivelAPartir,
   });
 
-  factory VeiculoProgramacao.fromMap(Map<String, dynamic> m) => VeiculoProgramacao(
+  factory VeiculoProgramacao.fromMap(Map<String, dynamic> m) =>
+      VeiculoProgramacao(
         veiculoId: m['veiculo_id'] as String,
         placa: m['placa'] as String,
         marca: m['marca'] as String?,
@@ -51,16 +52,22 @@ class VeiculoProgramacao {
         freteTitulo: m['frete_titulo'] as String?,
         freteStatus: m['frete_status'] as String?,
         freteDestinoLabel: m['frete_destino_label'] as String?,
-        disponivelAPartir: m['disponivel_a_partir'] != null ? DateTime.parse(m['disponivel_a_partir'] as String) : null,
+        disponivelAPartir: m['disponivel_a_partir'] != null
+            ? DateTime.parse(m['disponivel_a_partir'] as String)
+            : null,
       );
 }
 
-final programacaoFrotaProvider = FutureProvider.autoDispose<List<VeiculoProgramacao>>((ref) async {
+final programacaoFrotaProvider =
+    FutureProvider.autoDispose<List<VeiculoProgramacao>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('programacao_frota_empresa', params: {
+  final rows =
+      await SupabaseService.client.rpc('programacao_frota_empresa', params: {
     'p_empresa_id': empresaId,
   }) as List;
-  return rows.map((r) => VeiculoProgramacao.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => VeiculoProgramacao.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

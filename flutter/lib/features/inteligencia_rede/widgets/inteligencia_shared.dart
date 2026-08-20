@@ -13,9 +13,12 @@ import 'package:intl/intl.dart';
 // Essas duas funções dão um tooltip escuro com texto BRANCO em negrito,
 // aplicadas em todo BarChart/LineChart das 10 abas.
 const _corTooltip = Color(0xFF263238);
-const _estiloTooltip = TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12);
+const _estiloTooltip =
+    TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12);
 
-BarTouchData barTouchPadrao({required String Function(double valor) formatarY, String Function(int index)? formatarX}) {
+BarTouchData barTouchPadrao(
+    {required String Function(double valor) formatarY,
+    String Function(int index)? formatarX}) {
   return BarTouchData(
     touchTooltipData: BarTouchTooltipData(
       getTooltipColor: (_) => _corTooltip,
@@ -27,27 +30,35 @@ BarTouchData barTouchPadrao({required String Function(double valor) formatarY, S
   );
 }
 
-LineTouchData lineTouchPadrao({required String Function(double valor) formatarY}) {
+LineTouchData lineTouchPadrao(
+    {required String Function(double valor) formatarY}) {
   return LineTouchData(
     touchTooltipData: LineTouchTooltipData(
       getTooltipColor: (_) => _corTooltip,
-      getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(formatarY(s.y), _estiloTooltip)).toList(),
+      getTooltipItems: (spots) => spots
+          .map((s) => LineTooltipItem(formatarY(s.y), _estiloTooltip))
+          .toList(),
     ),
   );
 }
 
 PieTouchData pieTouchPadrao() => PieTouchData(enabled: true);
 
-final _moeda3 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$', decimalDigits: 3);
-final _moeda2 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$', decimalDigits: 2);
+final _moeda3 =
+    NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$', decimalDigits: 3);
+final _moeda2 =
+    NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$', decimalDigits: 2);
 final _inteiro = NumberFormat.decimalPattern('pt_BR');
 
-String formatarMoeda(double v, {int casas = 3}) => casas == 2 ? _moeda2.format(v) : _moeda3.format(v);
+String formatarMoeda(double v, {int casas = 3}) =>
+    casas == 2 ? _moeda2.format(v) : _moeda3.format(v);
 String formatarInt(num v) => _inteiro.format(v);
 
-String truncarTexto(String texto, int tamanho) => texto.length > tamanho ? '${texto.substring(0, tamanho)}…' : texto;
+String truncarTexto(String texto, int tamanho) =>
+    texto.length > tamanho ? '${texto.substring(0, tamanho)}…' : texto;
 
-double media(List<double> valores) => valores.isEmpty ? 0 : valores.reduce((a, b) => a + b) / valores.length;
+double media(List<double> valores) =>
+    valores.isEmpty ? 0 : valores.reduce((a, b) => a + b) / valores.length;
 
 double desvioPadraoAmostral(List<double> valores) {
   if (valores.length < 2) return 0;
@@ -74,7 +85,8 @@ double quantil(List<double> valores, double q) {
   final pos = (sorted.length - 1) * q;
   final base = pos.floor();
   final resto = pos - base;
-  if (base + 1 < sorted.length) return sorted[base] + resto * (sorted[base + 1] - sorted[base]);
+  if (base + 1 < sorted.length)
+    return sorted[base] + resto * (sorted[base + 1] - sorted[base]);
   return sorted[base];
 }
 
@@ -85,7 +97,12 @@ class CartaoIndicador extends StatelessWidget {
   final String valor;
   final String? sub;
   final bool mini;
-  const CartaoIndicador({super.key, required this.label, required this.valor, this.sub, this.mini = false});
+  const CartaoIndicador(
+      {super.key,
+      required this.label,
+      required this.valor,
+      this.sub,
+      this.mini = false});
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +122,10 @@ class CartaoIndicador extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -113,11 +133,16 @@ class CartaoIndicador extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(valor, style: TextStyle(fontSize: mini ? 16 : 20, fontWeight: FontWeight.w700)),
+              child: Text(valor,
+                  style: TextStyle(
+                      fontSize: mini ? 16 : 20, fontWeight: FontWeight.w700)),
             ),
             if (sub != null) ...[
               const SizedBox(height: 2),
-              Text(sub!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(sub!,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
             ],
           ],
         ),
@@ -134,7 +159,11 @@ class BarraHorizontalItem {
   final double valor;
   final Color cor;
   final String texto;
-  const BarraHorizontalItem({required this.label, required this.valor, required this.cor, required this.texto});
+  const BarraHorizontalItem(
+      {required this.label,
+      required this.valor,
+      required this.cor,
+      required this.texto});
 }
 
 class BarraHorizontal extends StatelessWidget {
@@ -144,7 +173,8 @@ class BarraHorizontal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxValor = dados.fold<double>(1e-9, (m, d) => d.valor > m ? d.valor : m);
+    final maxValor =
+        dados.fold<double>(1e-9, (m, d) => d.valor > m ? d.valor : m);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -154,23 +184,34 @@ class BarraHorizontal extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 110,
-                    child: Text(d.label, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(d.label,
+                        style: const TextStyle(fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
                   ),
                   Expanded(
                     child: Container(
                       height: 14,
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(3)),
+                      decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(3)),
                       child: FractionallySizedBox(
                         alignment: Alignment.centerLeft,
                         widthFactor: (d.valor / maxValor).clamp(0.02, 1.0),
-                        child: Container(decoration: BoxDecoration(color: d.cor, borderRadius: BorderRadius.circular(3))),
+                        child: Container(
+                            decoration: BoxDecoration(
+                                color: d.cor,
+                                borderRadius: BorderRadius.circular(3))),
                       ),
                     ),
                   ),
                   const SizedBox(width: 6),
                   SizedBox(
                     width: 62,
-                    child: Text(d.texto, textAlign: TextAlign.right, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    child: Text(d.texto,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600)),
                   ),
                 ],
               ),
@@ -178,7 +219,9 @@ class BarraHorizontal extends StatelessWidget {
         if (eixoX != null)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text(eixoX!.toUpperCase(), textAlign: TextAlign.right, style: TextStyle(fontSize: 9, color: Colors.grey.shade400)),
+            child: Text(eixoX!.toUpperCase(),
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 9, color: Colors.grey.shade400)),
           ),
       ],
     );
@@ -197,7 +240,9 @@ class BlocoInsight extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: corFundo ?? const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+          color: corFundo ?? const Color(0xFFF0F7FF),
+          borderRadius: BorderRadius.circular(8)),
       child: Text(texto, style: const TextStyle(fontSize: 13, height: 1.35)),
     );
   }
@@ -210,7 +255,12 @@ class TabelaSimples extends StatelessWidget {
   final List<List<String>> linhas;
   final List<int>? flexColunas;
   final double? maxHeight;
-  const TabelaSimples({super.key, required this.colunas, required this.linhas, this.flexColunas, this.maxHeight});
+  const TabelaSimples(
+      {super.key,
+      required this.colunas,
+      required this.linhas,
+      this.flexColunas,
+      this.maxHeight});
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +284,10 @@ class TabelaSimples extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: cabecalho
-                    ? TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade500)
+                    ? TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade500)
                     : const TextStyle(fontSize: 12),
               ),
             );
@@ -248,7 +301,8 @@ class TabelaSimples extends StatelessWidget {
       children: [
         linha(colunas, cabecalho: true),
         const Divider(height: 1),
-        ...linhas.expand((l) => [linha(l), const Divider(height: 1, color: Color(0xFFF1F5F9))]),
+        ...linhas.expand((l) =>
+            [linha(l), const Divider(height: 1, color: Color(0xFFF1F5F9))]),
       ],
     );
 
@@ -265,7 +319,12 @@ class SeletorChips<T> extends StatelessWidget {
   final T selecionado;
   final String Function(T) rotulo;
   final ValueChanged<T> onSelecionar;
-  const SeletorChips({super.key, required this.opcoes, required this.selecionado, required this.rotulo, required this.onSelecionar});
+  const SeletorChips(
+      {super.key,
+      required this.opcoes,
+      required this.selecionado,
+      required this.rotulo,
+      required this.onSelecionar});
 
   @override
   Widget build(BuildContext context) {

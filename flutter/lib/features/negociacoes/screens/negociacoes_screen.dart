@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../posto/providers/negociacoes_provider.dart' show statusNegociacao, statusNegociacaoLabel;
+import '../../posto/providers/negociacoes_provider.dart'
+    show statusNegociacao, statusNegociacaoLabel;
 import '../providers/negociacoes_cliente_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
@@ -36,10 +39,12 @@ class NegociacoesClienteScreen extends ConsumerStatefulWidget {
   const NegociacoesClienteScreen({super.key});
 
   @override
-  ConsumerState<NegociacoesClienteScreen> createState() => _NegociacoesClienteScreenState();
+  ConsumerState<NegociacoesClienteScreen> createState() =>
+      _NegociacoesClienteScreenState();
 }
 
-class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScreen> {
+class _NegociacoesClienteScreenState
+    extends ConsumerState<NegociacoesClienteScreen> {
   String? _filtro;
 
   @override
@@ -47,7 +52,14 @@ class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScr
     final listaAsync = ref.watch(negociacoesClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Negociação com Postos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Negociação com Postos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/negociacoes/novo'),
         icon: const Icon(Icons.add),
@@ -57,21 +69,28 @@ class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScr
         onRefresh: () async => ref.invalidate(negociacoesClienteProvider),
         child: listaAsync.when(
           loading: () => const Center(
-            child: Padding(padding: EdgeInsets.only(top: 80), child: CircularProgressIndicator()),
+            child: Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: CircularProgressIndicator()),
           ),
           error: (e, _) => ListView(
             padding: const EdgeInsets.all(24),
-            children: [Text('Não deu pra carregar: $e', textAlign: TextAlign.center)],
+            children: [
+              Text('Não deu pra carregar: $e', textAlign: TextAlign.center)
+            ],
           ),
           data: (lista) {
             final hojeIso = hojeIsoUtcCliente();
-            final totalVigentes = lista.where((n) => n.vigenteEm(hojeIso)).length;
-            final pendentes = lista.where((n) => n.status == 'pendente_cliente').length;
+            final totalVigentes =
+                lista.where((n) => n.vigenteEm(hojeIso)).length;
+            final pendentes =
+                lista.where((n) => n.status == 'pendente_cliente').length;
             final aceitas = lista.where((n) => n.status == 'aceita').length;
 
             final filtrada = switch (_filtro) {
               null => lista,
-              _filtroVigente => lista.where((n) => n.vigenteEm(hojeIso)).toList(),
+              _filtroVigente =>
+                lista.where((n) => n.vigenteEm(hojeIso)).toList(),
               final s => lista.where((n) => n.status == s).toList(),
             };
 
@@ -102,10 +121,13 @@ class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScr
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _chip('Todos', _filtro == null, () => setState(() => _filtro = null)),
-                    _chip('Vigentes', _filtro == _filtroVigente, () => setState(() => _filtro = _filtroVigente)),
+                    _chip('Todos', _filtro == null,
+                        () => setState(() => _filtro = null)),
+                    _chip('Vigentes', _filtro == _filtroVigente,
+                        () => setState(() => _filtro = _filtroVigente)),
                     for (final s in statusNegociacao)
-                      _chip(statusNegociacaoLabel[s] ?? s, _filtro == s, () => setState(() => _filtro = s)),
+                      _chip(statusNegociacaoLabel[s] ?? s, _filtro == s,
+                          () => setState(() => _filtro = s)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -114,7 +136,8 @@ class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScr
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Center(
-                        child: Text('Nenhuma negociação encontrada.', style: TextStyle(color: Colors.grey.shade600)),
+                        child: Text('Nenhuma negociação encontrada.',
+                            style: TextStyle(color: Colors.grey.shade600)),
                       ),
                     ),
                   )
@@ -131,7 +154,8 @@ class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScr
                                 ),
                                 isThreeLine: true,
                                 trailing: const Icon(Icons.chevron_right),
-                                onTap: () => context.push('/negociacoes/${n.id}'),
+                                onTap: () =>
+                                    context.push('/negociacoes/${n.id}'),
                               ))
                           .toList(),
                     ),
@@ -151,15 +175,21 @@ class _NegociacoesClienteScreenState extends ConsumerState<NegociacoesClienteScr
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(label,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
-              Text(valor, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(valor,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
       );
 
-  Widget _chip(String label, bool selecionado, VoidCallback onTap) => ChoiceChip(
+  Widget _chip(String label, bool selecionado, VoidCallback onTap) =>
+      ChoiceChip(
         label: Text(label, style: const TextStyle(fontSize: 12)),
         selected: selecionado,
         onSelected: (_) => onTap(),

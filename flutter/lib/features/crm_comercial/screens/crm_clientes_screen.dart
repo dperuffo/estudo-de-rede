@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/crm_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) — CRM Comercial
 // (cliente): carteira de clientes-tomadores, porta de
 // crm-comercial/page.tsx (aba Carteira de Clientes).
@@ -25,8 +27,12 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
 
   String _fmtCnpjCpf(String v) {
     final d = v.replaceAll(RegExp(r'\D'), '');
-    if (d.length == 14) return d.replaceAllMapped(RegExp(r'(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})'), (m) => '${m[1]}.${m[2]}.${m[3]}/${m[4]}-${m[5]}');
-    if (d.length == 11) return d.replaceAllMapped(RegExp(r'(\d{3})(\d{3})(\d{3})(\d{2})'), (m) => '${m[1]}.${m[2]}.${m[3]}-${m[4]}');
+    if (d.length == 14)
+      return d.replaceAllMapped(RegExp(r'(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})'),
+          (m) => '${m[1]}.${m[2]}.${m[3]}/${m[4]}-${m[5]}');
+    if (d.length == 11)
+      return d.replaceAllMapped(RegExp(r'(\d{3})(\d{3})(\d{3})(\d{2})'),
+          (m) => '${m[1]}.${m[2]}.${m[3]}-${m[4]}');
     return v;
   }
 
@@ -35,7 +41,14 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
     final clientesAsync = ref.watch(clientesCrmListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('CRM Comercial')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('CRM Comercial')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/crm-comercial/novo'),
         icon: const Icon(Icons.add),
@@ -48,7 +61,11 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
             final termo = _busca.trim().toLowerCase();
             final filtrados = termo.isEmpty
                 ? lista
-                : lista.where((c) => c.razaoSocial.toLowerCase().contains(termo) || c.cnpjCpf.contains(termo.replaceAll(RegExp(r'\D'), ''))).toList();
+                : lista
+                    .where((c) =>
+                        c.razaoSocial.toLowerCase().contains(termo) ||
+                        c.cnpjCpf.contains(termo.replaceAll(RegExp(r'\D'), '')))
+                    .toList();
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -73,7 +90,9 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
                 if (filtrados.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('Nenhum cliente cadastrado ainda.', style: TextStyle(color: Colors.grey))),
+                    child: Center(
+                        child: Text('Nenhum cliente cadastrado ainda.',
+                            style: TextStyle(color: Colors.grey))),
                   )
                 else
                   ...filtrados.map(_card),
@@ -92,10 +111,12 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/crm-comercial/${c.id}'),
-        title: Text(c.razaoSocial, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        title: Text(c.razaoSocial,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(_fmtCnpjCpf(c.cnpjCpf), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          child: Text(_fmtCnpjCpf(c.cnpjCpf),
+              style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ),
         trailing: const Icon(Icons.chevron_right),
       ),

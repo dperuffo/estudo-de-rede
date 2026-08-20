@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/usuarios_provider.dart';
 import '../services/usuarios_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 — convidar novo usuário pro time do posto. Sem o seletor de
 // "Cliente"/perfil da web — aqui é sempre um convite pro time do posto
 // atual (perfil 'posto', segmento 'Revenda' fixos, ver comentário em
@@ -68,7 +70,14 @@ class _UsuarioNovoScreenState extends ConsumerState<UsuarioNovoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Convidar usuário')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Convidar usuário')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -79,30 +88,38 @@ class _UsuarioNovoScreenState extends ConsumerState<UsuarioNovoScreen> {
           const SizedBox(height: 16),
           TextField(
             controller: _nomeCtrl,
-            decoration: const InputDecoration(labelText: 'Nome', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Nome', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _emailCtrl,
-            decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'E-mail', border: OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _cpfCtrl,
-            decoration: const InputDecoration(labelText: 'CPF (opcional)', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'CPF (opcional)', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _telefoneCtrl,
-            decoration: const InputDecoration(labelText: 'Telefone (opcional)', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Telefone (opcional)', border: OutlineInputBorder()),
           ),
           if (_erro != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
           ],
           const SizedBox(height: 16),

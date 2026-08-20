@@ -11,10 +11,20 @@ import '../../../core/services/supabase_service.dart';
 
 class VeiculoPatrimonio {
   final String placa;
-  final String? marca, modelo, centroCustoId, centroCustoNome, dataAquisicao, dataBaixa;
+  final String? marca,
+      modelo,
+      centroCustoId,
+      centroCustoNome,
+      dataAquisicao,
+      dataBaixa;
   final int? anoFabricacao, mesesDecorridos;
   final int mesesVidaUtil;
-  final double? valorAquisicao, valorResidualEstimado, depreciacaoAcumulada, valorContabilLiquido, percentualDepreciado, valorBaixa;
+  final double? valorAquisicao,
+      valorResidualEstimado,
+      depreciacaoAcumulada,
+      valorContabilLiquido,
+      percentualDepreciado,
+      valorBaixa;
   final double vidaUtilAnos, valorMelhorias, valorReavaliacoes, baseDepreciavel;
   final bool baixado, patrimonioCompleto;
   final int totalCount;
@@ -45,7 +55,8 @@ class VeiculoPatrimonio {
     this.totalCount = 0,
   });
 
-  factory VeiculoPatrimonio.fromMap(Map<String, dynamic> m) => VeiculoPatrimonio(
+  factory VeiculoPatrimonio.fromMap(Map<String, dynamic> m) =>
+      VeiculoPatrimonio(
         placa: m['placa'] as String,
         marca: m['marca'] as String?,
         modelo: m['modelo'] as String?,
@@ -57,7 +68,8 @@ class VeiculoPatrimonio {
         mesesDecorridos: (m['meses_decorridos'] as num?)?.toInt(),
         mesesVidaUtil: (m['meses_vida_util'] as num?)?.toInt() ?? 60,
         valorAquisicao: (m['valor_aquisicao'] as num?)?.toDouble(),
-        valorResidualEstimado: (m['valor_residual_estimado'] as num?)?.toDouble(),
+        valorResidualEstimado:
+            (m['valor_residual_estimado'] as num?)?.toDouble(),
         depreciacaoAcumulada: (m['depreciacao_acumulada'] as num?)?.toDouble(),
         valorContabilLiquido: (m['valor_contabil_liquido'] as num?)?.toDouble(),
         percentualDepreciado: (m['percentual_depreciado'] as num?)?.toDouble(),
@@ -74,19 +86,26 @@ class VeiculoPatrimonio {
 
 typedef FiltrosPatrimonio = ({String? busca, String ordenar});
 
-final patrimonioResumoProvider = FutureProvider.autoDispose.family<List<VeiculoPatrimonio>, FiltrosPatrimonio>((ref, filtros) async {
+final patrimonioResumoProvider = FutureProvider.autoDispose
+    .family<List<VeiculoPatrimonio>, FiltrosPatrimonio>((ref, filtros) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('patrimonio_frota_resumo', params: {
+  final rows =
+      await SupabaseService.client.rpc('patrimonio_frota_resumo', params: {
     'p_empresa_id': empresaId,
-    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty) ? null : filtros.busca!.trim(),
+    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty)
+        ? null
+        : filtros.busca!.trim(),
     'p_ordenar': filtros.ordenar.isEmpty ? null : filtros.ordenar,
   }) as List;
-  return rows.map((r) => VeiculoPatrimonio.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => VeiculoPatrimonio.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
-final patrimonioVeiculoProvider = FutureProvider.autoDispose.family<VeiculoPatrimonio?, String>((ref, placa) async {
+final patrimonioVeiculoProvider = FutureProvider.autoDispose
+    .family<VeiculoPatrimonio?, String>((ref, placa) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
@@ -100,21 +119,31 @@ final patrimonioVeiculoProvider = FutureProvider.autoDispose.family<VeiculoPatri
 
 // Resolve o id (uuid) do veículo a partir da placa — a RPC não devolve, mas
 // patrimonio_ajustes.veiculo_id é FK e precisa dele pra criar/listar ajustes.
-final patrimonioVeiculoIdProvider = FutureProvider.autoDispose.family<String?, String>((ref, placa) async {
+final patrimonioVeiculoIdProvider =
+    FutureProvider.autoDispose.family<String?, String>((ref, placa) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
-  final empresa = await SupabaseService.client.from('empresas').select('cnpj').eq('id', empresaId).maybeSingle();
+  final empresa = await SupabaseService.client
+      .from('empresas')
+      .select('cnpj')
+      .eq('id', empresaId)
+      .maybeSingle();
   final cnpjEmpresa = _normalizarCnpj(empresa?['cnpj'] as String?);
-  final candidatos = await SupabaseService.client.from('cadastro_veiculos').select('id, cnpj_frota').eq('placa', placa) as List;
+  final candidatos = await SupabaseService.client
+      .from('cadastro_veiculos')
+      .select('id, cnpj_frota')
+      .eq('placa', placa) as List;
   for (final c in candidatos) {
     final row = c as Map<String, dynamic>;
-    if (_normalizarCnpj(row['cnpj_frota'] as String?) == cnpjEmpresa) return row['id'] as String;
+    if (_normalizarCnpj(row['cnpj_frota'] as String?) == cnpjEmpresa)
+      return row['id'] as String;
   }
   return null;
 });
 
-String _normalizarCnpj(String? v) => (v ?? '').replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
+String _normalizarCnpj(String? v) =>
+    (v ?? '').replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
 
 class AjustePatrimonio {
   final String id;
@@ -123,7 +152,12 @@ class AjustePatrimonio {
   final String dataAjuste;
   final String? motivo;
 
-  const AjustePatrimonio({required this.id, required this.tipo, required this.valor, required this.dataAjuste, this.motivo});
+  const AjustePatrimonio(
+      {required this.id,
+      required this.tipo,
+      required this.valor,
+      required this.dataAjuste,
+      this.motivo});
 
   factory AjustePatrimonio.fromMap(Map<String, dynamic> m) => AjustePatrimonio(
         id: m['id'] as String,
@@ -134,11 +168,14 @@ class AjustePatrimonio {
       );
 }
 
-final ajustesPatrimonioProvider = FutureProvider.autoDispose.family<List<AjustePatrimonio>, String>((ref, veiculoId) async {
+final ajustesPatrimonioProvider = FutureProvider.autoDispose
+    .family<List<AjustePatrimonio>, String>((ref, veiculoId) async {
   final rows = await SupabaseService.client
       .from('patrimonio_ajustes')
       .select('id, tipo, valor, data_ajuste, motivo')
       .eq('veiculo_id', veiculoId)
       .order('data_ajuste', ascending: false) as List;
-  return rows.map((r) => AjustePatrimonio.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => AjustePatrimonio.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

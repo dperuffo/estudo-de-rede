@@ -13,7 +13,8 @@ class ItemAtalhoMenu {
   final String href;
   final String label;
   final IconData icon;
-  const ItemAtalhoMenu({required this.href, required this.label, required this.icon});
+  const ItemAtalhoMenu(
+      {required this.href, required this.label, required this.icon});
 }
 
 // Fase Acesso-Rápido-Favoritos (04/08/2026, pedido do Daniel, escolha
@@ -29,7 +30,8 @@ class BarraAtalhosFavoritos extends ConsumerStatefulWidget {
   const BarraAtalhosFavoritos({super.key, required this.mapaItens});
 
   @override
-  ConsumerState<BarraAtalhosFavoritos> createState() => _BarraAtalhosFavoritosState();
+  ConsumerState<BarraAtalhosFavoritos> createState() =>
+      _BarraAtalhosFavoritosState();
 }
 
 class _BarraAtalhosFavoritosState extends ConsumerState<BarraAtalhosFavoritos> {
@@ -97,7 +99,9 @@ class _Chip extends StatelessWidget {
             children: [
               Icon(item.icon, size: 15, color: const Color(0xFF0D2D6B)),
               const SizedBox(width: 6),
-              Text(item.label, style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
+              Text(item.label,
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF334155))),
               const SizedBox(width: 2),
               InkWell(
                 borderRadius: BorderRadius.circular(999),

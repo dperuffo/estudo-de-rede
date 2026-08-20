@@ -38,15 +38,22 @@ class _ConteudoModalDestinoEstado extends StatefulWidget {
   final List<String> cnpjsFrota;
   final PlanoDestinoEstado? valorInicial;
   final ScrollController scrollController;
-  const _ConteudoModalDestinoEstado({required this.cnpjsFrota, this.valorInicial, required this.scrollController});
+  const _ConteudoModalDestinoEstado(
+      {required this.cnpjsFrota,
+      this.valorInicial,
+      required this.scrollController});
 
   @override
-  State<_ConteudoModalDestinoEstado> createState() => _ConteudoModalDestinoEstadoState();
+  State<_ConteudoModalDestinoEstado> createState() =>
+      _ConteudoModalDestinoEstadoState();
 }
 
-class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado> {
-  late final _cnpjPadraoCtrl = TextEditingController(text: widget.valorInicial?.cnpjPadrao ?? '');
-  late bool _adicionarExcecoes = (widget.valorInicial?.grupos.isNotEmpty ?? false);
+class _ConteudoModalDestinoEstadoState
+    extends State<_ConteudoModalDestinoEstado> {
+  late final _cnpjPadraoCtrl =
+      TextEditingController(text: widget.valorInicial?.cnpjPadrao ?? '');
+  late bool _adicionarExcecoes =
+      (widget.valorInicial?.grupos.isNotEmpty ?? false);
   late List<GrupoUf> _grupos = List.of(widget.valorInicial?.grupos ?? const []);
   final Set<String> _ufsSelecionadas = {};
   final _cnpjGrupoCtrl = TextEditingController();
@@ -56,12 +63,17 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
 
   void _adicionarGrupo() {
     if (_ufsSelecionadas.isEmpty || _cnpjGrupoCtrl.text.trim().isEmpty) {
-      setState(() => _erro = 'Selecione ao menos um estado e o CNPJ de destino para adicionar a exceção.');
+      setState(() => _erro =
+          'Selecione ao menos um estado e o CNPJ de destino para adicionar a exceção.');
       return;
     }
     setState(() {
       _erro = null;
-      _grupos = [..._grupos, GrupoUf(ufs: _ufsSelecionadas.toList(), cnpj: _cnpjGrupoCtrl.text.trim())];
+      _grupos = [
+        ..._grupos,
+        GrupoUf(
+            ufs: _ufsSelecionadas.toList(), cnpj: _cnpjGrupoCtrl.text.trim())
+      ];
       _ufsSelecionadas.clear();
       _cnpjGrupoCtrl.clear();
     });
@@ -95,7 +107,8 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
           Text('Configuração de Envio de Nota Personalizado por Estado',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text('Selecione o CNPJ/empresa que receberá as notas fiscais de abastecimentos.',
+          Text(
+              'Selecione o CNPJ/empresa que receberá as notas fiscais de abastecimentos.',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           const SizedBox(height: 12),
           if (_erro != null)
@@ -103,8 +116,12 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
           Autocomplete<String>(
             optionsBuilder: (v) => v.text.isEmpty
@@ -129,18 +146,23 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            title: const Text('Adicionar Exceções', style: TextStyle(fontSize: 14)),
+            title: const Text('Adicionar Exceções',
+                style: TextStyle(fontSize: 14)),
             value: _adicionarExcecoes,
             onChanged: (v) => setState(() => _adicionarExcecoes = v ?? false),
           ),
           if (_adicionarExcecoes) ...[
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Estados', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const Text('Estados',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
@@ -152,7 +174,9 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
                           selected: _ufsSelecionadas.contains(uf),
                           onSelected: _ufsJaUsadas.contains(uf)
                               ? null
-                              : (sel) => setState(() => sel ? _ufsSelecionadas.add(uf) : _ufsSelecionadas.remove(uf)),
+                              : (sel) => setState(() => sel
+                                  ? _ufsSelecionadas.add(uf)
+                                  : _ufsSelecionadas.remove(uf)),
                         ),
                     ],
                   ),
@@ -169,27 +193,40 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: OutlinedButton(onPressed: _adicionarGrupo, child: const Text('+ Adicionar exceção')),
+                    child: OutlinedButton(
+                        onPressed: _adicionarGrupo,
+                        child: const Text('+ Adicionar exceção')),
                   ),
                   if (_grupos.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     ..._grupos.asMap().entries.map((e) => Container(
                           margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8)),
                           child: Row(
                             children: [
                               Expanded(
                                 child: Text.rich(
                                   TextSpan(children: [
-                                    TextSpan(text: e.value.ufs.join(', '), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                                    TextSpan(text: ' → ${e.value.cnpj}', style: const TextStyle(fontSize: 12)),
+                                    TextSpan(
+                                        text: e.value.ufs.join(', '),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12)),
+                                    TextSpan(
+                                        text: ' → ${e.value.cnpj}',
+                                        style: const TextStyle(fontSize: 12)),
                                   ]),
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                                onPressed: () => setState(() => _grupos = List.of(_grupos)..removeAt(e.key)),
+                                icon: const Icon(Icons.close,
+                                    size: 16, color: Colors.red),
+                                onPressed: () => setState(() => _grupos =
+                                    List.of(_grupos)..removeAt(e.key)),
                               ),
                             ],
                           ),
@@ -210,7 +247,8 @@ class _ConteudoModalDestinoEstadoState extends State<_ConteudoModalDestinoEstado
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton(onPressed: _confirmar, child: const Text('Confirmar')),
+                child: FilledButton(
+                    onPressed: _confirmar, child: const Text('Confirmar')),
               ),
             ],
           ),

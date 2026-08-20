@@ -4,6 +4,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/estoque_pecas_provider.dart';
 import '../services/estoque_pecas_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Grupo 1 Rodopar item 2 (03/08/2026) — cadastro de peça, porta de
 // estoque-pecas/nova/page.tsx + NovaPecaForm.tsx.
 class NovaPecaScreen extends ConsumerStatefulWidget {
@@ -51,10 +53,13 @@ class _NovaPecaScreenState extends ConsumerState<NovaPecaScreen> {
       await EstoquePecasService().criarPeca(
         empresaId: empresaId,
         nome: _nomeCtrl.text.trim(),
-        codigo: _codigoCtrl.text.trim().isEmpty ? null : _codigoCtrl.text.trim(),
+        codigo:
+            _codigoCtrl.text.trim().isEmpty ? null : _codigoCtrl.text.trim(),
         unidadeMedida: _unidadeMedida,
-        quantidadeMinima: double.tryParse(_minimaCtrl.text.replaceAll(',', '.')) ?? 0,
-        quantidadeInicial: double.tryParse(_inicialCtrl.text.replaceAll(',', '.')),
+        quantidadeMinima:
+            double.tryParse(_minimaCtrl.text.replaceAll(',', '.')) ?? 0,
+        quantidadeInicial:
+            double.tryParse(_inicialCtrl.text.replaceAll(',', '.')),
         custoUnitario: double.tryParse(_custoCtrl.text.replaceAll(',', '.')),
         criadoPor: sessao.email,
       );
@@ -73,7 +78,14 @@ class _NovaPecaScreenState extends ConsumerState<NovaPecaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova Peça')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Nova Peça')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -82,19 +94,35 @@ class _NovaPecaScreenState extends ConsumerState<NovaPecaScreen> {
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
             ),
           TextField(
             controller: _nomeCtrl,
-            decoration: const InputDecoration(labelText: 'Nome da peça *', hintText: 'Filtro de óleo, pastilha de freio...', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Nome da peça *',
+                hintText: 'Filtro de óleo, pastilha de freio...',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
-          TextField(controller: _codigoCtrl, decoration: const InputDecoration(labelText: 'Código / SKU', border: OutlineInputBorder(), isDense: true)),
+          TextField(
+              controller: _codigoCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Código / SKU',
+                  border: OutlineInputBorder(),
+                  isDense: true)),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             value: _unidadeMedida,
-            decoration: const InputDecoration(labelText: 'Unidade de medida', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Unidade de medida',
+                border: OutlineInputBorder(),
+                isDense: true),
             items: const [
               DropdownMenuItem(value: 'un', child: Text('Unidade (un)')),
               DropdownMenuItem(value: 'l', child: Text('Litro (l)')),
@@ -108,19 +136,29 @@ class _NovaPecaScreenState extends ConsumerState<NovaPecaScreen> {
           TextField(
             controller: _minimaCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Estoque mínimo', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Estoque mínimo',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _inicialCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Estoque inicial (opcional)', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Estoque inicial (opcional)',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _custoCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Custo unitário (estoque inicial)', hintText: 'R\$', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Custo unitário (estoque inicial)',
+                hintText: 'R\$',
+                border: OutlineInputBorder(),
+                isDense: true),
           ),
           const SizedBox(height: 20),
           SizedBox(

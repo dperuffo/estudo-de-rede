@@ -77,13 +77,15 @@ class CicloNfe {
       );
 }
 
-final ciclosNfeProvider = FutureProvider.autoDispose<List<CicloNfe>>((ref) async {
+final ciclosNfeProvider =
+    FutureProvider.autoDispose<List<CicloNfe>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client
-      .rpc('nfe_recolha_por_ciclo', params: {'p_empresa_id': empresaId, 'p_qtd_fechados': 6}) as List;
-  final ciclos = rows.map((m) => CicloNfe.fromMap(m as Map<String, dynamic>)).toList();
+  final rows = await SupabaseService.client.rpc('nfe_recolha_por_ciclo',
+      params: {'p_empresa_id': empresaId, 'p_qtd_fechados': 6}) as List;
+  final ciclos =
+      rows.map((m) => CicloNfe.fromMap(m as Map<String, dynamic>)).toList();
   // ciclo aberto primeiro, depois os fechados do mais recente pro mais antigo.
   ciclos.sort((a, b) {
     if (a.status == 'aberto' && b.status != 'aberto') return -1;
@@ -188,21 +190,27 @@ class FiltrosNotasFiscais {
       other.status == status &&
       other.busca == busca;
   @override
-  int get hashCode => Object.hash(negociacaoId, periodoInicio, periodoFim, status, busca);
+  int get hashCode =>
+      Object.hash(negociacaoId, periodoInicio, periodoFim, status, busca);
 }
 
-final linhasNotasFiscaisProvider =
-    FutureProvider.autoDispose.family<List<LinhaNotaFiscal>, FiltrosNotasFiscais>((ref, filtros) async {
-  final rows = await SupabaseService.client.rpc('abastecimentos_do_ciclo_nfe', params: {
+final linhasNotasFiscaisProvider = FutureProvider.autoDispose
+    .family<List<LinhaNotaFiscal>, FiltrosNotasFiscais>((ref, filtros) async {
+  final rows =
+      await SupabaseService.client.rpc('abastecimentos_do_ciclo_nfe', params: {
     'p_negociacao_id': filtros.negociacaoId,
     'p_periodo_inicio': filtros.periodoInicio,
     'p_periodo_fim': filtros.periodoFim,
     'p_status': filtros.status,
-    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty) ? null : filtros.busca!.trim(),
+    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty)
+        ? null
+        : filtros.busca!.trim(),
     'p_limit': 100,
     'p_offset': 0,
   }) as List;
-  return rows.map((m) => LinhaNotaFiscal.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => LinhaNotaFiscal.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 class NotaFiscalDetalhe {
@@ -247,7 +255,8 @@ class NotaFiscalDetalhe {
   });
 }
 
-final notaFiscalDetalheProvider = FutureProvider.autoDispose.family<NotaFiscalDetalhe?, String>((ref, notaId) async {
+final notaFiscalDetalheProvider = FutureProvider.autoDispose
+    .family<NotaFiscalDetalhe?, String>((ref, notaId) async {
   final supabase = SupabaseService.client;
   final nota = await supabase
       .from('notas_fiscais_abastecimento')

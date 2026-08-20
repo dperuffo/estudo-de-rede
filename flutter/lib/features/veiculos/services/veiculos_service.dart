@@ -36,26 +36,41 @@ class VeiculosService {
     return {
       'placa': placa.trim().toUpperCase(),
       'marca': (marca == null || marca.trim().isEmpty) ? null : marca.trim(),
-      'modelo': (modelo == null || modelo.trim().isEmpty) ? null : modelo.trim(),
+      'modelo':
+          (modelo == null || modelo.trim().isEmpty) ? null : modelo.trim(),
       'motor': (motor == null || motor.trim().isEmpty) ? null : motor.trim(),
       'ano_modelo': anoModelo,
       'ano_fabricacao': anoFabricacao,
       'hodometro_atual': hodometroAtual,
-      'combustivel': (combustivel == null || combustivel.trim().isEmpty) ? null : combustivel.trim(),
+      'combustivel': (combustivel == null || combustivel.trim().isEmpty)
+          ? null
+          : combustivel.trim(),
       'tanque': tanque,
       'autonomia': autonomia,
       'cor': (cor == null || cor.trim().isEmpty) ? null : cor.trim(),
-      'chassi': (chassi == null || chassi.trim().isEmpty) ? null : chassi.trim(),
-      'renavam': (renavam == null || renavam.trim().isEmpty) ? null : renavam.trim(),
-      'municipio': (municipio == null || municipio.trim().isEmpty) ? null : municipio.trim(),
-      'tipo_veiculo': (tipoVeiculo == null || tipoVeiculo.trim().isEmpty) ? null : tipoVeiculo.trim(),
-      'uf_veiculo': (ufVeiculo == null || ufVeiculo.trim().isEmpty) ? null : ufVeiculo.trim(),
+      'chassi':
+          (chassi == null || chassi.trim().isEmpty) ? null : chassi.trim(),
+      'renavam':
+          (renavam == null || renavam.trim().isEmpty) ? null : renavam.trim(),
+      'municipio': (municipio == null || municipio.trim().isEmpty)
+          ? null
+          : municipio.trim(),
+      'tipo_veiculo': (tipoVeiculo == null || tipoVeiculo.trim().isEmpty)
+          ? null
+          : tipoVeiculo.trim(),
+      'uf_veiculo': (ufVeiculo == null || ufVeiculo.trim().isEmpty)
+          ? null
+          : ufVeiculo.trim(),
       'numero_eixos': numeroEixos,
-      'classificacao': classificacoesValidas.contains(classificacao) ? classificacao : 'Próprio',
+      'classificacao': classificacoesValidas.contains(classificacao)
+          ? classificacao
+          : 'Próprio',
       'tipo': tiposPorteValidos.contains(tipo) ? tipo : null,
       // Fase TCO (29/07/2026) — opcionais, usados só pra depreciação no TCO.
       'valor_aquisicao': valorAquisicao,
-      'data_aquisicao': (dataAquisicao == null || dataAquisicao.trim().isEmpty) ? null : dataAquisicao.trim(),
+      'data_aquisicao': (dataAquisicao == null || dataAquisicao.trim().isEmpty)
+          ? null
+          : dataAquisicao.trim(),
       'valor_residual_estimado': valorResidualEstimado,
     };
   }
@@ -92,10 +107,17 @@ class VeiculosService {
     final placaLimpa = placa.trim();
     if (placaLimpa.isEmpty) return (erro: 'Placa é obrigatória.', id: null);
     try {
-      final empresa = await _supabase.from('empresas').select('cnpj').eq('id', empresaId).maybeSingle();
+      final empresa = await _supabase
+          .from('empresas')
+          .select('cnpj')
+          .eq('id', empresaId)
+          .maybeSingle();
       final cnpj = empresa?['cnpj'] as String?;
       if (cnpj == null || cnpj.isEmpty) {
-        return (erro: 'Não foi possível identificar o CNPJ da sua empresa.', id: null);
+        return (
+          erro: 'Não foi possível identificar o CNPJ da sua empresa.',
+          id: null
+        );
       }
 
       final duplicado = await _supabase.rpc('veiculo_duplicado', params: {
@@ -103,7 +125,11 @@ class VeiculosService {
         'p_placa': placaLimpa.toUpperCase(),
       }) as bool?;
       if (duplicado == true) {
-        return (erro: 'Já existe um veículo cadastrado com a placa $placaLimpa para sua empresa.', id: null);
+        return (
+          erro:
+              'Já existe um veículo cadastrado com a placa $placaLimpa para sua empresa.',
+          id: null
+        );
       }
 
       final payload = _payloadBase(
@@ -183,7 +209,11 @@ class VeiculosService {
     final placaLimpa = placa.trim();
     if (placaLimpa.isEmpty) return 'Placa é obrigatória.';
     try {
-      final existente = await _supabase.from('cadastro_veiculos').select('cnpj_frota').eq('id', id).maybeSingle();
+      final existente = await _supabase
+          .from('cadastro_veiculos')
+          .select('cnpj_frota')
+          .eq('id', id)
+          .maybeSingle();
       final cnpjFrota = existente?['cnpj_frota'] as String?;
 
       if (cnpjFrota != null) {
@@ -222,10 +252,16 @@ class VeiculosService {
         valorResidualEstimado: valorResidualEstimado,
       );
 
-      await _supabase.from('cadastro_veiculos').update({...payload, 'ativo': ativo}).eq('id', id);
+      await _supabase
+          .from('cadastro_veiculos')
+          .update({...payload, 'ativo': ativo}).eq('id', id);
 
       if (cnpjFrota != null) {
-        final empresa = await _supabase.from('empresas').select('id').eq('cnpj', cnpjFrota).maybeSingle();
+        final empresa = await _supabase
+            .from('empresas')
+            .select('id')
+            .eq('cnpj', cnpjFrota)
+            .maybeSingle();
         final erroAlocacao = await alocarCentroCusto(
           placa: payload['placa'] as String,
           centroCustoId: centroCustoId,
@@ -240,9 +276,12 @@ class VeiculosService {
     }
   }
 
-  Future<String?> alternarAtivo({required String id, required bool ativo}) async {
+  Future<String?> alternarAtivo(
+      {required String id, required bool ativo}) async {
     try {
-      await _supabase.from('cadastro_veiculos').update({'ativo': ativo}).eq('id', id);
+      await _supabase
+          .from('cadastro_veiculos')
+          .update({'ativo': ativo}).eq('id', id);
       return null;
     } catch (e) {
       return 'Não foi possível atualizar: $e';
@@ -279,7 +318,11 @@ class VeiculosService {
 
       String? nomeCentroCusto;
       if (centroCustoId != null) {
-        final cc = await _supabase.from('centros_custo').select('nome').eq('id', centroCustoId).maybeSingle();
+        final cc = await _supabase
+            .from('centros_custo')
+            .select('nome')
+            .eq('id', centroCustoId)
+            .maybeSingle();
         nomeCentroCusto = cc?['nome'] as String?;
 
         final email = _supabase.auth.currentUser?.email;
@@ -293,9 +336,10 @@ class VeiculosService {
         });
       }
 
-      await _supabase
-          .from('cadastro_veiculos')
-          .update({'centro_custo_id': centroCustoId, 'centro_custo_nome': nomeCentroCusto}).eq('placa', placa);
+      await _supabase.from('cadastro_veiculos').update({
+        'centro_custo_id': centroCustoId,
+        'centro_custo_nome': nomeCentroCusto
+      }).eq('placa', placa);
 
       return null;
     } catch (e) {

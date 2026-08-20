@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../posto/providers/assinatura_provider.dart' show PrecoPlano, precosPlanosProvider;
+import '../../posto/providers/assinatura_provider.dart'
+    show PrecoPlano, precosPlanosProvider;
 
 // Fase FLT-4 — Assinaturas (admin), porta de assinaturas/page.tsx +
 // _components/IndicadoresFinanceirosFni.tsx (componente compartilhado
@@ -42,7 +43,8 @@ class EmpresaAssinatura {
     this.canceladoEm,
   });
 
-  factory EmpresaAssinatura.fromMap(Map<String, dynamic> m) => EmpresaAssinatura(
+  factory EmpresaAssinatura.fromMap(Map<String, dynamic> m) =>
+      EmpresaAssinatura(
         id: m['id'] as String,
         nome: m['nome'] as String? ?? '—',
         plano: m['plano'] as String? ?? 'gratuito',
@@ -102,7 +104,8 @@ class IndicadoresFinanceirosFni {
   });
 }
 
-final assinaturasAdminProvider = FutureProvider.autoDispose<IndicadoresFinanceirosFni>((ref) async {
+final assinaturasAdminProvider =
+    FutureProvider.autoDispose<IndicadoresFinanceirosFni>((ref) async {
   final agora = DateTime.now();
   final inicioMes = DateTime(agora.year, agora.month, 1);
   final fimMes = DateTime(agora.year, agora.month + 1, 0, 23, 59, 59);
@@ -112,7 +115,8 @@ final assinaturasAdminProvider = FutureProvider.autoDispose<IndicadoresFinanceir
   final resultados = await Future.wait([
     SupabaseService.client
         .from('empresas')
-        .select('id, nome, plano, status, trial_ends_at, stripe_customer_id, created_at, cancelado_em')
+        .select(
+            'id, nome, plano, status, trial_ends_at, stripe_customer_id, created_at, cancelado_em')
         .order('created_at', ascending: false),
     SupabaseService.client
         .from('invoices')
@@ -124,7 +128,9 @@ final assinaturasAdminProvider = FutureProvider.autoDispose<IndicadoresFinanceir
   final empresasRows = resultados[0] as List;
   final invoicesRows = resultados[1] as List;
 
-  final empresas = empresasRows.map((r) => EmpresaAssinatura.fromMap(r as Map<String, dynamic>)).toList();
+  final empresas = empresasRows
+      .map((r) => EmpresaAssinatura.fromMap(r as Map<String, dynamic>))
+      .toList();
 
   var totalTrial = 0, totalAtivos = 0, totalSuspensos = 0, totalCancelados = 0;
   var mrrCents = 0;
@@ -150,18 +156,33 @@ final assinaturasAdminProvider = FutureProvider.autoDispose<IndicadoresFinanceir
       mrrCents += preco?.unitAmount ?? 0;
     }
     if (e.status == 'trial' && e.trialEndsAt != null) {
-      final diasRestantes = DateTime.parse(e.trialEndsAt!).difference(DateTime.now()).inHours / 24;
+      final diasRestantes =
+          DateTime.parse(e.trialEndsAt!).difference(DateTime.now()).inHours /
+              24;
       if (diasRestantes.ceil() <= 3) trialsEmRisco.add(e);
     }
   }
 
   final totalClientes = empresas.length;
-  final taxaConversao = totalClientes > 0 ? ((totalAtivos / totalClientes) * 100).round() : 0;
+  final taxaConversao =
+      totalClientes > 0 ? ((totalAtivos / totalClientes) * 100).round() : 0;
 
-  final invoicesPagas = invoicesRows.where((i) => (i as Map<String, dynamic>)['status'] == 'pago').toList();
-  final invoicesFalhas = invoicesRows.where((i) => (i as Map<String, dynamic>)['status'] == 'falhou').toList();
-  final faturamentoMesCents = invoicesPagas.fold<int>(0, (s, i) => s + (((i as Map<String, dynamic>)['valor_cents'] as num?)?.toInt() ?? 0));
-  final inadimplenciaMesCents = invoicesFalhas.fold<int>(0, (s, i) => s + (((i as Map<String, dynamic>)['valor_cents'] as num?)?.toInt() ?? 0));
+  final invoicesPagas = invoicesRows
+      .where((i) => (i as Map<String, dynamic>)['status'] == 'pago')
+      .toList();
+  final invoicesFalhas = invoicesRows
+      .where((i) => (i as Map<String, dynamic>)['status'] == 'falhou')
+      .toList();
+  final faturamentoMesCents = invoicesPagas.fold<int>(
+      0,
+      (s, i) =>
+          s +
+          (((i as Map<String, dynamic>)['valor_cents'] as num?)?.toInt() ?? 0));
+  final inadimplenciaMesCents = invoicesFalhas.fold<int>(
+      0,
+      (s, i) =>
+          s +
+          (((i as Map<String, dynamic>)['valor_cents'] as num?)?.toInt() ?? 0));
 
   // Comparação por DateTime de verdade (não string) — os timestamps que
   // voltam do banco têm timezone explícito (+00:00), diferente de
@@ -174,7 +195,9 @@ final assinaturasAdminProvider = FutureProvider.autoDispose<IndicadoresFinanceir
   }
 
   final churnDoMes = empresas.where((e) => dentroDoMes(e.canceladoEm)).toList();
-  final novosAssinantesDoMes = empresas.where((e) => e.plano != 'gratuito' && dentroDoMes(e.createdAt)).length;
+  final novosAssinantesDoMes = empresas
+      .where((e) => e.plano != 'gratuito' && dentroDoMes(e.createdAt))
+      .length;
 
   return IndicadoresFinanceirosFni(
     totalClientes: totalClientes,

@@ -39,5 +39,6 @@ class SessaoUsuario {
   // AuthService.carregarSessao). Sem este `ehAdmin ||`, o app ficava
   // travado/vazio pro admin (nunca caía nesta condição, nunca ia pro
   // seletor).
-  bool get precisaEscolherEmpresa => empresaId == null && (ehAdmin || empresasIds.length > 1);
+  bool get precisaEscolherEmpresa =>
+      empresaId == null && (ehAdmin || empresasIds.length > 1);
 }

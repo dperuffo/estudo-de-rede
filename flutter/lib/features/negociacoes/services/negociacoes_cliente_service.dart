@@ -1,7 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../posto/services/negociacoes_service.dart' show DadosRodada, validarDadosRodada;
+import '../../posto/services/negociacoes_service.dart'
+    show DadosRodada, validarDadosRodada;
 
 // Fase FLT-3 — porta de src/lib/negociacoesPostos.ts pro lado CLIENTE
 // ("autor" sempre "cliente" aqui, espelho de negociacoes_service.dart que
@@ -34,9 +35,10 @@ class ResultadoCriarNegociacaoCliente {
 class NegociacoesClienteService {
   final _supabase = SupabaseService.client;
 
-  Future<String?> _exigirDocumentacaoAprovada(String empresaId, String contexto) async {
-    final linhas = await _supabase
-        .rpc('status_documentacao_empresa_publico', params: {'p_empresa_id': empresaId}) as List;
+  Future<String?> _exigirDocumentacaoAprovada(
+      String empresaId, String contexto) async {
+    final linhas = await _supabase.rpc('status_documentacao_empresa_publico',
+        params: {'p_empresa_id': empresaId}) as List;
     if (linhas.isEmpty) return 'Empresa não encontrada.';
     final empresa = linhas.first as Map<String, dynamic>;
     if (empresa['documentacao_status'] == 'aprovada') return null;
@@ -51,7 +53,8 @@ class NegociacoesClienteService {
 
   Future<void> _notificarNegociacao(String negociacaoId, String evento) async {
     try {
-      await _supabase.functions.invoke('negociacao-email', body: {'negociacao_id': negociacaoId, 'evento': evento});
+      await _supabase.functions.invoke('negociacao-email',
+          body: {'negociacao_id': negociacaoId, 'evento': evento});
     } catch (_) {
       // best-effort, igual à web — nunca bloqueia a operação principal.
     }
@@ -63,39 +66,49 @@ class NegociacoesClienteService {
     required DadosRodada dados,
   }) async {
     final erroValidacao = validarDadosRodada(dados);
-    if (erroValidacao != null) return ResultadoCriarNegociacaoCliente.erro(erroValidacao);
+    if (erroValidacao != null)
+      return ResultadoCriarNegociacaoCliente.erro(erroValidacao);
 
-    final cnpjNormalizado = cnpjPosto.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
+    final cnpjNormalizado =
+        cnpjPosto.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
     if (cnpjNormalizado.isEmpty) {
-      return const ResultadoCriarNegociacaoCliente.erro('Informe o CNPJ do posto.');
+      return const ResultadoCriarNegociacaoCliente.erro(
+          'Informe o CNPJ do posto.');
     }
 
-    final erroDocumentacao = await _exigirDocumentacaoAprovada(empresaClienteId, 'Criar uma negociação');
-    if (erroDocumentacao != null) return ResultadoCriarNegociacaoCliente.erro(erroDocumentacao);
+    final erroDocumentacao = await _exigirDocumentacaoAprovada(
+        empresaClienteId, 'Criar uma negociação');
+    if (erroDocumentacao != null)
+      return ResultadoCriarNegociacaoCliente.erro(erroDocumentacao);
 
-    final empresaPostoId =
-        await _supabase.rpc('empresa_id_do_cnpj', params: {'p_cnpj': cnpjNormalizado}) as String?;
+    final empresaPostoId = await _supabase.rpc('empresa_id_do_cnpj',
+        params: {'p_cnpj': cnpjNormalizado}) as String?;
 
     final email = AuthService().emailAtual;
-    final clienteNome =
-        await _supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaClienteId}) as String?;
+    final clienteNome = await _supabase.rpc('nome_empresa_publico',
+        params: {'p_empresa_id': empresaClienteId}) as String?;
     final postoNome = empresaPostoId != null
-        ? await _supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaPostoId}) as String?
+        ? await _supabase.rpc('nome_empresa_publico',
+            params: {'p_empresa_id': empresaPostoId}) as String?
         : null;
 
     try {
-      final negociacao = await _supabase.from('negociacoes_postos').insert({
-        'empresa_cliente_id': empresaClienteId,
-        'empresa_posto_id': empresaPostoId,
-        'posto_cnpj': cnpjNormalizado,
-        'origem': 'cliente',
-        'status': 'pendente_posto',
-        'rodada_atual': 1,
-        'criado_por': email,
-        'atualizado_por': email,
-        'cliente_nome': clienteNome,
-        'posto_nome': postoNome,
-      }).select('id').single();
+      final negociacao = await _supabase
+          .from('negociacoes_postos')
+          .insert({
+            'empresa_cliente_id': empresaClienteId,
+            'empresa_posto_id': empresaPostoId,
+            'posto_cnpj': cnpjNormalizado,
+            'origem': 'cliente',
+            'status': 'pendente_posto',
+            'rodada_atual': 1,
+            'criado_por': email,
+            'atualizado_por': email,
+            'cliente_nome': clienteNome,
+            'posto_nome': postoNome,
+          })
+          .select('id')
+          .single();
 
       final negociacaoId = negociacao['id'].toString();
 
@@ -118,7 +131,8 @@ class NegociacoesClienteService {
     }
   }
 
-  Future<String?> adicionarContraproposta(String negociacaoId, DadosRodada dados) async {
+  Future<String?> adicionarContraproposta(
+      String negociacaoId, DadosRodada dados) async {
     final erroValidacao = validarDadosRodada(dados);
     if (erroValidacao != null) return erroValidacao;
 
@@ -146,7 +160,11 @@ class NegociacoesClienteService {
     try {
       await _supabase
           .from('negociacoes_postos_rodadas')
-          .update({'decisao': 'contraproposta', 'decidido_em': agora, 'decidido_por': email})
+          .update({
+            'decisao': 'contraproposta',
+            'decidido_em': agora,
+            'decidido_por': email
+          })
           .eq('negociacao_id', negociacaoId)
           .eq('numero_rodada', rodadaAtual);
 
@@ -176,12 +194,14 @@ class NegociacoesClienteService {
     return null;
   }
 
-  Future<String?> decidirNegociacao(String negociacaoId, {required bool aceitar}) async {
+  Future<String?> decidirNegociacao(String negociacaoId,
+      {required bool aceitar}) async {
     final email = AuthService().emailAtual;
 
     final negociacao = await _supabase
         .from('negociacoes_postos')
-        .select('id, status, rodada_atual, empresa_posto_id, empresa_cliente_id')
+        .select(
+            'id, status, rodada_atual, empresa_posto_id, empresa_cliente_id')
         .eq('id', negociacaoId)
         .maybeSingle();
     if (negociacao == null) return 'Negociação não encontrada.';
@@ -201,10 +221,15 @@ class NegociacoesClienteService {
     try {
       rodadaDecidida = await _supabase
           .from('negociacoes_postos_rodadas')
-          .update({'decisao': aceitar ? 'aceita' : 'recusada', 'decidido_em': agora, 'decidido_por': email})
+          .update({
+            'decisao': aceitar ? 'aceita' : 'recusada',
+            'decidido_em': agora,
+            'decidido_por': email
+          })
           .eq('negociacao_id', negociacaoId)
           .eq('numero_rodada', rodadaAtual)
-          .select('combustivel, vigencia_inicio, vigencia_fim, volume_minimo_mensal, preco_unitario')
+          .select(
+              'combustivel, vigencia_inicio, vigencia_fim, volume_minimo_mensal, preco_unitario')
           .single();
     } on PostgrestException catch (e) {
       return e.message;
@@ -212,11 +237,17 @@ class NegociacoesClienteService {
 
     final novoStatus = aceitar ? 'aceita' : 'recusada';
 
-    if (novoStatus == 'aceita' && empresaPostoId != null && empresaClienteId != null) {
+    if (novoStatus == 'aceita' &&
+        empresaPostoId != null &&
+        empresaClienteId != null) {
       try {
         await _supabase
             .from('negociacoes_postos')
-            .update({'status': 'cancelada', 'atualizado_em': agora, 'atualizado_por': email})
+            .update({
+              'status': 'cancelada',
+              'atualizado_em': agora,
+              'atualizado_por': email
+            })
             .eq('empresa_posto_id', empresaPostoId)
             .eq('empresa_cliente_id', empresaClienteId)
             .eq('status', 'aceita')
@@ -240,7 +271,10 @@ class NegociacoesClienteService {
     };
 
     try {
-      await _supabase.from('negociacoes_postos').update(atualizacaoCabecalho).eq('id', negociacaoId);
+      await _supabase
+          .from('negociacoes_postos')
+          .update(atualizacaoCabecalho)
+          .eq('id', negociacaoId);
     } on PostgrestException catch (e) {
       return e.message;
     }

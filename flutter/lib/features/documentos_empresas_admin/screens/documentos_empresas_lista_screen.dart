@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../providers/documentos_empresas_admin_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataHora = DateFormat('dd/MM/yyyy HH:mm');
 
 const _corStatus = {
@@ -27,10 +29,12 @@ class DocumentosEmpresasListaScreen extends ConsumerStatefulWidget {
   const DocumentosEmpresasListaScreen({super.key});
 
   @override
-  ConsumerState<DocumentosEmpresasListaScreen> createState() => _DocumentosEmpresasListaScreenState();
+  ConsumerState<DocumentosEmpresasListaScreen> createState() =>
+      _DocumentosEmpresasListaScreenState();
 }
 
-class _DocumentosEmpresasListaScreenState extends ConsumerState<DocumentosEmpresasListaScreen> {
+class _DocumentosEmpresasListaScreenState
+    extends ConsumerState<DocumentosEmpresasListaScreen> {
   String _status = 'pendente';
 
   @override
@@ -39,7 +43,14 @@ class _DocumentosEmpresasListaScreenState extends ConsumerState<DocumentosEmpres
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Aprovação de Documentos')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Aprovação de Documentos')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -53,9 +64,12 @@ class _DocumentosEmpresasListaScreenState extends ConsumerState<DocumentosEmpres
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso restrito', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('Acesso restrito',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(height: 8),
-              Text('Esta tela é exclusiva do time interno (perfil administrador).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Text(
+                  'Esta tela é exclusiva do time interno (perfil administrador).',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
             ],
           ),
         ),
@@ -83,7 +97,9 @@ class _DocumentosEmpresasListaScreenState extends ConsumerState<DocumentosEmpres
             children: [
               for (final s in statusDocumentacao)
                 ChoiceChip(
-                  label: Text('${statusDocumentacaoLabel[s] ?? s} (${contagem[s] ?? 0})', style: const TextStyle(fontSize: 12)),
+                  label: Text(
+                      '${statusDocumentacaoLabel[s] ?? s} (${contagem[s] ?? 0})',
+                      style: const TextStyle(fontSize: 12)),
                   selected: _status == s,
                   onSelected: (_) => setState(() => _status = s),
                 ),
@@ -121,7 +137,8 @@ class _DocumentosEmpresasListaScreenState extends ConsumerState<DocumentosEmpres
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/documentos-empresas/${e.id}'),
-        title: Text(e.nome, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+        title: Text(e.nome,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Column(
@@ -135,10 +152,16 @@ class _DocumentosEmpresasListaScreenState extends ConsumerState<DocumentosEmpres
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: _fundoStatus[e.documentacaoStatus], borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                    color: _fundoStatus[e.documentacaoStatus],
+                    borderRadius: BorderRadius.circular(10)),
                 child: Text(
-                  statusDocumentacaoLabel[e.documentacaoStatus] ?? e.documentacaoStatus,
-                  style: TextStyle(fontSize: 10, color: _corStatus[e.documentacaoStatus], fontWeight: FontWeight.w700),
+                  statusDocumentacaoLabel[e.documentacaoStatus] ??
+                      e.documentacaoStatus,
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: _corStatus[e.documentacaoStatus],
+                      fontWeight: FontWeight.w700),
                 ),
               ),
             ],

@@ -24,7 +24,9 @@ class ParametrosNFService {
     List<({String uf, String cnpj})> excecoesUf = const [],
   }) async {
     final personalizado = localDestino.startsWith('Personalizado');
-    if (personalizado && (cnpjDestinoPersonalizado == null || cnpjDestinoPersonalizado.trim().isEmpty)) {
+    if (personalizado &&
+        (cnpjDestinoPersonalizado == null ||
+            cnpjDestinoPersonalizado.trim().isEmpty)) {
       return 'Informe o CNPJ de destino para o tipo de destino personalizado escolhido.';
     }
     try {
@@ -32,24 +34,37 @@ class ParametrosNFService {
           .from('parametros_nota_fiscal')
           .insert({
             'empresa_id': empresaId,
-            'cnpj_frota': (cnpjFrota == null || cnpjFrota.trim().isEmpty) ? null : cnpjFrota.trim(),
+            'cnpj_frota': (cnpjFrota == null || cnpjFrota.trim().isEmpty)
+                ? null
+                : cnpjFrota.trim(),
             'exige_nota_fiscal': exigeNotaFiscal,
             'separar_nf_combustivel': separarNfCombustivel,
             'forma_emissao': formaEmissao,
             'local_destino': localDestino,
-            'cnpj_destino_personalizado': personalizado ? cnpjDestinoPersonalizado?.trim() : null,
+            'cnpj_destino_personalizado':
+                personalizado ? cnpjDestinoPersonalizado?.trim() : null,
             'dados_adicionais':
-                (dadosAdicionais == null || dadosAdicionais.trim().isEmpty) ? null : dadosAdicionais.trim(),
-            'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+                (dadosAdicionais == null || dadosAdicionais.trim().isEmpty)
+                    ? null
+                    : dadosAdicionais.trim(),
+            'observacao': (observacao == null || observacao.trim().isEmpty)
+                ? null
+                : observacao.trim(),
             'criado_por': _email,
           })
           .select('id')
           .single();
 
-      if (localDestino == 'Personalizado CNPJ por Estado' && excecoesUf.isNotEmpty) {
+      if (localDestino == 'Personalizado CNPJ por Estado' &&
+          excecoesUf.isNotEmpty) {
         try {
           await _supabase.from('parametros_nota_fiscal_destino_uf').insert([
-            for (final e in excecoesUf) {'parametro_nf_id': inserida['id'], 'uf': e.uf, 'cnpj_destino': e.cnpj},
+            for (final e in excecoesUf)
+              {
+                'parametro_nf_id': inserida['id'],
+                'uf': e.uf,
+                'cnpj_destino': e.cnpj
+              },
           ]);
         } catch (e) {
           return 'Regra salva, mas as exceções por estado falharam: $e';
@@ -62,10 +77,10 @@ class ParametrosNFService {
   }
 
   Future<void> alternarStatus({required String id, required bool ativo}) async {
-    await _supabase
-        .from('parametros_nota_fiscal')
-        .update({'status': ativo ? 'Ativo' : 'Inativo', 'atualizado_em': DateTime.now().toIso8601String()}).eq(
-            'id', id);
+    await _supabase.from('parametros_nota_fiscal').update({
+      'status': ativo ? 'Ativo' : 'Inativo',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', id);
   }
 
   Future<void> excluir({required String id}) async {

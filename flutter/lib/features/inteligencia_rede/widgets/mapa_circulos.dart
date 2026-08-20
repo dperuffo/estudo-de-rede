@@ -14,7 +14,12 @@ class PontoCirculo {
   final Color cor;
   final double raio;
   final String tooltip;
-  const PontoCirculo({required this.lat, required this.lon, required this.cor, required this.tooltip, this.raio = 5});
+  const PontoCirculo(
+      {required this.lat,
+      required this.lon,
+      required this.cor,
+      required this.tooltip,
+      this.raio = 5});
 }
 
 class MapaCirculos extends StatelessWidget {
@@ -42,12 +47,15 @@ class MapaCirculos extends StatelessWidget {
         alignment: Alignment.center,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(mensagemVazio, style: TextStyle(color: Colors.grey.shade500, fontSize: 12), textAlign: TextAlign.center),
+          child: Text(mensagemVazio,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              textAlign: TextAlign.center),
         ),
       );
     }
 
-    final bounds = LatLngBounds.fromPoints(pontos.map((p) => ll.LatLng(p.lat, p.lon)).toList());
+    final bounds = LatLngBounds.fromPoints(
+        pontos.map((p) => ll.LatLng(p.lat, p.lon)).toList());
 
     return SizedBox(
       height: height,
@@ -55,7 +63,8 @@ class MapaCirculos extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: FlutterMap(
           options: MapOptions(
-            initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(24), maxZoom: 6),
+            initialCameraFit: CameraFit.bounds(
+                bounds: bounds, padding: const EdgeInsets.all(24), maxZoom: 6),
             minZoom: 2,
             maxZoom: 18,
           ),

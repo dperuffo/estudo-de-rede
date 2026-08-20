@@ -36,7 +36,8 @@ class UsuariosService {
   }) async {
     final nomeLimpo = nome.trim();
     final emailLimpo = email.trim().toLowerCase();
-    if (nomeLimpo.isEmpty || emailLimpo.isEmpty) return 'Nome e e-mail são obrigatórios.';
+    if (nomeLimpo.isEmpty || emailLimpo.isEmpty)
+      return 'Nome e e-mail são obrigatórios.';
 
     final token = _supabase.auth.currentSession?.accessToken;
     if (token == null) return 'Sessão expirada, faça login novamente.';
@@ -76,7 +77,9 @@ class UsuariosService {
       await _supabase.from('usuarios_app').update({
         'nome': nomeLimpo,
         'cpf': (cpf == null || cpf.trim().isEmpty) ? null : cpf.trim(),
-        'telefone': (telefone == null || telefone.trim().isEmpty) ? null : telefone.trim(),
+        'telefone': (telefone == null || telefone.trim().isEmpty)
+            ? null
+            : telefone.trim(),
         'ativo': ativo,
       }).eq('email', email);
       return null;
@@ -85,10 +88,15 @@ class UsuariosService {
     }
   }
 
-  Future<String?> alternarAtivo({required String email, required bool ativo}) async {
+  Future<String?> alternarAtivo(
+      {required String email, required bool ativo}) async {
     try {
-      await _supabase.from('usuarios_app').update({'ativo': ativo}).eq('email', email);
-      await _supabase.from('usuarios_empresas').update({'ativo': ativo}).eq('user_email', email);
+      await _supabase
+          .from('usuarios_app')
+          .update({'ativo': ativo}).eq('email', email);
+      await _supabase
+          .from('usuarios_empresas')
+          .update({'ativo': ativo}).eq('user_email', email);
       return null;
     } catch (e) {
       return 'Não foi possível atualizar: $e';

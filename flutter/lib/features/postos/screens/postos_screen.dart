@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/postos_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Postos Revendedores (cliente): aba "Rede do cliente" da
 // web. Ver escopo completo (sem universo ANP na mesma tela — vira busca
 // separada; sem edição de campos operacionais) no comentário de
@@ -29,7 +31,14 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
     final async = ref.watch(postosClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Postos Revendedores')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Postos Revendedores')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/postos/buscar'),
         icon: const Icon(Icons.add),
@@ -46,7 +55,8 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Nenhum posto na sua rede ainda.', style: TextStyle(color: Colors.grey)),
+                    const Text('Nenhum posto na sua rede ainda.',
+                        style: TextStyle(color: Colors.grey)),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () => context.push('/postos/buscar'),
@@ -64,7 +74,9 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
           final filtrados = buscaLimpa.isEmpty
               ? postos
               : postos.where((p) {
-                  return (p.razaoSocial ?? '').toLowerCase().contains(buscaLimpa) ||
+                  return (p.razaoSocial ?? '')
+                          .toLowerCase()
+                          .contains(buscaLimpa) ||
                       (p.municipio ?? '').toLowerCase().contains(buscaLimpa) ||
                       p.cnpj.contains(buscaLimpa);
                 }).toList();
@@ -76,11 +88,15 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _indicador('Na rede', postos.length.toString())),
+                    Expanded(
+                        child: _indicador('Na rede', postos.length.toString())),
                     const SizedBox(width: 8),
-                    Expanded(child: _indicador('Liberados', (postos.length - bloqueados).toString())),
+                    Expanded(
+                        child: _indicador('Liberados',
+                            (postos.length - bloqueados).toString())),
                     const SizedBox(width: 8),
-                    Expanded(child: _indicador('Bloqueados', bloqueados.toString())),
+                    Expanded(
+                        child: _indicador('Bloqueados', bloqueados.toString())),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -108,7 +124,8 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text('Nenhum posto encontrado com esse filtro.', style: TextStyle(color: Colors.grey.shade600)),
+                      child: Text('Nenhum posto encontrado com esse filtro.',
+                          style: TextStyle(color: Colors.grey.shade600)),
                     ),
                   )
                 else
@@ -116,25 +133,37 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           onTap: () => context.push('/postos/${p.cnpj}'),
-                          title: Text(p.razaoSocial ?? p.cnpj, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          title: Text(p.razaoSocial ?? p.cnpj,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14)),
                           subtitle: Text(
                             [
                               p.cnpj,
-                              [p.municipio, p.uf].where((v) => v != null && v.isNotEmpty).join('/'),
-                              if (p.bandeira != null && p.bandeira!.isNotEmpty) p.bandeira!,
+                              [p.municipio, p.uf]
+                                  .where((v) => v != null && v.isNotEmpty)
+                                  .join('/'),
+                              if (p.bandeira != null && p.bandeira!.isNotEmpty)
+                                p.bandeira!,
                             ].where((v) => v.isNotEmpty).join(' · '),
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey),
                           ),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: (p.ativo ? const Color(0xFF16A34A) : const Color(0xFFD97706)).withOpacity(0.1),
+                              color: (p.ativo
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFFD97706))
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(p.ativo ? 'Ativo' : 'Bloqueado',
                                 style: TextStyle(
                                     fontSize: 11,
-                                    color: p.ativo ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                                    color: p.ativo
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFFD97706),
                                     fontWeight: FontWeight.w600)),
                           ),
                         ),
@@ -153,9 +182,12 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
         padding: const EdgeInsets.all(10),
         child: Column(
           children: [
-            Text(valor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(valor,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),

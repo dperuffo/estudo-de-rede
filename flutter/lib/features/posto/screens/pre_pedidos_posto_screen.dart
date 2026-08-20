@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/pre_pedidos_posto_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase Pré-Pedido (28/07/2026) — porta de pre-pedidos/page.tsx: o posto
 // digita o número do Pré-Pedido informado pelo motorista antes de liberar o
 // abastecimento, e confere placa/motorista/parada pré-agendada. Ver
@@ -11,7 +13,8 @@ class PrePedidosPostoScreen extends ConsumerStatefulWidget {
   const PrePedidosPostoScreen({super.key});
 
   @override
-  ConsumerState<PrePedidosPostoScreen> createState() => _PrePedidosPostoScreenState();
+  ConsumerState<PrePedidosPostoScreen> createState() =>
+      _PrePedidosPostoScreenState();
 }
 
 class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
@@ -32,10 +35,19 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async = _numeroConsultado != null ? ref.watch(consultaPrePedidoProvider(_numeroConsultado!)) : null;
+    final async = _numeroConsultado != null
+        ? ref.watch(consultaPrePedidoProvider(_numeroConsultado!))
+        : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Consulta de Pré-Pedido')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Consulta de Pré-Pedido')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -62,14 +74,16 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton(onPressed: _consultar, child: const Text('Consultar')),
+              FilledButton(
+                  onPressed: _consultar, child: const Text('Consultar')),
             ],
           ),
           const SizedBox(height: 16),
           if (async != null)
             async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Erro ao consultar: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+              error: (e, _) => Text('Erro ao consultar: $e',
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
               data: (resultado) {
                 if (resultado == null) {
                   return Card(
@@ -93,8 +107,11 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
   }
 
   Widget _cardResultado(ConsultaPrePedido r) {
-    final statusLabel =
-        r.status == 'ativo' ? 'Ativo' : r.status == 'concluido' ? 'Concluído' : 'Cancelado';
+    final statusLabel = r.status == 'ativo'
+        ? 'Ativo'
+        : r.status == 'concluido'
+            ? 'Concluído'
+            : 'Cancelado';
     final statusCor = r.status == 'ativo'
         ? const Color(0xFF16A34A)
         : r.status == 'concluido'
@@ -111,13 +128,20 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
               children: [
                 Expanded(
                   child: Text('Pré-Pedido nº ${r.numero}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: statusCor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: statusCor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12)),
                   child: Text(statusLabel,
-                      style: TextStyle(fontSize: 11, color: statusCor, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: statusCor,
+                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -135,12 +159,17 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('PARADA PRÉ-AGENDADA NESTE POSTO',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade500)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade500)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -152,16 +181,24 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (r.paradaAtendida ? const Color(0xFF16A34A) : const Color(0xFFB45309)).withOpacity(0.1),
+                          color: (r.paradaAtendida
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFB45309))
+                              .withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          r.paradaAtendida ? 'Já abastecido' : 'Autorizado — pendente',
+                          r.paradaAtendida
+                              ? 'Já abastecido'
+                              : 'Autorizado — pendente',
                           style: TextStyle(
                               fontSize: 11,
-                              color: r.paradaAtendida ? const Color(0xFF16A34A) : const Color(0xFFB45309),
+                              color: r.paradaAtendida
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFB45309),
                               fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -172,7 +209,8 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                     Text(
                       'Este veículo está autorizado a abastecer aqui. A confirmação é feita automaticamente pela '
                       'integração no momento do abastecimento.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     ),
                   ],
                 ],
@@ -189,9 +227,12 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+            Text(label,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
             const SizedBox(height: 2),
-            Text(valor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(valor,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ],
         ),
       );

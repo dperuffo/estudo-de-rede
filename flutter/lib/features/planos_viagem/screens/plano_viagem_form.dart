@@ -4,11 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show Motorista, motoristasClienteProvider, centrosCustoOpcoesProvider;
-import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
-import '../../rotograma/providers/rotograma_provider.dart' show RotogramaResumo, rotogramasListaProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show Motorista, motoristasClienteProvider, centrosCustoOpcoesProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show Veiculo, veiculosClienteProvider;
+import '../../rotograma/providers/rotograma_provider.dart'
+    show RotogramaResumo, rotogramasListaProvider;
 import '../../roteirizacao/services/pedagio_service.dart' as pedagio;
-import '../../parametros_uso/providers/parametros_uso_provider.dart' show parametroPrePedidoProvider;
+import '../../parametros_uso/providers/parametros_uso_provider.dart'
+    show parametroPrePedidoProvider;
 import '../providers/planos_viagem_provider.dart';
 import '../services/planos_viagem_service.dart';
 
@@ -26,7 +30,11 @@ class PlanoViagemForm extends ConsumerStatefulWidget {
   // Fase Pré-Pedido — só faz sentido na criação (existente == null); vem do
   // botão "Criar Plano de Viagem" na Roteirização (ver roteirizacao_screen.dart).
   final PrefillPlanoViagem? prefill;
-  const PlanoViagemForm({super.key, this.existente, this.pedagiosIniciais = const [], this.prefill});
+  const PlanoViagemForm(
+      {super.key,
+      this.existente,
+      this.pedagiosIniciais = const [],
+      this.prefill});
 
   @override
   ConsumerState<PlanoViagemForm> createState() => _PlanoViagemFormState();
@@ -45,8 +53,10 @@ class _LinhaPedagio {
     controllerPraca.text = p.pracaNome;
     controllerValor.text = p.valor == 0 ? '' : p.valor.toString();
   }
-  double get valor => double.tryParse(controllerValor.text.replaceAll(',', '.')) ?? 0;
-  Pedagio toPedagio() => Pedagio(pracaNome: controllerPraca.text.trim(), valor: valor);
+  double get valor =>
+      double.tryParse(controllerValor.text.replaceAll(',', '.')) ?? 0;
+  Pedagio toPedagio() =>
+      Pedagio(pracaNome: controllerPraca.text.trim(), valor: valor);
 
   void buscarSugestoes(String termo, void Function() onAtualizar) {
     _debounce?.cancel();
@@ -71,7 +81,8 @@ class _LinhaPedagio {
 }
 
 class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
-  late final _nomeCtrl = TextEditingController(text: widget.existente?.nome ?? widget.prefill?.nome ?? '');
+  late final _nomeCtrl = TextEditingController(
+      text: widget.existente?.nome ?? widget.prefill?.nome ?? '');
   late String _status = widget.existente?.status ?? 'rascunho';
   late String? _placa = widget.existente?.placa ?? widget.prefill?.placa;
   late String? _motoristaId = widget.existente?.motoristaId;
@@ -80,27 +91,43 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
   late String? _dataSaida = widget.existente?.dataSaida;
   late String? _retornoPrevisto = widget.existente?.retornoPrevisto;
 
-  late final _kmEstimadoCtrl = TextEditingController(text: _fmtNum(widget.existente?.kmEstimado ?? widget.prefill?.kmEstimado));
-  late final _consumoKmLCtrl = TextEditingController(text: _fmtNum(widget.existente?.consumoKmL ?? widget.prefill?.consumoKmL));
-  late final _precoCombustivelCtrl =
-      TextEditingController(text: _fmtNum(widget.existente?.precoCombustivel ?? widget.prefill?.precoCombustivel));
+  late final _kmEstimadoCtrl = TextEditingController(
+      text:
+          _fmtNum(widget.existente?.kmEstimado ?? widget.prefill?.kmEstimado));
+  late final _consumoKmLCtrl = TextEditingController(
+      text:
+          _fmtNum(widget.existente?.consumoKmL ?? widget.prefill?.consumoKmL));
+  late final _precoCombustivelCtrl = TextEditingController(
+      text: _fmtNum(widget.existente?.precoCombustivel ??
+          widget.prefill?.precoCombustivel));
 
-  late final _nDiariasCtrl = TextEditingController(text: _fmtNum(widget.existente?.nDiarias.toDouble()));
-  late final _valorRefeicaoCtrl = TextEditingController(text: _fmtNum(widget.existente?.valorRefeicaoDia));
-  late final _valorPernoiteCtrl = TextEditingController(text: _fmtNum(widget.existente?.valorPernoiteDia));
-  late final _valorBanhoCtrl = TextEditingController(text: _fmtNum(widget.existente?.valorBanhoDia));
-  late final _valorLavagemCtrl = TextEditingController(text: _fmtNum(widget.existente?.valorLavagemDia));
+  late final _nDiariasCtrl = TextEditingController(
+      text: _fmtNum(widget.existente?.nDiarias.toDouble()));
+  late final _valorRefeicaoCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.valorRefeicaoDia));
+  late final _valorPernoiteCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.valorPernoiteDia));
+  late final _valorBanhoCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.valorBanhoDia));
+  late final _valorLavagemCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.valorLavagemDia));
 
-  late final _custoManutencaoKmCtrl = TextEditingController(text: _fmtNum(widget.existente?.custoManutencaoKm));
+  late final _custoManutencaoKmCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.custoManutencaoKm));
 
-  late final _receitaViagemCtrl = TextEditingController(text: _fmtNum(widget.existente?.receitaViagem));
-  late final _custoTotalRealCtrl = TextEditingController(text: widget.existente?.custoTotalReal?.toString() ?? '');
+  late final _receitaViagemCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.receitaViagem));
+  late final _custoTotalRealCtrl = TextEditingController(
+      text: widget.existente?.custoTotalReal?.toString() ?? '');
 
-  late final _observacoesCtrl = TextEditingController(text: widget.existente?.observacoes ?? '');
+  late final _observacoesCtrl =
+      TextEditingController(text: widget.existente?.observacoes ?? '');
 
   late List<_LinhaPedagio> _pedagios = widget.pedagiosIniciais.isNotEmpty
       ? widget.pedagiosIniciais.map((p) => _LinhaPedagio.de(p)).toList()
-      : (widget.prefill?.pedagios ?? const []).map((p) => _LinhaPedagio.de(p)).toList();
+      : (widget.prefill?.pedagios ?? const [])
+          .map((p) => _LinhaPedagio.de(p))
+          .toList();
 
   double? _combustivelRealLitros;
   double? _combustivelRealValor;
@@ -110,8 +137,11 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
   bool _salvando = false;
   String? _erro;
 
-  static String _fmtNum(double? v) => (v == null || v == 0) ? '' : (v == v.roundToDouble() ? v.toInt().toString() : v.toString());
-  double _num(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
+  static String _fmtNum(double? v) => (v == null || v == 0)
+      ? ''
+      : (v == v.roundToDouble() ? v.toInt().toString() : v.toString());
+  double _num(TextEditingController c) =>
+      double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
 
   @override
   void initState() {
@@ -158,22 +188,37 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
 
   double get _custoCombustivelEstimado {
     final consumo = _num(_consumoKmLCtrl);
-    return consumo > 0 ? (_num(_kmEstimadoCtrl) / consumo) * _num(_precoCombustivelCtrl) : 0;
+    return consumo > 0
+        ? (_num(_kmEstimadoCtrl) / consumo) * _num(_precoCombustivelCtrl)
+        : 0;
   }
 
   double get _pedagiosTotal => _pedagios.fold<double>(0, (s, p) => s + p.valor);
 
   double get _custoDiarias =>
-      _num(_nDiariasCtrl) * (_num(_valorRefeicaoCtrl) + _num(_valorPernoiteCtrl) + _num(_valorBanhoCtrl) + _num(_valorLavagemCtrl));
+      _num(_nDiariasCtrl) *
+      (_num(_valorRefeicaoCtrl) +
+          _num(_valorPernoiteCtrl) +
+          _num(_valorBanhoCtrl) +
+          _num(_valorLavagemCtrl));
 
-  double get _custoManutencaoEstimado => _num(_kmEstimadoCtrl) * _num(_custoManutencaoKmCtrl);
+  double get _custoManutencaoEstimado =>
+      _num(_kmEstimadoCtrl) * _num(_custoManutencaoKmCtrl);
 
-  double get _custoTotalEstimado => _custoCombustivelEstimado + _pedagiosTotal + _custoDiarias + _custoManutencaoEstimado;
+  double get _custoTotalEstimado =>
+      _custoCombustivelEstimado +
+      _pedagiosTotal +
+      _custoDiarias +
+      _custoManutencaoEstimado;
 
-  double? get _custoTotalRealNum => _custoTotalRealCtrl.text.trim().isEmpty ? null : _num(_custoTotalRealCtrl);
+  double? get _custoTotalRealNum => _custoTotalRealCtrl.text.trim().isEmpty
+      ? null
+      : _num(_custoTotalRealCtrl);
 
   double get _margemEstimada => _num(_receitaViagemCtrl) - _custoTotalEstimado;
-  double? get _margemReal => _custoTotalRealNum != null ? _num(_receitaViagemCtrl) - _custoTotalRealNum! : null;
+  double? get _margemReal => _custoTotalRealNum != null
+      ? _num(_receitaViagemCtrl) - _custoTotalRealNum!
+      : null;
 
   void _onPlacaChange(String? novaPlaca, List<Veiculo> veiculos) {
     setState(() {
@@ -192,7 +237,9 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
   }
 
   Future<void> _selecionarData({required bool saida}) async {
-    final atual = DateTime.tryParse((saida ? _dataSaida : _retornoPrevisto) ?? '') ?? DateTime.now();
+    final atual =
+        DateTime.tryParse((saida ? _dataSaida : _retornoPrevisto) ?? '') ??
+            DateTime.now();
     final escolhida = await showDatePicker(
       context: context,
       initialDate: atual,
@@ -233,7 +280,8 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
       ref.invalidate(planoViagemDetalheProvider(existente.id));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _erroRevisao = 'Não foi possível buscar os abastecimentos reais: $e');
+      setState(() =>
+          _erroRevisao = 'Não foi possível buscar os abastecimentos reais: $e');
     } finally {
       if (mounted) setState(() => _revisandoCombustivel = false);
     }
@@ -248,7 +296,8 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
     final sessao = await ref.read(sessaoProvider.future);
     final empresaId = sessao.empresaId;
     if (empresaId == null) {
-      setState(() => _erro = 'Não foi possível identificar o cliente da sessão.');
+      setState(
+          () => _erro = 'Não foi possível identificar o cliente da sessão.');
       return;
     }
 
@@ -315,14 +364,16 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         ref.invalidate(pedagiosPlanoProvider(widget.existente!.id));
         if (!mounted) return;
         setState(() => _salvando = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Plano salvo.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Plano salvo.')));
         return;
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _erro = 'Não foi possível salvar: $e');
     } finally {
-      if (mounted && widget.existente == null) setState(() => _salvando = false);
+      if (mounted && widget.existente == null)
+        setState(() => _salvando = false);
     }
   }
 
@@ -335,7 +386,8 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
     // Fase Pré-Pedido — só relevante quando há paradas vindas do prefill da
     // Roteirização, pra avisar se um Pré-Pedido vai (ou não) ser gerado ao
     // salvar (mesma lógica condicional de PlanoViagemForm.tsx).
-    final prePedidoHabilitadoAsync = widget.existente == null && (widget.prefill?.paradas.isNotEmpty ?? false)
+    final prePedidoHabilitadoAsync = widget.existente == null &&
+            (widget.prefill?.paradas.isNotEmpty ?? false)
         ? ref.watch(parametroPrePedidoProvider)
         : null;
 
@@ -346,17 +398,21 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-            child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(_erro!,
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
           ),
           const SizedBox(height: 12),
         ],
-
         if (widget.existente == null && widget.prefill != null) ...[
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8)),
             child: Text(
               'Veículo, combustível${widget.prefill!.pedagios.isNotEmpty ? " e pedágios" : ""} preenchidos a '
               'partir da rota calculada na Roteirização. Revise e ajuste o que precisar antes de salvar.'
@@ -366,18 +422,27 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
           ),
           const SizedBox(height: 12),
         ],
-
-        const Text('Identificação', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Identificação',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         TextField(
           controller: _nomeCtrl,
-          decoration: const InputDecoration(labelText: 'Nome do Plano *', hintText: 'Ex: SP → Curitiba — Abril/2026', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Nome do Plano *',
+              hintText: 'Ex: SP → Curitiba — Abril/2026',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _status,
-          decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), isDense: true),
-          items: [for (final s in statusPlanoViagem) DropdownMenuItem(value: s, child: Text(statusPlanoViagemLabel[s] ?? s))],
+          decoration: const InputDecoration(
+              labelText: 'Status', border: OutlineInputBorder(), isDense: true),
+          items: [
+            for (final s in statusPlanoViagem)
+              DropdownMenuItem(
+                  value: s, child: Text(statusPlanoViagemLabel[s] ?? s))
+          ],
           onChanged: (v) => setState(() => _status = v ?? _status),
         ),
         const SizedBox(height: 10),
@@ -386,14 +451,25 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
             final ativos = lista.where((v) => v.ativo).toList();
             return DropdownButtonFormField<String?>(
               value: _placa,
-              decoration: const InputDecoration(labelText: 'Veículo (placa)', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Veículo (placa)',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: [
-                const DropdownMenuItem(value: null, child: Text('— Selecione —')),
-                if (_placa != null && !ativos.any((v) => v.placa == _placa)) DropdownMenuItem(value: _placa, child: Text(_placa!)),
+                const DropdownMenuItem(
+                    value: null, child: Text('— Selecione —')),
+                if (_placa != null && !ativos.any((v) => v.placa == _placa))
+                  DropdownMenuItem(value: _placa, child: Text(_placa!)),
                 for (final v in ativos)
                   DropdownMenuItem(
                     value: v.placa,
-                    child: Text('${v.placa}${[v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).isNotEmpty ? ' — ${[v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' ')}' : ''}'),
+                    child: Text('${v.placa}${[
+                      v.marca,
+                      v.modelo
+                    ].where((s) => s != null && s.isNotEmpty).isNotEmpty ? ' — ${[
+                        v.marca,
+                        v.modelo
+                      ].where((s) => s != null && s.isNotEmpty).join(' ')}' : ''}'),
                   ),
               ],
               onChanged: (v) => _onPlacaChange(v, ativos),
@@ -408,12 +484,19 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
             final ativos = lista.where((m) => m.ativo).toList();
             return DropdownButtonFormField<String?>(
               value: _motoristaId,
-              decoration: const InputDecoration(labelText: 'Motorista', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Motorista',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: [
-                const DropdownMenuItem(value: null, child: Text('— Selecione —')),
-                if (_motoristaId != null && !ativos.any((m) => m.id == _motoristaId))
-                  DropdownMenuItem(value: _motoristaId, child: Text('(motorista atual)')),
-                for (final m in ativos) DropdownMenuItem(value: m.id, child: Text(m.nomeCompleto)),
+                const DropdownMenuItem(
+                    value: null, child: Text('— Selecione —')),
+                if (_motoristaId != null &&
+                    !ativos.any((m) => m.id == _motoristaId))
+                  DropdownMenuItem(
+                      value: _motoristaId, child: Text('(motorista atual)')),
+                for (final m in ativos)
+                  DropdownMenuItem(value: m.id, child: Text(m.nomeCompleto)),
               ],
               onChanged: (v) => setState(() => _motoristaId = v),
             );
@@ -425,10 +508,18 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         rotogramasAsync.when(
           data: (lista) => DropdownButtonFormField<String?>(
             value: _rotogramaId,
-            decoration: const InputDecoration(labelText: 'Rotograma (opcional)', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Rotograma (opcional)',
+                border: OutlineInputBorder(),
+                isDense: true),
             items: [
               const DropdownMenuItem(value: null, child: Text('— Nenhum —')),
-              for (final r in lista) DropdownMenuItem(value: r.id, child: Text('#${r.numero} ${r.origem ?? '?'} → ${r.destino ?? '?'}', overflow: TextOverflow.ellipsis)),
+              for (final r in lista)
+                DropdownMenuItem(
+                    value: r.id,
+                    child: Text(
+                        '#${r.numero} ${r.origem ?? '?'} → ${r.destino ?? '?'}',
+                        overflow: TextOverflow.ellipsis)),
             ],
             onChanged: (v) => setState(() => _rotogramaId = v),
           ),
@@ -443,7 +534,11 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                 readOnly: true,
                 onTap: () => _selecionarData(saida: true),
                 controller: TextEditingController(text: _dataSaida ?? ''),
-                decoration: const InputDecoration(labelText: 'Data de Saída', border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                decoration: const InputDecoration(
+                    labelText: 'Data de Saída',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    suffixIcon: Icon(Icons.calendar_today, size: 16)),
               ),
             ),
             const SizedBox(width: 8),
@@ -452,7 +547,11 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                 readOnly: true,
                 onTap: () => _selecionarData(saida: false),
                 controller: TextEditingController(text: _retornoPrevisto ?? ''),
-                decoration: const InputDecoration(labelText: 'Retorno Previsto', border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                decoration: const InputDecoration(
+                    labelText: 'Retorno Previsto',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    suffixIcon: Icon(Icons.calendar_today, size: 16)),
               ),
             ),
           ],
@@ -461,50 +560,75 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         TextField(
           controller: _kmEstimadoCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'KM Estimado', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'KM Estimado',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 20),
-
-        const Text('Combustível', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Combustível',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _consumoKmLCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Consumo (km/L)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Consumo (km/L)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _precoCombustivelCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Preço (R\$/L)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Preço (R\$/L)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        _campoCalculado('Custo combustível estimado', _moedaForm.format(_custoCombustivelEstimado)),
+        _campoCalculado('Custo combustível estimado',
+            _moedaForm.format(_custoCombustivelEstimado)),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200)),
           child: Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Combustível real (do Controle de Custos)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade500)),
+                    Text('Combustível real (do Controle de Custos)',
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade500)),
                     const SizedBox(height: 4),
                     Text(
                       _combustivelRealValor != null
                           ? '${_moedaForm.format(_combustivelRealValor)} — ${_combustivelRealLitros?.toStringAsFixed(0) ?? 0} L'
-                          : (widget.existente != null ? 'Ainda não revisado.' : 'Disponível depois de salvar o plano.'),
-                      style: TextStyle(fontSize: 12, color: _combustivelRealValor != null ? Colors.black87 : Colors.grey.shade400),
+                          : (widget.existente != null
+                              ? 'Ainda não revisado.'
+                              : 'Disponível depois de salvar o plano.'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: _combustivelRealValor != null
+                              ? Colors.black87
+                              : Colors.grey.shade400),
                     ),
                   ],
                 ),
@@ -512,21 +636,23 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
               if (widget.existente != null)
                 OutlinedButton(
                   onPressed: _revisandoCombustivel ? null : _revisarCombustivel,
-                  child: Text(_revisandoCombustivel ? 'Revisando...' : 'Revisar', style: const TextStyle(fontSize: 12)),
+                  child: Text(
+                      _revisandoCombustivel ? 'Revisando...' : 'Revisar',
+                      style: const TextStyle(fontSize: 12)),
                 ),
             ],
           ),
         ),
         if (_erroRevisao != null) ...[
           const SizedBox(height: 6),
-          Text(_erroRevisao!, style: const TextStyle(fontSize: 11, color: Colors.red)),
+          Text(_erroRevisao!,
+              style: const TextStyle(fontSize: 11, color: Colors.red)),
         ],
         const SizedBox(height: 20),
-
         _secaoPedagios(),
         const SizedBox(height: 20),
-
-        const Text('Diárias / Pernoites', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Diárias / Pernoites',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -534,15 +660,22 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
               child: TextField(
                 controller: _nDiariasCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Nº de diárias', border: OutlineInputBorder(), isDense: true),
+                decoration: const InputDecoration(
+                    labelText: 'Nº de diárias',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _valorRefeicaoCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Refeição (R\$/dia)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Refeição (R\$/dia)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
           ],
@@ -553,16 +686,24 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
             Expanded(
               child: TextField(
                 controller: _valorPernoiteCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Pernoite (R\$/dia)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Pernoite (R\$/dia)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _valorBanhoCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Banho (R\$/dia)', border: OutlineInputBorder(), isDense: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Banho (R\$/dia)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
             ),
           ],
@@ -571,55 +712,86 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         TextField(
           controller: _valorLavagemCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Lavagem de roupas (R\$/dia)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Lavagem de roupas (R\$/dia)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 8),
         _campoCalculado('Custo diárias', _moedaForm.format(_custoDiarias)),
         const SizedBox(height: 20),
-
-        const Text('Manutenção + Pneus', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Manutenção + Pneus',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         TextField(
           controller: _custoManutencaoKmCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Custo por km (R\$/km)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Custo por km (R\$/km)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 8),
-        _campoCalculado('Custo manutenção', _moedaForm.format(_custoManutencaoEstimado)),
+        _campoCalculado(
+            'Custo manutenção', _moedaForm.format(_custoManutencaoEstimado)),
         const SizedBox(height: 20),
-
-        const Text('Receita e Totais', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Receita e Totais',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         TextField(
           controller: _receitaViagemCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Receita da viagem (R\$)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Receita da viagem (R\$)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 8),
-        _campoCalculado('Custo total estimado', _moedaForm.format(_custoTotalEstimado)),
+        _campoCalculado(
+            'Custo total estimado', _moedaForm.format(_custoTotalEstimado)),
         const SizedBox(height: 8),
         TextField(
           controller: _custoTotalRealCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Custo total real (R\$)', hintText: 'Preencher após a viagem', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Custo total real (R\$)',
+              hintText: 'Preencher após a viagem',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 8),
-        _campoCalculado('Margem estimada (receita − custo estimado)', _moedaForm.format(_margemEstimada), cor: _margemEstimada >= 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626)),
+        _campoCalculado('Margem estimada (receita − custo estimado)',
+            _moedaForm.format(_margemEstimada),
+            cor: _margemEstimada >= 0
+                ? const Color(0xFF15803D)
+                : const Color(0xFFDC2626)),
         if (_margemReal != null) ...[
           const SizedBox(height: 8),
-          _campoCalculado('Margem real (receita − custo real)', _moedaForm.format(_margemReal), cor: _margemReal! >= 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626)),
+          _campoCalculado('Margem real (receita − custo real)',
+              _moedaForm.format(_margemReal),
+              cor: _margemReal! >= 0
+                  ? const Color(0xFF15803D)
+                  : const Color(0xFFDC2626)),
         ],
         const SizedBox(height: 20),
-
-        const Text('Centro de Custo', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        const Text('Centro de Custo',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 10),
         centrosCustoAsync.when(
           data: (lista) => DropdownButtonFormField<String?>(
             value: _centroCustoId,
-            decoration: const InputDecoration(labelText: 'Centro de Custo (opcional)', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Centro de Custo (opcional)',
+                border: OutlineInputBorder(),
+                isDense: true),
             items: [
-              const DropdownMenuItem(value: null, child: Text('— Nenhum (sem lançamento automático) —')),
-              for (final c in lista) DropdownMenuItem(value: c.id, child: Text(c.nome, overflow: TextOverflow.ellipsis)),
+              const DropdownMenuItem(
+                  value: null,
+                  child: Text('— Nenhum (sem lançamento automático) —')),
+              for (final c in lista)
+                DropdownMenuItem(
+                    value: c.id,
+                    child: Text(c.nome, overflow: TextOverflow.ellipsis)),
             ],
             onChanged: (v) => setState(() => _centroCustoId = v),
           ),
@@ -630,10 +802,10 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         TextField(
           controller: _observacoesCtrl,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Observações', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Observações', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 20),
-
         SizedBox(
           width: double.infinity,
           child: FilledButton(
@@ -663,13 +835,21 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+          Text(label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
           const SizedBox(height: 2),
-          Text(valor, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: cor ?? Colors.black87)),
+          Text(valor,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: cor ?? Colors.black87)),
         ],
       ),
     );
@@ -682,16 +862,25 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Expanded(child: Text('Pedágios', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
+            const Expanded(
+                child: Text('Pedágios',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
             OutlinedButton(
-              onPressed: () => setState(() => _pedagios = [..._pedagios, _LinhaPedagio()]),
+              onPressed: () =>
+                  setState(() => _pedagios = [..._pedagios, _LinhaPedagio()]),
               child: const Text('+ Praça', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
         const SizedBox(height: 8),
         if (_pedagios.isEmpty)
-          const Text('Nenhuma praça de pedágio adicionada. Toque em "+ Praça" para adicionar.', style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic))
+          const Text(
+              'Nenhuma praça de pedágio adicionada. Toque em "+ Praça" para adicionar.',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic))
         else
           ..._pedagios.asMap().entries.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -705,10 +894,14 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                           child: TextField(
                             controller: e.value.controllerPraca,
                             decoration: const InputDecoration(
-                                labelText: 'Nome da praça', hintText: 'Buscar na base de pedágios...', border: OutlineInputBorder(), isDense: true),
+                                labelText: 'Nome da praça',
+                                hintText: 'Buscar na base de pedágios...',
+                                border: OutlineInputBorder(),
+                                isDense: true),
                             onChanged: (v) {
                               setState(() {});
-                              e.value.buscarSugestoes(v, () => mounted ? setState(() {}) : null);
+                              e.value.buscarSugestoes(
+                                  v, () => mounted ? setState(() {}) : null);
                             },
                           ),
                         ),
@@ -716,13 +909,18 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                         Expanded(
                           child: TextField(
                             controller: e.value.controllerValor,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(labelText: 'Valor', border: OutlineInputBorder(), isDense: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            decoration: const InputDecoration(
+                                labelText: 'Valor',
+                                border: OutlineInputBorder(),
+                                isDense: true),
                             onChanged: (_) => setState(() {}),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                          icon: const Icon(Icons.close,
+                              size: 18, color: Colors.red),
                           onPressed: () => setState(() {
                             e.value.dispose();
                             _pedagios = List.of(_pedagios)..removeAt(e.key);
@@ -733,19 +931,28 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                     if (e.value.sugestoes.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(6)),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: e.value.sugestoes
                               .map((s) => ListTile(
                                     dense: true,
-                                    title: Text(s.nome, style: const TextStyle(fontSize: 13)),
+                                    title: Text(s.nome,
+                                        style: const TextStyle(fontSize: 13)),
                                     subtitle: Text(
-                                      [s.rodovia, s.concessionaria].where((x) => x != null && x.isNotEmpty).join(' · '),
+                                      [s.rodovia, s.concessionaria]
+                                          .where(
+                                              (x) => x != null && x.isNotEmpty)
+                                          .join(' · '),
                                       style: const TextStyle(fontSize: 11),
                                     ),
-                                    trailing: s.valorCarro != null ? Text(_moedaForm.format(s.valorCarro)) : null,
-                                    onTap: () => setState(() => e.value.selecionar(s)),
+                                    trailing: s.valorCarro != null
+                                        ? Text(_moedaForm.format(s.valorCarro))
+                                        : null,
+                                    onTap: () =>
+                                        setState(() => e.value.selecionar(s)),
                                   ))
                               .toList(),
                         ),
@@ -755,7 +962,9 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
               )),
         Align(
           alignment: Alignment.centerRight,
-          child: Text('Total Pedágios: ${_moedaForm.format(_pedagiosTotal)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text('Total Pedágios: ${_moedaForm.format(_pedagiosTotal)}',
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ),
       ],
     );

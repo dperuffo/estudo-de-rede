@@ -35,7 +35,8 @@ class ConsultaPrePedido {
     required this.paradaAtendida,
   });
 
-  factory ConsultaPrePedido.fromMap(Map<String, dynamic> m) => ConsultaPrePedido(
+  factory ConsultaPrePedido.fromMap(Map<String, dynamic> m) =>
+      ConsultaPrePedido(
         prePedidoId: m['pre_pedido_id'] as String,
         numero: m['numero'] as int,
         status: m['status'] as String? ?? 'ativo',
@@ -44,17 +45,20 @@ class ConsultaPrePedido {
         dataSaida: m['data_saida'] as String?,
         kmEstimado: (m['km_estimado'] as num?)?.toDouble(),
         paradaPostoNome: m['parada_posto_nome'] as String?,
-        paradaLitrosPrevistos: (m['parada_litros_previstos'] as num?)?.toDouble(),
+        paradaLitrosPrevistos:
+            (m['parada_litros_previstos'] as num?)?.toDouble(),
         paradaAtendida: m['parada_atendida'] as bool? ?? false,
       );
 }
 
-final consultaPrePedidoProvider = FutureProvider.autoDispose.family<ConsultaPrePedido?, int>((ref, numero) async {
+final consultaPrePedidoProvider = FutureProvider.autoDispose
+    .family<ConsultaPrePedido?, int>((ref, numero) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null || numero <= 0) return null;
 
-  final rows = await SupabaseService.client.rpc('consultar_pre_pedido_para_posto', params: {
+  final rows = await SupabaseService.client
+      .rpc('consultar_pre_pedido_para_posto', params: {
     'p_numero': numero,
     'p_empresa_posto_id': empresaId,
   }) as List;

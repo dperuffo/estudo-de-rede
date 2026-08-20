@@ -32,7 +32,8 @@ class StatusAtualMotorista {
     required this.excedeuLimite,
   });
 
-  factory StatusAtualMotorista.fromMap(Map<String, dynamic> m) => StatusAtualMotorista(
+  factory StatusAtualMotorista.fromMap(Map<String, dynamic> m) =>
+      StatusAtualMotorista(
         motoristaId: m['motorista_id'] as String,
         nomeCompleto: m['nome_completo'] as String,
         estado: m['estado'] as String,
@@ -43,14 +44,18 @@ class StatusAtualMotorista {
       );
 }
 
-final statusAtualJornadaProvider = FutureProvider.autoDispose<List<StatusAtualMotorista>>((ref) async {
+final statusAtualJornadaProvider =
+    FutureProvider.autoDispose<List<StatusAtualMotorista>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('jornada_motorista_status_atual', params: {
+  final rows = await SupabaseService.client
+      .rpc('jornada_motorista_status_atual', params: {
     'p_empresa_id': empresaId,
   }) as List;
-  return rows.map((r) => StatusAtualMotorista.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => StatusAtualMotorista.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 class IndicadorDiarioMotorista {
@@ -76,7 +81,8 @@ class IndicadorDiarioMotorista {
     required this.alertasDescansoInsuficiente,
   });
 
-  factory IndicadorDiarioMotorista.fromMap(Map<String, dynamic> m) => IndicadorDiarioMotorista(
+  factory IndicadorDiarioMotorista.fromMap(Map<String, dynamic> m) =>
+      IndicadorDiarioMotorista(
         motoristaId: m['motorista_id'] as String,
         nomeCompleto: m['nome_completo'] as String,
         dia: DateTime.parse(m['dia'] as String),
@@ -84,23 +90,29 @@ class IndicadorDiarioMotorista {
         horasPausa: (m['horas_pausa'] as num?)?.toDouble() ?? 0,
         horasDescanso: (m['horas_descanso'] as num?)?.toDouble() ?? 0,
         numPausas: (m['num_pausas'] as num?)?.toInt() ?? 0,
-        alertasConducaoContinua: (m['alertas_conducao_continua'] as num?)?.toInt() ?? 0,
-        alertasDescansoInsuficiente: (m['alertas_descanso_insuficiente'] as num?)?.toInt() ?? 0,
+        alertasConducaoContinua:
+            (m['alertas_conducao_continua'] as num?)?.toInt() ?? 0,
+        alertasDescansoInsuficiente:
+            (m['alertas_descanso_insuficiente'] as num?)?.toInt() ?? 0,
       );
 }
 
 typedef FiltroJornada = ({String dataInicio, String dataFim});
 
-final indicadoresJornadaProvider = FutureProvider.autoDispose.family<List<IndicadorDiarioMotorista>, FiltroJornada>((ref, filtro) async {
+final indicadoresJornadaProvider = FutureProvider.autoDispose
+    .family<List<IndicadorDiarioMotorista>, FiltroJornada>((ref, filtro) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('jornada_motorista_indicadores_diarios', params: {
+  final rows = await SupabaseService.client
+      .rpc('jornada_motorista_indicadores_diarios', params: {
     'p_empresa_id': empresaId,
     'p_data_inicio': filtro.dataInicio,
     'p_data_fim': filtro.dataFim,
   }) as List;
-  return rows.map((r) => IndicadorDiarioMotorista.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => IndicadorDiarioMotorista.fromMap(r as Map<String, dynamic>))
+      .toList();
 });
 
 // Fase Painel-Jornada-Motorista (17/08/2026, pedido do Daniel: "senti falta
@@ -127,7 +139,8 @@ class RegistroDetalhadoMotorista {
     required this.emAndamento,
   });
 
-  factory RegistroDetalhadoMotorista.fromMap(Map<String, dynamic> m) => RegistroDetalhadoMotorista(
+  factory RegistroDetalhadoMotorista.fromMap(Map<String, dynamic> m) =>
+      RegistroDetalhadoMotorista(
         motoristaId: m['motorista_id'] as String,
         nomeCompleto: m['nome_completo'] as String,
         tipoSegmento: m['tipo_segmento'] as String,
@@ -138,14 +151,19 @@ class RegistroDetalhadoMotorista {
       );
 }
 
-final registroDetalhadoJornadaProvider = FutureProvider.autoDispose.family<List<RegistroDetalhadoMotorista>, FiltroJornada>((ref, filtro) async {
+final registroDetalhadoJornadaProvider = FutureProvider.autoDispose
+    .family<List<RegistroDetalhadoMotorista>, FiltroJornada>(
+        (ref, filtro) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('jornada_motorista_registro_detalhado', params: {
+  final rows = await SupabaseService.client
+      .rpc('jornada_motorista_registro_detalhado', params: {
     'p_empresa_id': empresaId,
     'p_data_inicio': filtro.dataInicio,
     'p_data_fim': filtro.dataFim,
   }) as List;
-  return rows.map((r) => RegistroDetalhadoMotorista.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => RegistroDetalhadoMotorista.fromMap(r as Map<String, dynamic>))
+      .toList();
 });

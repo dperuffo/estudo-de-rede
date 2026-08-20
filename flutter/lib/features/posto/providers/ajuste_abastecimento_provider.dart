@@ -61,7 +61,8 @@ class AbastecimentoParaAjuste {
     this.faturaPostoId,
   });
 
-  String get identificadorTipo => provedor == 'profrotas' ? 'profrotas' : 'externo';
+  String get identificadorTipo =>
+      provedor == 'profrotas' ? 'profrotas' : 'externo';
   bool get cicloFechado => faturaPostoId != null;
 }
 
@@ -118,7 +119,8 @@ class AjusteAbastecimentoDetalhe {
   final AjusteAberto? ajusteAberto;
   final List<RodadaAjuste> rodadas;
 
-  const AjusteAbastecimentoDetalhe({required this.abastecimento, this.ajusteAberto, required this.rodadas});
+  const AjusteAbastecimentoDetalhe(
+      {required this.abastecimento, this.ajusteAberto, required this.rodadas});
 
   // "chave" no formato "provedor:id" — igual à usada na lista de
   // Abastecimentos (abastecimentos_posto_service.dart).
@@ -127,8 +129,8 @@ class AjusteAbastecimentoDetalhe {
 
 // A rota usa "chave" = "provedor:id" (mesmo formato de
 // RegistroAbastecimentoPosto.chave). Faz o split aqui.
-final ajusteAbastecimentoProvider =
-    FutureProvider.autoDispose.family<AjusteAbastecimentoDetalhe, String>((ref, chave) async {
+final ajusteAbastecimentoProvider = FutureProvider.autoDispose
+    .family<AjusteAbastecimentoDetalhe, String>((ref, chave) async {
   final partes = chave.split(':');
   final provedor = partes.first;
   final idTexto = partes.sublist(1).join(':');
@@ -153,8 +155,8 @@ final ajusteAbastecimentoProvider =
   String? nomeCliente;
   final empresaClienteId = linha['empresa_id'] as String?;
   if (empresaClienteId != null) {
-    nomeCliente =
-        await supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaClienteId}) as String?;
+    nomeCliente = await supabase.rpc('nome_empresa_publico',
+        params: {'p_empresa_id': empresaClienteId}) as String?;
   }
 
   final abastecimento = AbastecimentoParaAjuste(
@@ -175,10 +177,13 @@ final ajusteAbastecimentoProvider =
   );
 
   if (empresaPostoId == null) {
-    return AjusteAbastecimentoDetalhe(abastecimento: abastecimento, rodadas: const []);
+    return AjusteAbastecimentoDetalhe(
+        abastecimento: abastecimento, rodadas: const []);
   }
 
-  final colunaId = abastecimento.identificadorTipo == 'profrotas' ? 'abastecimento_id' : 'abastecimento_externo_id';
+  final colunaId = abastecimento.identificadorTipo == 'profrotas'
+      ? 'abastecimento_id'
+      : 'abastecimento_externo_id';
   final idNumerico = int.tryParse(abastecimento.id);
 
   Map<String, dynamic>? ajusteRaw;
@@ -188,15 +193,17 @@ final ajusteAbastecimentoProvider =
         .select('id, status')
         .eq(colunaId, idNumerico)
         .eq('empresa_posto_id', empresaPostoId)
-        .inFilter('status', ['pendente_cliente', 'pendente_posto'])
-        .maybeSingle();
+        .inFilter(
+            'status', ['pendente_cliente', 'pendente_posto']).maybeSingle();
   }
 
   if (ajusteRaw == null) {
-    return AjusteAbastecimentoDetalhe(abastecimento: abastecimento, rodadas: const []);
+    return AjusteAbastecimentoDetalhe(
+        abastecimento: abastecimento, rodadas: const []);
   }
 
-  final ajusteAberto = AjusteAberto(id: ajusteRaw['id'] as String, status: ajusteRaw['status'] as String);
+  final ajusteAberto = AjusteAberto(
+      id: ajusteRaw['id'] as String, status: ajusteRaw['status'] as String);
 
   final rodadasRaw = await supabase
       .from('ajustes_abastecimentos_rodadas')

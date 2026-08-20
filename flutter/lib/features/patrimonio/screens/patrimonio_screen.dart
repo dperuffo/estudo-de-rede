@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/patrimonio_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 // Fase Grupo 2 (Rodopar/Datapar, item 6, 03/08/2026) — Patrimônio (cliente),
@@ -27,7 +29,8 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
   }
 
   void _aplicarFiltros() {
-    setState(() => _busca = _buscaCtrl.text.trim().isEmpty ? null : _buscaCtrl.text.trim());
+    setState(() => _busca =
+        _buscaCtrl.text.trim().isEmpty ? null : _buscaCtrl.text.trim());
   }
 
   @override
@@ -36,7 +39,14 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
     final resumoAsync = ref.watch(patrimonioResumoProvider(filtros));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Patrimônio')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Patrimônio')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(patrimonioResumoProvider),
         child: ListView(
@@ -64,27 +74,38 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(onPressed: _aplicarFiltros, child: const Text('Filtrar')),
+                FilledButton(
+                    onPressed: _aplicarFiltros, child: const Text('Filtrar')),
               ],
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _ordenar,
-              decoration: const InputDecoration(labelText: 'Ordenar por', border: OutlineInputBorder(), isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Ordenar por',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: const [
                 DropdownMenuItem(value: '', child: Text('Placa')),
-                DropdownMenuItem(value: 'valor_contabil_asc', child: Text('Menor valor contábil primeiro')),
-                DropdownMenuItem(value: 'percentual_desc', child: Text('Mais depreciado primeiro')),
+                DropdownMenuItem(
+                    value: 'valor_contabil_asc',
+                    child: Text('Menor valor contábil primeiro')),
+                DropdownMenuItem(
+                    value: 'percentual_desc',
+                    child: Text('Mais depreciado primeiro')),
               ],
               onChanged: (v) => setState(() => _ordenar = v ?? ''),
             ),
             const SizedBox(height: 16),
             resumoAsync.when(
               data: (lista) => _corpo(lista),
-              loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Center(child: CircularProgressIndicator())),
+              loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator())),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text('Erro ao carregar: $e', style: const TextStyle(color: Colors.red)),
+                child: Text('Erro ao carregar: $e',
+                    style: const TextStyle(color: Colors.red)),
               ),
             ),
           ],
@@ -97,33 +118,44 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
     if (lista.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: Text('Nenhum veículo encontrado para esse filtro.', style: TextStyle(color: Colors.grey))),
+        child: Center(
+            child: Text('Nenhum veículo encontrado para esse filtro.',
+                style: TextStyle(color: Colors.grey))),
       );
     }
 
     final comAquisicao = lista.where((v) => v.patrimonioCompleto).toList();
     final semAquisicao = lista.length - comAquisicao.length;
-    final valorAquisicaoTotal = comAquisicao.fold<double>(0, (s, v) => s + (v.valorAquisicao ?? 0));
-    final depreciacaoTotal = comAquisicao.fold<double>(0, (s, v) => s + (v.depreciacaoAcumulada ?? 0));
-    final valorContabilTotal = comAquisicao.fold<double>(0, (s, v) => s + (v.valorContabilLiquido ?? 0));
-    final vidaUtilEsgotada = comAquisicao.where((v) => !v.baixado && (v.percentualDepreciado ?? 0) >= 100).length;
+    final valorAquisicaoTotal =
+        comAquisicao.fold<double>(0, (s, v) => s + (v.valorAquisicao ?? 0));
+    final depreciacaoTotal = comAquisicao.fold<double>(
+        0, (s, v) => s + (v.depreciacaoAcumulada ?? 0));
+    final valorContabilTotal = comAquisicao.fold<double>(
+        0, (s, v) => s + (v.valorContabilLiquido ?? 0));
+    final vidaUtilEsgotada = comAquisicao
+        .where((v) => !v.baixado && (v.percentualDepreciado ?? 0) >= 100)
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            _indicador('Valor de aquisição', _moeda.format(valorAquisicaoTotal)),
+            _indicador(
+                'Valor de aquisição', _moeda.format(valorAquisicaoTotal)),
             const SizedBox(width: 8),
-            _indicador('Depreciação acumulada', _moeda.format(depreciacaoTotal)),
+            _indicador(
+                'Depreciação acumulada', _moeda.format(depreciacaoTotal)),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            _indicador('Valor contábil líquido', _moeda.format(valorContabilTotal)),
+            _indicador(
+                'Valor contábil líquido', _moeda.format(valorContabilTotal)),
             const SizedBox(width: 8),
-            _indicador('Vida útil esgotada', '$vidaUtilEsgotada', destaque: vidaUtilEsgotada > 0),
+            _indicador('Vida útil esgotada', '$vidaUtilEsgotada',
+                destaque: vidaUtilEsgotada > 0),
           ],
         ),
         if (semAquisicao > 0) ...[
@@ -131,7 +163,10 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFFDE68A))),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE68A))),
             child: Text(
               '⚠️ $semAquisicao veículo(s) sem valor/data de aquisição cadastrado — não entram no Patrimônio. '
               'Complete o cadastro em Veículos.',
@@ -152,14 +187,24 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
         decoration: BoxDecoration(
           color: destaque ? const Color(0xFFFFFBEB) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
+          border: Border.all(
+              color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(valor, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: destaque ? const Color(0xFF92400E) : Colors.black87)),
+            Text(valor,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color:
+                        destaque ? const Color(0xFF92400E) : Colors.black87)),
           ],
         ),
       ),
@@ -189,9 +234,14 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
         onTap: () => context.push('/patrimonio/${v.placa}'),
         title: Row(
           children: [
-            Expanded(child: Text(v.placa, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
+            Expanded(
+                child: Text(v.placa,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14))),
             Text(
-              v.valorContabilLiquido != null ? _moeda.format(v.valorContabilLiquido!) : '—',
+              v.valorContabilLiquido != null
+                  ? _moeda.format(v.valorContabilLiquido!)
+                  : '—',
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
             ),
           ],
@@ -202,7 +252,9 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                [v.marca, v.modelo].where((s) => s != null && s.isNotEmpty).join(' '),
+                [v.marca, v.modelo]
+                    .where((s) => s != null && s.isNotEmpty)
+                    .join(' '),
                 style: const TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 4),
@@ -216,9 +268,14 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                     ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: corBadge, borderRadius: BorderRadius.circular(10)),
-                    child: Text(textoBadge, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: corBadge,
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text(textoBadge,
+                        style: const TextStyle(
+                            fontSize: 9, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),

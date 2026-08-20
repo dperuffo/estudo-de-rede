@@ -9,6 +9,8 @@ import '../providers/negociacao_detalhe_cliente_provider.dart';
 import '../providers/negociacoes_cliente_provider.dart';
 import '../services/negociacoes_cliente_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — cria a rodada 1 de uma negociação nova (cliente), espelhando
 // negociacoes/novo/page.tsx + FormularioNovaNegociacao.tsx da web (lado
 // cliente: informa o CNPJ do posto-alvo). Diferente do lado posto (onde o
@@ -20,10 +22,12 @@ class CriarNegociacaoClienteScreen extends ConsumerStatefulWidget {
   const CriarNegociacaoClienteScreen({super.key});
 
   @override
-  ConsumerState<CriarNegociacaoClienteScreen> createState() => _CriarNegociacaoClienteScreenState();
+  ConsumerState<CriarNegociacaoClienteScreen> createState() =>
+      _CriarNegociacaoClienteScreenState();
 }
 
-class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoClienteScreen> {
+class _CriarNegociacaoClienteScreenState
+    extends ConsumerState<CriarNegociacaoClienteScreen> {
   final _service = NegociacoesClienteService();
   final _cnpjPosto = TextEditingController();
   final _volume = TextEditingController();
@@ -62,7 +66,8 @@ class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoCl
     final sessao = ref.read(sessaoProvider).valueOrNull;
     final empresaClienteId = sessao?.empresaId;
     if (empresaClienteId == null) {
-      setState(() => _erro = 'Não foi possível identificar sua empresa nesta sessão.');
+      setState(() =>
+          _erro = 'Não foi possível identificar sua empresa nesta sessão.');
       return;
     }
     if (_cnpjPosto.text.trim().isEmpty) {
@@ -76,11 +81,13 @@ class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoCl
     final volume = double.tryParse(_volume.text.trim().replaceAll(',', '.'));
     final preco = double.tryParse(_preco.text.trim().replaceAll(',', '.'));
     if (volume == null || volume <= 0) {
-      setState(() => _erro = 'Volume mínimo mensal precisa ser um número maior que zero.');
+      setState(() =>
+          _erro = 'Volume mínimo mensal precisa ser um número maior que zero.');
       return;
     }
     if (preco == null || preco <= 0) {
-      setState(() => _erro = 'Preço por litro precisa ser um número maior que zero.');
+      setState(() =>
+          _erro = 'Preço por litro precisa ser um número maior que zero.');
       return;
     }
     if (_inicio.text.trim().isEmpty || _fim.text.trim().isEmpty) {
@@ -125,7 +132,14 @@ class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoCl
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova negociação')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Nova negociação')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
@@ -138,8 +152,12 @@ class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoCl
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],
@@ -161,8 +179,13 @@ class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoCl
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _combustivel,
-            decoration: const InputDecoration(labelText: 'Combustível', border: OutlineInputBorder(), isDense: true),
-            items: produtosPosto.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+            decoration: const InputDecoration(
+                labelText: 'Combustível',
+                border: OutlineInputBorder(),
+                isDense: true),
+            items: produtosPosto
+                .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                .toList(),
             onChanged: (v) => setState(() => _combustivel = v),
           ),
           const SizedBox(height: 12),
@@ -213,7 +236,10 @@ class _CriarNegociacaoClienteScreenState extends ConsumerState<CriarNegociacaoCl
             child: ElevatedButton(
               onPressed: _enviando ? null : _enviar,
               child: _enviando
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Enviar negociação'),
             ),
           ),

@@ -26,7 +26,8 @@ const _paletaOutrasBandeiras = [
   Color(0xFF546E7A), // azul acinzentado
 ];
 
-bool _contemPalavra(String texto, String palavra) => RegExp('\\b$palavra\\b').hasMatch(texto);
+bool _contemPalavra(String texto, String palavra) =>
+    RegExp('\\b$palavra\\b').hasMatch(texto);
 
 // Pedido do Daniel: "diferenciar as cores das bolinhas por bandeira" —
 // padrão fixo Ipiranga/amarela, Shell e Raízen/vermelha, BR/Vibra (mesma
@@ -38,9 +39,13 @@ bool _contemPalavra(String texto, String palavra) => RegExp('\\b$palavra\\b').ha
 Color corBandeira(String? bandeira) {
   final norm = normalizarTexto(bandeira);
   if (norm.isEmpty) return Colors.grey.shade500;
-  if (_contemPalavra(norm, 'IPIRANGA')) return const Color(0xFFFBC02D); // amarela
-  if (_contemPalavra(norm, 'SHELL') || _contemPalavra(norm, 'RAIZEN')) return const Color(0xFFE53935); // vermelha
-  if (_contemPalavra(norm, 'BR') || _contemPalavra(norm, 'VIBRA') || _contemPalavra(norm, 'PETROBRAS')) {
+  if (_contemPalavra(norm, 'IPIRANGA'))
+    return const Color(0xFFFBC02D); // amarela
+  if (_contemPalavra(norm, 'SHELL') || _contemPalavra(norm, 'RAIZEN'))
+    return const Color(0xFFE53935); // vermelha
+  if (_contemPalavra(norm, 'BR') ||
+      _contemPalavra(norm, 'VIBRA') ||
+      _contemPalavra(norm, 'PETROBRAS')) {
     return const Color(0xFF43A047); // verde
   }
   final idx = norm.hashCode.abs() % _paletaOutrasBandeiras.length;
@@ -49,7 +54,10 @@ Color corBandeira(String? bandeira) {
 
 // Rótulo de exibição pra bandeira nula/vazia — usado igual no mapa, na
 // legenda e no filtro, pra bater o mesmo texto nos 3 lugares.
-String rotuloBandeira(String? bandeira) => (bandeira == null || bandeira.trim().isEmpty) ? 'Sem bandeira' : bandeira.trim();
+String rotuloBandeira(String? bandeira) =>
+    (bandeira == null || bandeira.trim().isEmpty)
+        ? 'Sem bandeira'
+        : bandeira.trim();
 
 // Fase FLT-3 — mapa interativo (pedido do Daniel: "integrar mapas OSM na
 // interface do PWA com os postos plotados nos mapas nas consultas
@@ -94,7 +102,9 @@ class MapaPostos extends StatelessWidget {
   // postos tem bandeiras demais e variadas pra isso), sempre com a mesma
   // cor de corBandeira() usada nas bolinhas do mapa.
   Widget _legenda(List<PostoComScore> pontosComCoord) {
-    final bandeiras = <String>{for (final p in pontosComCoord) rotuloBandeira(p.bandeira)};
+    final bandeiras = <String>{
+      for (final p in pontosComCoord) rotuloBandeira(p.bandeira)
+    };
     if (bandeiras.isEmpty) return const SizedBox.shrink();
     final lista = bandeiras.toList()..sort();
 
@@ -104,13 +114,19 @@ class MapaPostos extends StatelessWidget {
         spacing: 12,
         runSpacing: 6,
         children: lista.map((b) {
-          final cor = b == 'Sem bandeira' ? Colors.grey.shade500 : corBandeira(b);
+          final cor =
+              b == 'Sem bandeira' ? Colors.grey.shade500 : corBandeira(b);
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: cor)),
+              Container(
+                  width: 10,
+                  height: 10,
+                  decoration:
+                      BoxDecoration(shape: BoxShape.circle, color: cor)),
               const SizedBox(width: 4),
-              Text(b, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+              Text(b,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
             ],
           );
         }).toList(),
@@ -120,19 +136,22 @@ class MapaPostos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pontosComCoord = postos.where((p) => p.lat != null && p.lon != null).toList();
+    final pontosComCoord =
+        postos.where((p) => p.lat != null && p.lon != null).toList();
 
     final todasLat = <double>[
       ...pontosComCoord.map((p) => p.lat!),
       if (rota != null) ...rota!.map((p) => p.lat),
       if (pracasPedagio != null) ...pracasPedagio!.map((p) => p.lat),
-      if (rotasAlternativas != null) ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => p.lat)),
+      if (rotasAlternativas != null)
+        ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => p.lat)),
     ];
     final todasLon = <double>[
       ...pontosComCoord.map((p) => p.lon!),
       if (rota != null) ...rota!.map((p) => p.lon),
       if (pracasPedagio != null) ...pracasPedagio!.map((p) => p.lon),
-      if (rotasAlternativas != null) ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => p.lon)),
+      if (rotasAlternativas != null)
+        ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => p.lon)),
     ];
 
     final contador = Padding(
@@ -151,7 +170,8 @@ class MapaPostos extends StatelessWidget {
           SizedBox(
             height: height,
             child: const Center(
-              child: Text('Sem coordenadas para exibir no mapa', style: TextStyle(color: Colors.grey)),
+              child: Text('Sem coordenadas para exibir no mapa',
+                  style: TextStyle(color: Colors.grey)),
             ),
           ),
         ],
@@ -161,9 +181,11 @@ class MapaPostos extends StatelessWidget {
     final bounds = LatLngBounds.fromPoints([
       ...pontosComCoord.map((p) => ll.LatLng(p.lat!, p.lon!)),
       if (rota != null) ...rota!.map((p) => ll.LatLng(p.lat, p.lon)),
-      if (pracasPedagio != null) ...pracasPedagio!.map((p) => ll.LatLng(p.lat, p.lon)),
+      if (pracasPedagio != null)
+        ...pracasPedagio!.map((p) => ll.LatLng(p.lat, p.lon)),
       if (rotasAlternativas != null)
-        ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => ll.LatLng(p.lat, p.lon))),
+        ...rotasAlternativas!
+            .expand((r) => r.coordenadas.map((p) => ll.LatLng(p.lat, p.lon))),
     ]);
 
     final cnpjsComParada = (paradas ?? []).map((p) => p.candidato.cnpj).toSet();
@@ -178,7 +200,8 @@ class MapaPostos extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: FlutterMap(
               options: MapOptions(
-                initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(32)),
+                initialCameraFit: CameraFit.bounds(
+                    bounds: bounds, padding: const EdgeInsets.all(32)),
                 minZoom: 2,
                 maxZoom: 18,
               ),
@@ -197,15 +220,20 @@ class MapaPostos extends StatelessWidget {
                       for (final op in rotasAlternativas!)
                         if (op.id != rotaSelecionadaId)
                           Polyline(
-                            points: op.coordenadas.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
+                            points: op.coordenadas
+                                .map((p) => ll.LatLng(p.lat, p.lon))
+                                .toList(),
                             strokeWidth: 3,
                             color: Colors.grey.shade500,
-                            pattern: StrokePattern.dashed(segments: const [8, 6]),
+                            pattern:
+                                StrokePattern.dashed(segments: const [8, 6]),
                           ),
                       for (final op in rotasAlternativas!)
                         if (op.id == rotaSelecionadaId)
                           Polyline(
-                            points: op.coordenadas.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
+                            points: op.coordenadas
+                                .map((p) => ll.LatLng(p.lat, p.lon))
+                                .toList(),
                             strokeWidth: 5,
                             color: Colors.blue.shade600,
                           ),
@@ -215,7 +243,8 @@ class MapaPostos extends StatelessWidget {
                   PolylineLayer(
                     polylines: [
                       Polyline(
-                        points: rota!.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
+                        points:
+                            rota!.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
                         strokeWidth: 4,
                         color: Colors.blue.shade600,
                       ),
@@ -230,16 +259,20 @@ class MapaPostos extends StatelessWidget {
                       width: tamanho,
                       height: tamanho,
                       child: Tooltip(
-                        message: '${p.razaoSocial ?? p.cnpj}${ehParada ? ' — parada sugerida' : ''}',
+                        message:
+                            '${p.razaoSocial ?? p.cnpj}${ehParada ? ' — parada sugerida' : ''}',
                         child: Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: corBandeira(p.bandeira),
                             border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black38, blurRadius: 3)
+                            ],
                           ),
                           child: ehParada
-                              ? const Icon(Icons.local_gas_station, color: Colors.white, size: 16)
+                              ? const Icon(Icons.local_gas_station,
+                                  color: Colors.white, size: 16)
                               : null,
                         ),
                       ),
@@ -254,8 +287,10 @@ class MapaPostos extends StatelessWidget {
                         width: 24,
                         height: 24,
                         child: Tooltip(
-                          message: '${p.nome}${p.valorCarro != null ? ' — R\$ ${p.valorCarro!.toStringAsFixed(2)}' : ''}',
-                          child: const Text('🎫', style: TextStyle(fontSize: 18)),
+                          message:
+                              '${p.nome}${p.valorCarro != null ? ' — R\$ ${p.valorCarro!.toStringAsFixed(2)}' : ''}',
+                          child:
+                              const Text('🎫', style: TextStyle(fontSize: 18)),
                         ),
                       );
                     }).toList(),
@@ -275,12 +310,16 @@ class MapaPostos extends StatelessWidget {
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Container(width: 16, height: 3, color: Colors.blue.shade600),
                   const SizedBox(width: 4),
-                  Text('Rota selecionada', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                  Text('Rota selecionada',
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade700)),
                 ]),
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Container(width: 16, height: 2, color: Colors.grey.shade500),
                   const SizedBox(width: 4),
-                  Text('Alternativa', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                  Text('Alternativa',
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade700)),
                 ]),
               ],
             ),

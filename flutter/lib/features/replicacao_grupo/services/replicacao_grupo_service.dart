@@ -13,7 +13,8 @@ class EmpresaAlvoReplicacao {
   final String nome;
   EmpresaAlvoReplicacao({required this.empresaId, required this.nome});
 
-  factory EmpresaAlvoReplicacao.fromMap(Map<String, dynamic> m) => EmpresaAlvoReplicacao(
+  factory EmpresaAlvoReplicacao.fromMap(Map<String, dynamic> m) =>
+      EmpresaAlvoReplicacao(
         empresaId: m['empresa_id'] as String,
         nome: (m['nome'] as String?) ?? '—',
       );
@@ -50,12 +51,16 @@ class ResultadoReplicacao {
 class ReplicacaoGrupoService {
   final _supabase = SupabaseService.client;
 
-  Future<List<EmpresaAlvoReplicacao>> buscarEmpresasAlvo(String empresaOrigemId) async {
+  Future<List<EmpresaAlvoReplicacao>> buscarEmpresasAlvo(
+      String empresaOrigemId) async {
     try {
-      final rows = await _supabase.rpc('listar_empresas_alvo_replicacao', params: {
+      final rows =
+          await _supabase.rpc('listar_empresas_alvo_replicacao', params: {
         'p_empresa_origem_id': empresaOrigemId,
       }) as List;
-      return rows.map((r) => EmpresaAlvoReplicacao.fromMap(r as Map<String, dynamic>)).toList();
+      return rows
+          .map((r) => EmpresaAlvoReplicacao.fromMap(r as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
@@ -83,7 +88,8 @@ class ReplicacaoGrupoService {
 
       final itensRaw = await _supabase
           .from('replicacoes_lote_itens')
-          .select('empresa_destino_id, status, motivo, empresas:empresa_destino_id(nome)')
+          .select(
+              'empresa_destino_id, status, motivo, empresas:empresa_destino_id(nome)')
           .eq('lote_id', loteId) as List;
 
       final itens = itensRaw.map((raw) {

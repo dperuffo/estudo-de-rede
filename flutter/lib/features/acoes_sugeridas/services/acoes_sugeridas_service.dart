@@ -25,30 +25,42 @@ class AcoesSugeridasService {
   // volume_tanque/geo_distancia/hodometro_fora_padrao/preco_regiao ficam
   // presos nos últimos dados coletados, porque só existem em
   // acoes_sugeridas a partir de linhas em anomalias_abastecimento.
-  Future<({String? erro, int? inseridas})> detectar({required String empresaId}) async {
+  Future<({String? erro, int? inseridas})> detectar(
+      {required String empresaId}) async {
     try {
       final resultados = await Future.wait([
-        _supabase.rpc('detectar_anomalias_abastecimento', params: {'p_empresa_id': empresaId}),
-        _supabase.rpc('detectar_acoes_cnh_vencida', params: {'p_empresa_id': empresaId}),
-        _supabase.rpc('detectar_acoes_posto_caro', params: {'p_empresa_id': empresaId}),
-        _supabase.rpc('detectar_acoes_hodometro', params: {'p_empresa_id': empresaId}),
-        _supabase.rpc('detectar_acoes_volume_tanque', params: {'p_empresa_id': empresaId}),
-        _supabase.rpc('detectar_acoes_geo_distancia', params: {'p_empresa_id': empresaId}),
-        _supabase.rpc('detectar_acoes_preco_regiao', params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_anomalias_abastecimento',
+            params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_cnh_vencida',
+            params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_posto_caro',
+            params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_hodometro',
+            params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_volume_tanque',
+            params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_geo_distancia',
+            params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_preco_regiao',
+            params: {'p_empresa_id': empresaId}),
         // Fase Antifraude→Ações-Sugeridas — migrado do tipo
         // "localizacao_posto" de Antifraude.
-        _supabase.rpc('detectar_acoes_posto_nao_autorizado', params: {'p_empresa_id': empresaId}),
+        _supabase.rpc('detectar_acoes_posto_nao_autorizado',
+            params: {'p_empresa_id': empresaId}),
       ]);
       // O 1º resultado (detecção de base) não conta pro total de "ações
       // novas" mostrado ao usuário — só os detectores de ações contam.
-      final inseridas = resultados.skip(1).fold<int>(0, (soma, r) => soma + ((r as num?)?.toInt() ?? 0));
+      final inseridas = resultados
+          .skip(1)
+          .fold<int>(0, (soma, r) => soma + ((r as num?)?.toInt() ?? 0));
       return (erro: null, inseridas: inseridas);
     } catch (e) {
       return (erro: 'Não foi possível rodar a detecção: $e', inseridas: null);
     }
   }
 
-  Future<String?> aprovarEExecutar({required int id, required String tipo}) async {
+  Future<String?> aprovarEExecutar(
+      {required int id, required String tipo}) async {
     final nomeRpc = _rpcExecucaoPorTipo[tipo];
     if (nomeRpc == null) return 'Tipo de ação desconhecido: $tipo';
     try {

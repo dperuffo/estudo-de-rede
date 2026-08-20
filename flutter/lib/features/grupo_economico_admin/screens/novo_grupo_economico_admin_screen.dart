@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/grupo_economico_admin_provider.dart';
 import '../services/grupo_economico_admin_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-4 — Grupo Econômico (admin): criar Grupo, porta de
 // grupo-economico/novo/page.tsx. Diferente de Nova Rede de Postos, não
 // há "fundador" obrigatório — o Grupo é criado vazio (INSERT direto, sem
@@ -13,10 +15,12 @@ class NovoGrupoEconomicoAdminScreen extends ConsumerStatefulWidget {
   const NovoGrupoEconomicoAdminScreen({super.key});
 
   @override
-  ConsumerState<NovoGrupoEconomicoAdminScreen> createState() => _NovoGrupoEconomicoAdminScreenState();
+  ConsumerState<NovoGrupoEconomicoAdminScreen> createState() =>
+      _NovoGrupoEconomicoAdminScreenState();
 }
 
-class _NovoGrupoEconomicoAdminScreenState extends ConsumerState<NovoGrupoEconomicoAdminScreen> {
+class _NovoGrupoEconomicoAdminScreenState
+    extends ConsumerState<NovoGrupoEconomicoAdminScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   final _cnpjCtrl = TextEditingController();
@@ -61,7 +65,14 @@ class _NovoGrupoEconomicoAdminScreenState extends ConsumerState<NovoGrupoEconomi
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Grupo Econômico')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Novo Grupo Econômico')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -72,7 +83,9 @@ class _NovoGrupoEconomicoAdminScreenState extends ConsumerState<NovoGrupoEconomi
       child: Card(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('Esta tela é exclusiva do time interno (perfil administrador).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+          child: Text(
+              'Esta tela é exclusiva do time interno (perfil administrador).',
+              style: TextStyle(fontSize: 13, color: Colors.grey)),
         ),
       ),
     );
@@ -88,18 +101,24 @@ class _NovoGrupoEconomicoAdminScreenState extends ConsumerState<NovoGrupoEconomi
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C))),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style: const TextStyle(color: Color(0xFFB91C1C))),
             ),
-          const Text('Nome do Grupo *', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('Nome do Grupo *',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           TextFormField(
             controller: _nomeCtrl,
             decoration: const InputDecoration(border: OutlineInputBorder()),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
           ),
           const SizedBox(height: 16),
-          const Text('CNPJ da Matriz (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('CNPJ da Matriz (opcional)',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           TextFormField(
             controller: _cnpjCtrl,

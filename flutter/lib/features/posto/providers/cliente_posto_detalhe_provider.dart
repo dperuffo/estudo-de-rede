@@ -30,7 +30,8 @@ class NegociacaoDoCliente {
     this.precoUnitario,
   });
 
-  factory NegociacaoDoCliente.fromMap(Map<String, dynamic> m) => NegociacaoDoCliente(
+  factory NegociacaoDoCliente.fromMap(Map<String, dynamic> m) =>
+      NegociacaoDoCliente(
         id: m['id'].toString(),
         status: m['status'] as String? ?? '',
         combustivel: m['combustivel'] as String?,
@@ -101,9 +102,11 @@ class CicloAberto {
         vencimentoPrevisto: m['vencimento_previsto'] as String?,
         valorAcumulado: (m['valor_acumulado'] as num?)?.toDouble() ?? 0,
         volumeAcumulado: (m['volume_acumulado'] as num?)?.toDouble() ?? 0,
-        quantidadeAbastecimentos: (m['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
+        quantidadeAbastecimentos:
+            (m['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
         valorPendenteNfe: (m['valor_pendente_nfe'] as num?)?.toDouble() ?? 0,
-        quantidadePendenteNfe: (m['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
+        quantidadePendenteNfe:
+            (m['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -121,12 +124,13 @@ class ClientePostoDetalhe {
   });
 }
 
-final clientePostoDetalheProvider =
-    FutureProvider.autoDispose.family<ClientePostoDetalhe, String>((ref, clienteId) async {
+final clientePostoDetalheProvider = FutureProvider.autoDispose
+    .family<ClientePostoDetalhe, String>((ref, clienteId) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) {
-    return const ClientePostoDetalhe(cliente: null, negociacoes: [], faturas: []);
+    return const ClientePostoDetalhe(
+        cliente: null, negociacoes: [], faturas: []);
   }
   final supabase = SupabaseService.client;
 
@@ -141,15 +145,18 @@ final clientePostoDetalheProvider =
 
   final negociacoesRaw = await supabase
       .from('negociacoes_postos')
-      .select('id, status, combustivel, vigencia_inicio, vigencia_fim, volume_minimo_mensal, preco_unitario')
+      .select(
+          'id, status, combustivel, vigencia_inicio, vigencia_fim, volume_minimo_mensal, preco_unitario')
       .eq('empresa_posto_id', empresaId)
       .eq('empresa_cliente_id', clienteId)
       .order('atualizado_em', ascending: false);
-  final negociacoes = negociacoesRaw.map((m) => NegociacaoDoCliente.fromMap(m)).toList();
+  final negociacoes =
+      negociacoesRaw.map((m) => NegociacaoDoCliente.fromMap(m)).toList();
 
   final faturasRaw = await supabase
       .from('faturas_postos')
-      .select('id, periodo_inicio, periodo_fim, vencimento, valor_total, status')
+      .select(
+          'id, periodo_inicio, periodo_fim, vencimento, valor_total, status')
       .eq('empresa_posto_id', empresaId)
       .eq('empresa_cliente_id', clienteId)
       .order('vencimento', ascending: false)
@@ -160,7 +167,8 @@ final clientePostoDetalheProvider =
   CicloAberto? cicloAtual;
   for (final m in (ciclosRaw as List)) {
     final mm = m as Map<String, dynamic>;
-    if (mm['empresa_posto_id'] == empresaId && mm['empresa_cliente_id'] == clienteId) {
+    if (mm['empresa_posto_id'] == empresaId &&
+        mm['empresa_cliente_id'] == clienteId) {
       cicloAtual = CicloAberto.fromMap(mm);
       break;
     }

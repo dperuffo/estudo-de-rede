@@ -20,7 +20,11 @@ class AgregadoMeioPagamento {
   final double valor;
   final int qtd;
   double get precoMedio => litros > 0 ? valor / litros : 0;
-  AgregadoMeioPagamento({required this.chave, required this.litros, required this.valor, required this.qtd});
+  AgregadoMeioPagamento(
+      {required this.chave,
+      required this.litros,
+      required this.valor,
+      required this.qtd});
 }
 
 class RankingGeo {
@@ -29,10 +33,16 @@ class RankingGeo {
   final AgregadoMeioPagamento pior;
   final double economiaPct;
   final int qtdMeios;
-  const RankingGeo({required this.local, required this.melhor, required this.pior, required this.economiaPct, required this.qtdMeios});
+  const RankingGeo(
+      {required this.local,
+      required this.melhor,
+      required this.pior,
+      required this.economiaPct,
+      required this.qtdMeios});
 }
 
-List<AgregadoMeioPagamento> _agregarPor(List<ItemPrecoMeioPagamento> itens, String? Function(ItemPrecoMeioPagamento) chaveFn) {
+List<AgregadoMeioPagamento> _agregarPor(List<ItemPrecoMeioPagamento> itens,
+    String? Function(ItemPrecoMeioPagamento) chaveFn) {
   final mapa = <String, AgregadoMeioPagamento>{};
   for (final i in itens) {
     final chave = chaveFn(i);
@@ -68,7 +78,9 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text('Nenhum abastecimento com meio de pagamento identificado ainda.', style: TextStyle(color: Colors.grey)),
+          child: Text(
+              'Nenhum abastecimento com meio de pagamento identificado ainda.',
+              style: TextStyle(color: Colors.grey)),
         ),
       );
     }
@@ -77,34 +89,53 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
     final valorTotal = dados.fold<double>(0, (s, d) => s + d.valorTotal);
     final qtdTotal = dados.fold<int>(0, (s, d) => s + d.qtd);
 
-    final porProvedor = _agregarPor(dados, (i) => i.provedor)..sort((a, b) => a.precoMedio.compareTo(b.precoMedio));
-    final porCombustivel = _agregarPor(dados, (i) => i.combustivel)..sort((a, b) => b.litros.compareTo(a.litros));
+    final porProvedor = _agregarPor(dados, (i) => i.provedor)
+      ..sort((a, b) => a.precoMedio.compareTo(b.precoMedio));
+    final porCombustivel = _agregarPor(dados, (i) => i.combustivel)
+      ..sort((a, b) => b.litros.compareTo(a.litros));
     final maisVantajoso = porProvedor.isNotEmpty ? porProvedor.first : null;
     final menosVantajoso = porProvedor.isNotEmpty ? porProvedor.last : null;
 
-    final combustiveisDisponiveis = dados.map((d) => d.combustivel).toSet().toList()..sort();
-    final provedoresDisponiveis = dados.map((d) => d.provedor).toSet().toList()..sort();
+    final combustiveisDisponiveis =
+        dados.map((d) => d.combustivel).toSet().toList()..sort();
+    final provedoresDisponiveis = dados.map((d) => d.provedor).toSet().toList()
+      ..sort();
 
     // Cruzamento combustível × provedor.
     final cruzamento = <String, Map<String, AgregadoMeioPagamento>>{};
     for (final combustivel in combustiveisDisponiveis) {
-      final porProv = _agregarPor(dados.where((d) => d.combustivel == combustivel).toList(), (i) => i.provedor);
+      final porProv = _agregarPor(
+          dados.where((d) => d.combustivel == combustivel).toList(),
+          (i) => i.provedor);
       cruzamento[combustivel] = {for (final p in porProv) p.chave: p};
     }
 
     // Onde é mais vantajoso, filtrado por combustível.
-    final itensGeoFiltrados = _combustivelFiltro == '__todos__' ? dados : dados.where((d) => d.combustivel == _combustivelFiltro).toList();
-    String? chaveGeo(ItemPrecoMeioPagamento i) => _modoGeo == 'estado' ? i.uf : i.regiao;
-    final locais = itensGeoFiltrados.map(chaveGeo).whereType<String>().toSet().toList();
+    final itensGeoFiltrados = _combustivelFiltro == '__todos__'
+        ? dados
+        : dados.where((d) => d.combustivel == _combustivelFiltro).toList();
+    String? chaveGeo(ItemPrecoMeioPagamento i) =>
+        _modoGeo == 'estado' ? i.uf : i.regiao;
+    final locais =
+        itensGeoFiltrados.map(chaveGeo).whereType<String>().toSet().toList();
     final ranking = <RankingGeo>[];
     for (final local in locais) {
-      final porProv = _agregarPor(itensGeoFiltrados.where((i) => chaveGeo(i) == local).toList(), (i) => i.provedor)
+      final porProv = _agregarPor(
+          itensGeoFiltrados.where((i) => chaveGeo(i) == local).toList(),
+          (i) => i.provedor)
         ..sort((a, b) => a.precoMedio.compareTo(b.precoMedio));
       if (porProv.isEmpty) continue;
       final melhor = porProv.first;
       final pior = porProv.last;
-      final economiaPct = pior.precoMedio > 0 ? ((pior.precoMedio - melhor.precoMedio) / pior.precoMedio) * 100 : 0.0;
-      ranking.add(RankingGeo(local: local, melhor: melhor, pior: pior, economiaPct: economiaPct, qtdMeios: porProv.length));
+      final economiaPct = pior.precoMedio > 0
+          ? ((pior.precoMedio - melhor.precoMedio) / pior.precoMedio) * 100
+          : 0.0;
+      ranking.add(RankingGeo(
+          local: local,
+          melhor: melhor,
+          pior: pior,
+          economiaPct: economiaPct,
+          qtdMeios: porProv.length));
     }
     ranking.sort((a, b) => b.economiaPct.compareTo(a.economiaPct));
 
@@ -121,9 +152,18 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
             crossAxisSpacing: 6,
             childAspectRatio: 2.2,
             children: [
-              CartaoIndicador(label: 'Volume total', valor: '${formatarInt(litrosTotal.round())} L', mini: true),
-              CartaoIndicador(label: 'Valor total', valor: formatarMoeda(valorTotal, casas: 2), mini: true),
-              CartaoIndicador(label: 'Abastecimentos', valor: formatarInt(qtdTotal), mini: true),
+              CartaoIndicador(
+                  label: 'Volume total',
+                  valor: '${formatarInt(litrosTotal.round())} L',
+                  mini: true),
+              CartaoIndicador(
+                  label: 'Valor total',
+                  valor: formatarMoeda(valorTotal, casas: 2),
+                  mini: true),
+              CartaoIndicador(
+                  label: 'Abastecimentos',
+                  valor: formatarInt(qtdTotal),
+                  mini: true),
               if (maisVantajoso != null)
                 CartaoIndicador(
                   label: 'Meio mais vantajoso',
@@ -140,7 +180,9 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('⛽ Volume por combustível', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('⛽ Volume por combustível',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Litros transacionados por tipo de combustível — o preço médio de cada meio de pagamento pode variar conforme o mix de combustível.',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -148,7 +190,12 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                   const SizedBox(height: 10),
                   BarraHorizontal(
                     dados: porCombustivel
-                        .map((c) => BarraHorizontalItem(label: c.chave, valor: c.litros, cor: _corA, texto: '${(c.litros / 1000).toStringAsFixed(1)}k L'))
+                        .map((c) => BarraHorizontalItem(
+                            label: c.chave,
+                            valor: c.litros,
+                            cor: _corA,
+                            texto:
+                                '${(c.litros / 1000).toStringAsFixed(1)}k L'))
                         .toList(),
                   ),
                 ],
@@ -162,7 +209,9 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('💳 Preço médio por meio de pagamento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('💳 Preço médio por meio de pagamento',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Média ponderada por litro (todos os combustíveis), do mais em conta ao mais caro.',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -175,7 +224,9 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                               valor: p.precoMedio,
                               cor: p.chave == maisVantajoso?.chave
                                   ? const Color(0xFF2E7D32)
-                                  : (p.chave == menosVantajoso?.chave ? const Color(0xFFB71C1C) : _corA),
+                                  : (p.chave == menosVantajoso?.chave
+                                      ? const Color(0xFFB71C1C)
+                                      : _corA),
                               texto: formatarMoeda(p.precoMedio),
                             ))
                         .toList(),
@@ -183,7 +234,13 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                   const SizedBox(height: 10),
                   TabelaSimples(
                     colunas: const ['Meio', 'Volume', 'Abast.'],
-                    linhas: porProvedor.map((p) => [p.chave, '${(p.litros / 1000).toStringAsFixed(1)}k L', formatarInt(p.qtd)]).toList(),
+                    linhas: porProvedor
+                        .map((p) => [
+                              p.chave,
+                              '${(p.litros / 1000).toStringAsFixed(1)}k L',
+                              formatarInt(p.qtd)
+                            ])
+                        .toList(),
                   ),
                 ],
               ),
@@ -196,7 +253,9 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Preço médio por combustível × meio de pagamento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('Preço médio por combustível × meio de pagamento',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Variação de preço entre os meios de pagamento, separado por tipo de combustível.',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -204,12 +263,17 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                   const SizedBox(height: 10),
                   TabelaSimples(
                     colunas: ['Combustível', ...provedoresDisponiveis],
-                    flexColunas: [2, ...List.filled(provedoresDisponiveis.length, 1)],
+                    flexColunas: [
+                      2,
+                      ...List.filled(provedoresDisponiveis.length, 1)
+                    ],
                     linhas: combustiveisDisponiveis.map((c) {
                       final linha = cruzamento[c] ?? {};
                       return [
                         c,
-                        ...provedoresDisponiveis.map((p) => linha[p] != null ? formatarMoeda(linha[p]!.precoMedio) : '—'),
+                        ...provedoresDisponiveis.map((p) => linha[p] != null
+                            ? formatarMoeda(linha[p]!.precoMedio)
+                            : '—'),
                       ];
                     }).toList(),
                   ),
@@ -224,7 +288,10 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Onde é mais vantajoso e com qual meio de pagamento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text(
+                      'Onde é mais vantajoso e com qual meio de pagamento',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Por ${_modoGeo == 'estado' ? 'estado' : 'região'}, o meio mais barato vs. o mais caro (para o combustível selecionado).',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -234,13 +301,15 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                     const Text('Ver por: ', style: TextStyle(fontSize: 12)),
                     const SizedBox(width: 4),
                     ChoiceChip(
-                      label: const Text('🗺️ Estados', style: TextStyle(fontSize: 11)),
+                      label: const Text('🗺️ Estados',
+                          style: TextStyle(fontSize: 11)),
                       selected: _modoGeo == 'estado',
                       onSelected: (_) => setState(() => _modoGeo = 'estado'),
                     ),
                     const SizedBox(width: 6),
                     ChoiceChip(
-                      label: const Text('🌎 Regiões', style: TextStyle(fontSize: 11)),
+                      label: const Text('🌎 Regiões',
+                          style: TextStyle(fontSize: 11)),
                       selected: _modoGeo == 'regiao',
                       onSelected: (_) => setState(() => _modoGeo = 'regiao'),
                     ),
@@ -251,28 +320,49 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                     isExpanded: true,
                     isDense: true,
                     items: [
-                      const DropdownMenuItem(value: '__todos__', child: Text('Todos os combustíveis', style: TextStyle(fontSize: 12))),
-                      ...combustiveisDisponiveis.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12)))),
+                      const DropdownMenuItem(
+                          value: '__todos__',
+                          child: Text('Todos os combustíveis',
+                              style: TextStyle(fontSize: 12))),
+                      ...combustiveisDisponiveis.map((c) => DropdownMenuItem(
+                          value: c,
+                          child:
+                              Text(c, style: const TextStyle(fontSize: 12)))),
                     ],
-                    onChanged: (v) => v != null ? setState(() => _combustivelFiltro = v) : null,
+                    onChanged: (v) => v != null
+                        ? setState(() => _combustivelFiltro = v)
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   if (ranking.isNotEmpty)
                     TabelaSimples(
-                      colunas: [_modoGeo == 'estado' ? 'UF' : 'Região', 'Melhor', 'Preço', 'Pior', 'Preço', 'Economia'],
+                      colunas: [
+                        _modoGeo == 'estado' ? 'UF' : 'Região',
+                        'Melhor',
+                        'Preço',
+                        'Pior',
+                        'Preço',
+                        'Economia'
+                      ],
                       linhas: ranking
                           .map((r) => [
                                 r.local,
                                 r.melhor.chave,
                                 formatarMoeda(r.melhor.precoMedio),
                                 r.qtdMeios > 1 ? r.pior.chave : '—',
-                                r.qtdMeios > 1 ? formatarMoeda(r.pior.precoMedio) : '—',
-                                r.qtdMeios > 1 ? '${r.economiaPct.toStringAsFixed(1)}%' : 'só 1 meio',
+                                r.qtdMeios > 1
+                                    ? formatarMoeda(r.pior.precoMedio)
+                                    : '—',
+                                r.qtdMeios > 1
+                                    ? '${r.economiaPct.toStringAsFixed(1)}%'
+                                    : 'só 1 meio',
                               ])
                           .toList(),
                     )
                   else
-                    Text('Sem dados suficientes pra esse recorte.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+                    Text('Sem dados suficientes pra esse recorte.',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade400)),
                 ],
               ),
             ),

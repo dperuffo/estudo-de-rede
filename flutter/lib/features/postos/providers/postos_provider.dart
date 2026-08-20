@@ -16,8 +16,33 @@ import '../../../core/services/supabase_service.dart';
 // v1; o detalhe aqui é leitura dos dados de origem + ações (bloquear,
 // remover, preços).
 const ufsBrasil = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
-  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ];
 
 const produtosPostoRevendedor = [
@@ -131,17 +156,20 @@ class PostoRede {
     );
   }
 
-  String get enderecoCompleto =>
-      [logradouro, numero, complemento, bairro, cep].where((v) => v != null && v.isNotEmpty).join(', ');
+  String get enderecoCompleto => [logradouro, numero, complemento, bairro, cep]
+      .where((v) => v != null && v.isNotEmpty)
+      .join(', ');
 }
 
-const _colunasPostoGf = 'cnpj, razao_social, municipio, uf, bandeira, ativo, distribuidora, bairro, '
+const _colunasPostoGf =
+    'cnpj, razao_social, municipio, uf, bandeira, ativo, distribuidora, bairro, '
     'logradouro, numero, complemento, cep, nome_contato, telefone_contato, nome_responsavel, '
     'telefone_responsavel, grupo_economico, rede, status_pdv, situacao_pdv, data_habilitacao, '
     'outros_servicos, possui_restaurante, possui_banheiro, possui_estacionamento, possui_troca_oleo, '
     'possui_internet, arla, tipo_arla';
 
-final postosClienteProvider = FutureProvider.autoDispose<List<PostoRede>>((ref) async {
+final postosClienteProvider =
+    FutureProvider.autoDispose<List<PostoRede>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
@@ -154,7 +182,8 @@ final postosClienteProvider = FutureProvider.autoDispose<List<PostoRede>>((ref) 
   return rows.map((m) => PostoRede.fromMap(m as Map<String, dynamic>)).toList();
 });
 
-final postoDetalheProvider = FutureProvider.autoDispose.family<PostoRede?, String>((ref, cnpj) async {
+final postoDetalheProvider =
+    FutureProvider.autoDispose.family<PostoRede?, String>((ref, cnpj) async {
   final lista = await ref.watch(postosClienteProvider.future);
   for (final p in lista) {
     if (p.cnpj == cnpj) return p;
@@ -168,7 +197,12 @@ class PrecoHistorico {
   final double preco;
   final String dataRef;
   final String? fonte;
-  const PrecoHistorico({required this.id, required this.combustivel, required this.preco, required this.dataRef, this.fonte});
+  const PrecoHistorico(
+      {required this.id,
+      required this.combustivel,
+      required this.preco,
+      required this.dataRef,
+      this.fonte});
 
   factory PrecoHistorico.fromMap(Map<String, dynamic> m) {
     return PrecoHistorico(
@@ -181,14 +215,17 @@ class PrecoHistorico {
   }
 }
 
-final precosPostoProvider = FutureProvider.autoDispose.family<List<PrecoHistorico>, String>((ref, cnpj) async {
+final precosPostoProvider = FutureProvider.autoDispose
+    .family<List<PrecoHistorico>, String>((ref, cnpj) async {
   final rows = await SupabaseService.client
       .from('historico_precos')
       .select('id, combustivel, preco, data_ref, fonte')
       .eq('cnpj', cnpj)
       .order('combustivel')
       .order('data_ref', ascending: false) as List;
-  return rows.map((m) => PrecoHistorico.fromMap(m as Map<String, dynamic>)).toList();
+  return rows
+      .map((m) => PrecoHistorico.fromMap(m as Map<String, dynamic>))
+      .toList();
 });
 
 class AnpPosto {
@@ -197,7 +234,12 @@ class AnpPosto {
   final String? municipio;
   final String? uf;
   final String? bandeira;
-  const AnpPosto({required this.cnpj, this.razaoSocial, this.municipio, this.uf, this.bandeira});
+  const AnpPosto(
+      {required this.cnpj,
+      this.razaoSocial,
+      this.municipio,
+      this.uf,
+      this.bandeira});
 
   factory AnpPosto.fromMap(Map<String, dynamic> m) {
     return AnpPosto(
@@ -219,12 +261,14 @@ class BuscaAnpParams {
   const BuscaAnpParams(this.texto, this.uf);
 
   @override
-  bool operator ==(Object other) => other is BuscaAnpParams && other.texto == texto && other.uf == uf;
+  bool operator ==(Object other) =>
+      other is BuscaAnpParams && other.texto == texto && other.uf == uf;
   @override
   int get hashCode => Object.hash(texto, uf);
 }
 
-final buscaAnpProvider = FutureProvider.autoDispose.family<List<AnpPosto>, BuscaAnpParams>((ref, params) async {
+final buscaAnpProvider = FutureProvider.autoDispose
+    .family<List<AnpPosto>, BuscaAnpParams>((ref, params) async {
   if (params.texto.trim().length < 3) return [];
   var query = SupabaseService.client
       .from('anp_postos')

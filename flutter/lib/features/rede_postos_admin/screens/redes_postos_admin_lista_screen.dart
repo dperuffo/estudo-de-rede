@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../providers/rede_postos_admin_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-4 — Rede de Postos (admin, consolidada): lista de TODAS as
 // Redes do sistema, porta de rede-postos/page.tsx. Ver escopo completo em
 // rede_postos_admin_provider.dart.
@@ -16,7 +18,14 @@ class RedesPostosAdminListaScreen extends ConsumerWidget {
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rede de Postos (todas)')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Rede de Postos (todas)')),
       floatingActionButton: !ehAdmin
           ? null
           : FloatingActionButton.extended(
@@ -37,9 +46,12 @@ class RedesPostosAdminListaScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso restrito', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('Acesso restrito',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(height: 8),
-              Text('Esta tela é exclusiva do time interno (perfil administrador).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Text(
+                  'Esta tela é exclusiva do time interno (perfil administrador).',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
             ],
           ),
         ),
@@ -77,10 +89,13 @@ class RedesPostosAdminListaScreen extends ConsumerWidget {
             if (lista.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('Nenhuma Rede de Postos cadastrada ainda.', style: TextStyle(color: Colors.grey))),
+                child: Center(
+                    child: Text('Nenhuma Rede de Postos cadastrada ainda.',
+                        style: TextStyle(color: Colors.grey))),
               );
             }
-            return Column(children: lista.map((r) => _cardRede(context, r)).toList());
+            return Column(
+                children: lista.map((r) => _cardRede(context, r)).toList());
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
@@ -96,9 +111,12 @@ class RedesPostosAdminListaScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            Text(label,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
             const SizedBox(height: 4),
-            Text(valor, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            Text(valor,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -110,23 +128,33 @@ class RedesPostosAdminListaScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/redes-postos/${r.id}'),
-        title: Text(r.nome, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+        title: Text(r.nome,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('CNPJ matriz: ${r.cnpjMatriz ?? '—'} · ${r.totalPostos} posto(s) vinculado(s)', style: const TextStyle(fontSize: 11)),
+              Text(
+                  'CNPJ matriz: ${r.cnpjMatriz ?? '—'} · ${r.totalPostos} posto(s) vinculado(s)',
+                  style: const TextStyle(fontSize: 11)),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: r.ativo ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                  color: r.ativo
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   r.ativo ? 'Ativa' : 'Inativa',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: r.ativo ? const Color(0xFF15803D) : const Color(0xFF64748B)),
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: r.ativo
+                          ? const Color(0xFF15803D)
+                          : const Color(0xFF64748B)),
                 ),
               ),
             ],

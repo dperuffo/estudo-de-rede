@@ -9,7 +9,8 @@ import '../../../core/services/supabase_service.dart';
 class ConfiguracoesSistemaService {
   final _supabase = SupabaseService.client;
 
-  Future<void> atualizarLogoutInatividade({required int minutos, required String atualizadoPor}) async {
+  Future<void> atualizarLogoutInatividade(
+      {required int minutos, required String atualizadoPor}) async {
     await _supabase.from('configuracoes_sistema').update({
       'logout_inatividade_minutos': minutos,
       'atualizado_em': DateTime.now().toIso8601String(),

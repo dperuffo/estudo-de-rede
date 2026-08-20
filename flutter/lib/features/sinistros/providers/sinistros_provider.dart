@@ -54,13 +54,15 @@ class Sinistro {
       );
 }
 
-final sinistrosListProvider = FutureProvider.autoDispose<List<Sinistro>>((ref) async {
+final sinistrosListProvider =
+    FutureProvider.autoDispose<List<Sinistro>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
       .from('sinistros_veiculos')
-      .select('id, placa, motorista_nome, data_sinistro, tipo, gravidade, houve_vitima, custo_estimado, local_ocorrencia, descricao')
+      .select(
+          'id, placa, motorista_nome, data_sinistro, tipo, gravidade, houve_vitima, custo_estimado, local_ocorrencia, descricao')
       .eq('empresa_id', empresaId)
       .order('data_sinistro', ascending: false)
       .limit(200) as List;

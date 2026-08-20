@@ -64,7 +64,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // conseguimos) navegar manualmente aqui depois disso.
       await AuthService().signInWithGoogle();
     } catch (e) {
-      if (mounted) setState(() => _erro = 'Não foi possível entrar com Google: $e');
+      if (mounted)
+        setState(() => _erro = 'Não foi possível entrar com Google: $e');
     } finally {
       if (mounted) setState(() => _loadingGoogle = false);
     }
@@ -88,19 +89,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 24),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 30, offset: const Offset(0, 10)),
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 30,
+                              offset: const Offset(0, 10)),
                         ],
                       ),
-                      child: Image.asset('assets/logo_fni.png', height: 100, fit: BoxFit.contain),
+                      child: Image.asset('assets/logo_fni.png',
+                          height: 100, fit: BoxFit.contain),
                     ),
                     const SizedBox(height: 32),
                     const Text('Gestao de Frotas',
-                        style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5)),
                     const SizedBox(height: 8),
                     const Text('Plataforma de inteligencia de rede',
                         style: TextStyle(color: Colors.white60, fontSize: 14)),
@@ -123,17 +133,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         'Senha',
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _senhaVisivel ? Icons.visibility_off : Icons.visibility,
+                            _senhaVisivel
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: Colors.white60,
                           ),
-                          onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
+                          onPressed: () =>
+                              setState(() => _senhaVisivel = !_senhaVisivel),
                         ),
                       ),
                       onSubmitted: (_) => _entrarComSenha(),
                     ),
                     if (_erro != null) ...[
                       const SizedBox(height: 12),
-                      Text(_erro!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                      Text(_erro!,
+                          style: const TextStyle(
+                              color: Colors.redAccent, fontSize: 13)),
                     ],
                     const SizedBox(height: 20),
                     SizedBox(
@@ -144,11 +159,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1565C0),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         child: _loadingSenha
-                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Entrar',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
 
@@ -157,7 +179,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Expanded(child: Divider(color: Colors.white24)),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('ou', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                        child: Text('ou',
+                            style:
+                                TextStyle(color: Colors.white38, fontSize: 12)),
                       ),
                       Expanded(child: Divider(color: Colors.white24)),
                     ]),
@@ -171,17 +195,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFF0D2D6B),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                           elevation: 4,
                         ),
                         child: _loadingGoogle
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0D2D6B)))
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Color(0xFF0D2D6B)))
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Image.asset('assets/logo_fni.png', height: 24),
+                                  Image.asset('assets/logo_fni.png',
+                                      height: 24),
                                   const SizedBox(width: 12),
-                                  const Text('Continuar com Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                  const Text('Continuar com Google',
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600)),
                                 ],
                               ),
                       ),
@@ -189,7 +222,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     const SizedBox(height: 40),
                     const Text('Fleet Network Intelligence',
-                        style: TextStyle(color: Colors.white24, fontSize: 12, letterSpacing: 1)),
+                        style: TextStyle(
+                            color: Colors.white24,
+                            fontSize: 12,
+                            letterSpacing: 1)),
                   ],
                 ),
               ),
@@ -198,13 +234,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
 
-  InputDecoration _inputDecoration(String label, {Widget? suffixIcon}) => InputDecoration(
+  InputDecoration _inputDecoration(String label, {Widget? suffixIcon}) =>
+      InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white60),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.white.withOpacity(0.06),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.white24),

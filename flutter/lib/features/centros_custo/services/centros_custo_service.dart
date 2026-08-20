@@ -15,16 +15,23 @@ class CentrosCustoService {
     String? descricao,
   }) async {
     final nomeLimpo = nome.trim();
-    if (nomeLimpo.isEmpty) return (erro: 'Nome do centro de custo é obrigatório.', id: null);
+    if (nomeLimpo.isEmpty)
+      return (erro: 'Nome do centro de custo é obrigatório.', id: null);
     try {
       final email = _supabase.auth.currentUser?.email;
       final row = await _supabase
           .from('centros_custo')
           .insert({
             'nome': nomeLimpo,
-            'codigo': (codigo == null || codigo.trim().isEmpty) ? null : codigo.trim(),
-            'responsavel': (responsavel == null || responsavel.trim().isEmpty) ? null : responsavel.trim(),
-            'descricao': (descricao == null || descricao.trim().isEmpty) ? null : descricao.trim(),
+            'codigo': (codigo == null || codigo.trim().isEmpty)
+                ? null
+                : codigo.trim(),
+            'responsavel': (responsavel == null || responsavel.trim().isEmpty)
+                ? null
+                : responsavel.trim(),
+            'descricao': (descricao == null || descricao.trim().isEmpty)
+                ? null
+                : descricao.trim(),
             'empresa_id': empresaId,
             'ativo': true,
             'criado_por': email,
@@ -50,9 +57,14 @@ class CentrosCustoService {
     try {
       await _supabase.from('centros_custo').update({
         'nome': nomeLimpo,
-        'codigo': (codigo == null || codigo.trim().isEmpty) ? null : codigo.trim(),
-        'responsavel': (responsavel == null || responsavel.trim().isEmpty) ? null : responsavel.trim(),
-        'descricao': (descricao == null || descricao.trim().isEmpty) ? null : descricao.trim(),
+        'codigo':
+            (codigo == null || codigo.trim().isEmpty) ? null : codigo.trim(),
+        'responsavel': (responsavel == null || responsavel.trim().isEmpty)
+            ? null
+            : responsavel.trim(),
+        'descricao': (descricao == null || descricao.trim().isEmpty)
+            ? null
+            : descricao.trim(),
         'ativo': ativo,
         'atualizado_em': DateTime.now().toIso8601String(),
       }).eq('id', id);
@@ -65,20 +77,26 @@ class CentrosCustoService {
   // Motoristas não têm histórico de alocação (diferente de veículos) — só
   // a coluna `centro_custo_id`, então é um único UPDATE em lote via
   // `.in()`, igual à web.
-  Future<String?> alocarMotoristas({required String centroCustoId, required List<String> motoristaIds}) async {
+  Future<String?> alocarMotoristas(
+      {required String centroCustoId,
+      required List<String> motoristaIds}) async {
     if (motoristaIds.isEmpty) return 'Selecione pelo menos um motorista.';
     try {
-      await _supabase.from('motoristas').update({'centro_custo_id': centroCustoId}).inFilter('id', motoristaIds);
+      await _supabase.from('motoristas').update(
+          {'centro_custo_id': centroCustoId}).inFilter('id', motoristaIds);
       return null;
     } catch (e) {
       return 'Não foi possível alocar: $e';
     }
   }
 
-  Future<String?> desalocarMotoristas({required List<String> motoristaIds}) async {
+  Future<String?> desalocarMotoristas(
+      {required List<String> motoristaIds}) async {
     if (motoristaIds.isEmpty) return 'Selecione pelo menos um motorista.';
     try {
-      await _supabase.from('motoristas').update({'centro_custo_id': null}).inFilter('id', motoristaIds);
+      await _supabase
+          .from('motoristas')
+          .update({'centro_custo_id': null}).inFilter('id', motoristaIds);
       return null;
     } catch (e) {
       return 'Não foi possível remover: $e';

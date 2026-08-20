@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/pegada_carbono_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 const _kgCo2AbsorvidoPorArvoreAoAno = 22;
 
 final _dataBr = DateFormat('dd/MM/yyyy');
@@ -25,7 +27,8 @@ class PegadaCarbonoScreen extends ConsumerStatefulWidget {
   const PegadaCarbonoScreen({super.key});
 
   @override
-  ConsumerState<PegadaCarbonoScreen> createState() => _PegadaCarbonoScreenState();
+  ConsumerState<PegadaCarbonoScreen> createState() =>
+      _PegadaCarbonoScreenState();
 }
 
 class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
@@ -52,7 +55,14 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
     final itensAsync = ref.watch(pegadaCarbonoProvider(_periodo));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pegada de Carbono')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Pegada de Carbono')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(pegadaCarbonoProvider(_periodo)),
         child: ListView(
@@ -70,14 +80,16 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _escolherData(inicio: true),
-                    child: Text('De: ${_dataBr.format(_periodo.inicio)}', style: const TextStyle(fontSize: 12)),
+                    child: Text('De: ${_dataBr.format(_periodo.inicio)}',
+                        style: const TextStyle(fontSize: 12)),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _escolherData(inicio: false),
-                    child: Text('Até: ${_dataBr.format(_periodo.fim)}', style: const TextStyle(fontSize: 12)),
+                    child: Text('Até: ${_dataBr.format(_periodo.fim)}',
+                        style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
@@ -90,24 +102,34 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
               ),
               error: (e, _) => Text('Erro ao carregar: $e'),
               data: (itens) {
-                final totalKg = itens.fold<double>(0, (s, i) => s + (i.co2EstimadoKg ?? 0));
+                final totalKg =
+                    itens.fold<double>(0, (s, i) => s + (i.co2EstimadoKg ?? 0));
                 final totalToneladas = totalKg / 1000;
-                final litrosTotal = itens.fold<double>(0, (s, i) => s + i.litrosTotal);
-                final arvores = (totalKg / _kgCo2AbsorvidoPorArvoreAoAno).round();
-                final semFator = itens.where((i) => i.fatorKgCo2PorLitro == null).toList();
+                final litrosTotal =
+                    itens.fold<double>(0, (s, i) => s + i.litrosTotal);
+                final arvores =
+                    (totalKg / _kgCo2AbsorvidoPorArvoreAoAno).round();
+                final semFator =
+                    itens.where((i) => i.fatorKgCo2PorLitro == null).toList();
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Expanded(child: _kpi('CO2 estimado', '${totalToneladas.toStringAsFixed(2)} t')),
+                        Expanded(
+                            child: _kpi('CO2 estimado',
+                                '${totalToneladas.toStringAsFixed(2)} t')),
                         const SizedBox(width: 8),
-                        Expanded(child: _kpi('Litros', _numero0.format(litrosTotal))),
+                        Expanded(
+                            child:
+                                _kpi('Litros', _numero0.format(litrosTotal))),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    if (arvores > 0) _kpi('Equivalente a', '🌳 ${_numero0.format(arvores)} árvores/ano'),
+                    if (arvores > 0)
+                      _kpi('Equivalente a',
+                          '🌳 ${_numero0.format(arvores)} árvores/ano'),
                     const SizedBox(height: 12),
                     Card(
                       color: const Color(0xFFF8FAFC),
@@ -118,7 +140,8 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                           'Brasileiro GHG Protocol). A equivalência em árvores usa $_kgCo2AbsorvidoPorArvoreAoAno '
                           'kg de CO2 absorvidos por árvore adulta por ano — só pra dar noção de tamanho, não é um '
                           'fator científico exato.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade700),
                         ),
                       ),
                     ),
@@ -127,7 +150,9 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                       const Card(
                         child: Padding(
                           padding: EdgeInsets.all(16),
-                          child: Text('Nenhum abastecimento encontrado neste período.', style: TextStyle(color: Colors.grey)),
+                          child: Text(
+                              'Nenhum abastecimento encontrado neste período.',
+                              style: TextStyle(color: Colors.grey)),
                         ),
                       )
                     else
@@ -138,7 +163,8 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                         child: Text(
                           '${semFator.map((i) => _labelCategoria[i.categoria] ?? i.categoria).join(", ")} sem '
                           'fator de emissão cadastrado — não entrou no total.',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ),
                   ],
@@ -158,9 +184,13 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
             const SizedBox(height: 4),
-            Text(valor, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(valor,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -168,7 +198,9 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
   }
 
   Widget _cardCategoria(ItemPegadaCarbono i, double totalKg) {
-    final pct = i.co2EstimadoKg != null && totalKg > 0 ? (i.co2EstimadoKg! / totalKg) * 100 : null;
+    final pct = i.co2EstimadoKg != null && totalKg > 0
+        ? (i.co2EstimadoKg! / totalKg) * 100
+        : null;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -177,25 +209,31 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
           children: [
             Expanded(
               flex: 3,
-              child: Text(_labelCategoria[i.categoria] ?? i.categoria, style: const TextStyle(fontSize: 13)),
+              child: Text(_labelCategoria[i.categoria] ?? i.categoria,
+                  style: const TextStyle(fontSize: 13)),
             ),
             Expanded(
               flex: 2,
               child: Text('${_numero0.format(i.litrosTotal)} L',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.right),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.right),
             ),
             Expanded(
               flex: 2,
               child: Text(
-                i.co2EstimadoKg != null ? '${(i.co2EstimadoKg! / 1000).toStringAsFixed(2)} t' : 'não estimado',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                i.co2EstimadoKg != null
+                    ? '${(i.co2EstimadoKg! / 1000).toStringAsFixed(2)} t'
+                    : 'não estimado',
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 textAlign: TextAlign.right,
               ),
             ),
             if (pct != null)
               Padding(
                 padding: const EdgeInsets.only(left: 6),
-                child: Text('${pct.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                child: Text('${pct.toStringAsFixed(0)}%',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ),
           ],
         ),

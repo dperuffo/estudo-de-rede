@@ -33,17 +33,19 @@ class RealtimeEvento {
   /// Texto amigavel para exibir em toast
   String get mensagemAmigavel {
     final acao = {
-      'INSERT': 'criado',
-      'UPDATE': 'atualizado',
-      'DELETE': 'removido',
-    }[evento] ?? 'alterado';
+          'INSERT': 'criado',
+          'UPDATE': 'atualizado',
+          'DELETE': 'removido',
+        }[evento] ??
+        'alterado';
 
     final tipoLabel = {
-      'cadastro_veiculos': 'Veiculo',
-      'profrotas_abastecimentos': 'Abastecimento',
-      'manutencoes_realizadas': 'Manutencao',
-      'centros_custo': 'Centro de custo',
-    }[tabela] ?? 'Registro';
+          'cadastro_veiculos': 'Veiculo',
+          'profrotas_abastecimentos': 'Abastecimento',
+          'manutencoes_realizadas': 'Manutencao',
+          'centros_custo': 'Centro de custo',
+        }[tabela] ??
+        'Registro';
 
     if (descricao != null && descricao!.isNotEmpty) {
       return '$tipoLabel $descricao foi $acao';
@@ -62,7 +64,8 @@ class RealtimeService {
 
   /// Conecta ao WebSocket e retorna um Stream de eventos.
   /// [tabelas] filtra localmente quais tabelas a tela quer escutar (vazio = todas).
-  Future<Stream<RealtimeEvento>> conectar({List<String> tabelas = const []}) async {
+  Future<Stream<RealtimeEvento>> conectar(
+      {List<String> tabelas = const []}) async {
     final token = await _storage.read(key: 'jwt_token');
     if (token == null) {
       throw Exception('Usuario nao autenticado');

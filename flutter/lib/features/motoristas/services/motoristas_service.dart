@@ -20,12 +20,20 @@ class MotoristasService {
     return {
       'nome_completo': nomeCompleto.trim(),
       'cpf': cpf.trim(),
-      'telefone': (telefone == null || telefone.trim().isEmpty) ? null : telefone.trim(),
+      'telefone': (telefone == null || telefone.trim().isEmpty)
+          ? null
+          : telefone.trim(),
       'email': (email == null || email.trim().isEmpty) ? null : email.trim(),
-      'classificacao': classificacoesValidas.contains(classificacao) ? classificacao : 'Próprio',
+      'classificacao': classificacoesValidas.contains(classificacao)
+          ? classificacao
+          : 'Próprio',
       'cnh': (cnh == null || cnh.trim().isEmpty) ? null : cnh.trim(),
-      'cnh_vencimento': (cnhVencimento == null || cnhVencimento.isEmpty) ? null : cnhVencimento,
-      'centro_custo_id': (centroCustoId == null || centroCustoId.isEmpty) ? null : centroCustoId,
+      'cnh_vencimento': (cnhVencimento == null || cnhVencimento.isEmpty)
+          ? null
+          : cnhVencimento,
+      'centro_custo_id': (centroCustoId == null || centroCustoId.isEmpty)
+          ? null
+          : centroCustoId,
     };
   }
 
@@ -54,7 +62,11 @@ class MotoristasService {
         'p_cpf': cpfLimpo,
       }) as bool?;
       if (duplicado == true) {
-        return (erro: 'Já existe um motorista cadastrado com o CPF $cpfLimpo para este cliente.', id: null);
+        return (
+          erro:
+              'Já existe um motorista cadastrado com o CPF $cpfLimpo para este cliente.',
+          id: null
+        );
       }
 
       final payload = _payload(
@@ -70,14 +82,23 @@ class MotoristasService {
       final email2 = _supabase.auth.currentUser?.email;
       final row = await _supabase
           .from('motoristas')
-          .insert({...payload, 'empresa_id': empresaId, 'status': 'Ativo', 'criado_por': email2})
+          .insert({
+            ...payload,
+            'empresa_id': empresaId,
+            'status': 'Ativo',
+            'criado_por': email2
+          })
           .select('id')
           .single();
       return (erro: null, id: row['id'] as String);
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('23505') || msg.toLowerCase().contains('duplicate')) {
-        return (erro: 'Já existe um motorista cadastrado com o CPF $cpfLimpo para este cliente.', id: null);
+        return (
+          erro:
+              'Já existe um motorista cadastrado com o CPF $cpfLimpo para este cliente.',
+          id: null
+        );
       }
       return (erro: 'Não foi possível salvar: $e', id: null);
     }
@@ -121,7 +142,8 @@ class MotoristasService {
         cnhVencimento: cnhVencimento,
         centroCustoId: centroCustoId,
       );
-      await _supabase.from('motoristas').update({...payload, 'status': ativo ? 'Ativo' : 'Inativo'}).eq('id', id);
+      await _supabase.from('motoristas').update(
+          {...payload, 'status': ativo ? 'Ativo' : 'Inativo'}).eq('id', id);
       return null;
     } catch (e) {
       final msg = e.toString();
@@ -132,9 +154,12 @@ class MotoristasService {
     }
   }
 
-  Future<String?> alternarAtivo({required String id, required bool ativo}) async {
+  Future<String?> alternarAtivo(
+      {required String id, required bool ativo}) async {
     try {
-      await _supabase.from('motoristas').update({'status': ativo ? 'Ativo' : 'Inativo'}).eq('id', id);
+      await _supabase
+          .from('motoristas')
+          .update({'status': ativo ? 'Ativo' : 'Inativo'}).eq('id', id);
       return null;
     } catch (e) {
       return 'Não foi possível atualizar: $e';

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
-import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show veiculosClienteProvider;
 import '../providers/parametros_nf_provider.dart';
 import '../services/parametros_nf_service.dart';
 import 'modal_destino_estado.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-Parametros-NF — porta de parametros-nf/page.tsx +
 // SecaoParametrosNF.tsx. Pedido do Daniel: preferências de emissão de nota
@@ -26,8 +29,12 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
         title: const Text('Excluir regra?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -47,7 +54,11 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
     if (empresaId == null || !mounted) return;
     final veiculos = await ref.read(veiculosClienteProvider.future);
     if (!mounted) return;
-    final cnpjsFrota = {for (final v in veiculos) if (v.cnpjFrota.trim().isNotEmpty) v.cnpjFrota}.toList()..sort();
+    final cnpjsFrota = {
+      for (final v in veiculos)
+        if (v.cnpjFrota.trim().isNotEmpty) v.cnpjFrota
+    }.toList()
+      ..sort();
 
     await showModalBottomSheet(
       context: context,
@@ -64,9 +75,11 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
             child: ListView(
               controller: scrollController,
               children: [
-                Text('Nova Regra — Parâmetros de NF', style: Theme.of(context).textTheme.titleMedium),
+                Text('Nova Regra — Parâmetros de NF',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
-                _FormParametroNF(empresaId: empresaId, cnpjsFrota: cnpjsFrota, ref: ref),
+                _FormParametroNF(
+                    empresaId: empresaId, cnpjsFrota: cnpjsFrota, ref: ref),
               ],
             ),
           ),
@@ -78,7 +91,14 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Parâmetros de NF')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Parâmetros de NF')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _abrirForm,
         icon: const Icon(Icons.add),
@@ -109,14 +129,24 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text('Atenção', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF92400E))),
+                  Text('Atenção',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: Color(0xFF92400E))),
                   SizedBox(height: 4),
-                  Text('• A emissão da nota fiscal está sempre sujeita às regras da SEFAZ e à legislação vigente.',
-                      style: TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
-                  Text('• Nem todos os postos têm suporte à opção "Nota no ato do abastecimento".',
-                      style: TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
-                  Text('• Alterações nestes parâmetros só valem a partir do próximo ciclo de faturamento.',
-                      style: TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
+                  Text(
+                      '• A emissão da nota fiscal está sempre sujeita às regras da SEFAZ e à legislação vigente.',
+                      style:
+                          TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
+                  Text(
+                      '• Nem todos os postos têm suporte à opção "Nota no ato do abastecimento".',
+                      style:
+                          TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
+                  Text(
+                      '• Alterações nestes parâmetros só valem a partir do próximo ciclo de faturamento.',
+                      style:
+                          TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
                 ],
               ),
             ),
@@ -126,7 +156,8 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Nenhuma regra cadastrada.', style: TextStyle(color: Colors.grey.shade600)),
+                child: Text('Nenhuma regra cadastrada.',
+                    style: TextStyle(color: Colors.grey.shade600)),
               ),
             ),
           ...lista.map((r) => Card(
@@ -137,30 +168,44 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(r.cnpjFrota ?? 'Todos os CNPJs (regra padrão)',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13)),
                       const SizedBox(height: 4),
-                      Text('Exige NF: ${r.exigeNotaFiscal} · Separa NF combustível: ${r.separarNfCombustivel}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                      Text('Emissão: ${r.formaEmissao}', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                      Text(
+                          'Exige NF: ${r.exigeNotaFiscal} · Separa NF combustível: ${r.separarNfCombustivel}',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700)),
+                      Text('Emissão: ${r.formaEmissao}',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700)),
                       Text(
                           'Destino: ${r.localDestino}${r.cnpjDestinoPersonalizado != null ? ' (${r.cnpjDestinoPersonalizado})' : ''}'
                           '${r.destinoPorUf.isNotEmpty ? ' — ${r.destinoPorUf.length} exceção(ões) por UF' : ''}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700)),
                       if (r.observacao != null)
-                        Text(r.observacao!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                        Text(r.observacao!,
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade700)),
                       const SizedBox(height: 6),
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: (r.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                              color: (r.ativo
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFF64748B))
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(r.status,
                                 style: TextStyle(
                                     fontSize: 11,
-                                    color: r.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                    color: r.ativo
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFF64748B),
                                     fontWeight: FontWeight.w600)),
                           ),
                           const Spacer(),
@@ -168,7 +213,9 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
                             onPressed: () => _alternarStatus(r.id, !r.ativo),
                             child: Text(r.ativo ? 'Inativar' : 'Ativar'),
                           ),
-                          TextButton(onPressed: () => _confirmarExcluir(r.id), child: const Text('Excluir')),
+                          TextButton(
+                              onPressed: () => _confirmarExcluir(r.id),
+                              child: const Text('Excluir')),
                         ],
                       ),
                     ],
@@ -185,7 +232,8 @@ class _FormParametroNF extends StatefulWidget {
   final String empresaId;
   final List<String> cnpjsFrota;
   final WidgetRef ref;
-  const _FormParametroNF({required this.empresaId, required this.cnpjsFrota, required this.ref});
+  const _FormParametroNF(
+      {required this.empresaId, required this.cnpjsFrota, required this.ref});
 
   @override
   State<_FormParametroNF> createState() => _FormParametroNFState();
@@ -217,8 +265,10 @@ class _FormParametroNFState extends State<_FormParametroNF> {
   }
 
   Future<void> _salvar() async {
-    if (_localDestino == 'Personalizado CNPJ por Estado' && _planoEstado == null) {
-      setState(() => _erro = 'Toque em "Configurar destino por Estado" para escolher o CNPJ padrão.');
+    if (_localDestino == 'Personalizado CNPJ por Estado' &&
+        _planoEstado == null) {
+      setState(() => _erro =
+          'Toque em "Configurar destino por Estado" para escolher o CNPJ padrão.');
       return;
     }
     setState(() {
@@ -238,8 +288,9 @@ class _FormParametroNFState extends State<_FormParametroNF> {
       separarNfCombustivel: _separarNfCombustivel,
       formaEmissao: _formaEmissao,
       localDestino: _localDestino,
-      cnpjDestinoPersonalizado:
-          _localDestino == 'Personalizado CNPJ por Estado' ? _planoEstado!.cnpjPadrao : _cnpjPersonalizadoCtrl.text,
+      cnpjDestinoPersonalizado: _localDestino == 'Personalizado CNPJ por Estado'
+          ? _planoEstado!.cnpjPadrao
+          : _cnpjPersonalizadoCtrl.text,
       dadosAdicionais: _dadosAdicionaisCtrl.text,
       observacao: _obsCtrl.text,
       excecoesUf: excecoesUf,
@@ -265,8 +316,12 @@ class _FormParametroNFState extends State<_FormParametroNF> {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-              child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_erro!,
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
             ),
           ),
         Autocomplete<String>(
@@ -292,30 +347,51 @@ class _FormParametroNFState extends State<_FormParametroNF> {
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _exigeNotaFiscal,
-          decoration: const InputDecoration(labelText: 'Exige Nota Fiscal', border: OutlineInputBorder()),
-          items: [for (final o in opcoesSimNaoNF) DropdownMenuItem(value: o, child: Text(o))],
-          onChanged: (v) => setState(() => _exigeNotaFiscal = v ?? opcoesSimNaoNF.first),
+          decoration: const InputDecoration(
+              labelText: 'Exige Nota Fiscal', border: OutlineInputBorder()),
+          items: [
+            for (final o in opcoesSimNaoNF)
+              DropdownMenuItem(value: o, child: Text(o))
+          ],
+          onChanged: (v) =>
+              setState(() => _exigeNotaFiscal = v ?? opcoesSimNaoNF.first),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _separarNfCombustivel,
           decoration: const InputDecoration(
-              labelText: 'Separar NF de combustível dos produtos e serviços', border: OutlineInputBorder()),
-          items: [for (final o in opcoesSimNaoNF) DropdownMenuItem(value: o, child: Text(o))],
-          onChanged: (v) => setState(() => _separarNfCombustivel = v ?? opcoesSimNaoNF.first),
+              labelText: 'Separar NF de combustível dos produtos e serviços',
+              border: OutlineInputBorder()),
+          items: [
+            for (final o in opcoesSimNaoNF)
+              DropdownMenuItem(value: o, child: Text(o))
+          ],
+          onChanged: (v) =>
+              setState(() => _separarNfCombustivel = v ?? opcoesSimNaoNF.first),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _formaEmissao,
-          decoration: const InputDecoration(labelText: 'Forma de emissão da nota', border: OutlineInputBorder()),
-          items: [for (final o in opcoesFormaEmissaoNF) DropdownMenuItem(value: o, child: Text(o))],
-          onChanged: (v) => setState(() => _formaEmissao = v ?? opcoesFormaEmissaoNF.first),
+          decoration: const InputDecoration(
+              labelText: 'Forma de emissão da nota',
+              border: OutlineInputBorder()),
+          items: [
+            for (final o in opcoesFormaEmissaoNF)
+              DropdownMenuItem(value: o, child: Text(o))
+          ],
+          onChanged: (v) =>
+              setState(() => _formaEmissao = v ?? opcoesFormaEmissaoNF.first),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _localDestino,
-          decoration: const InputDecoration(labelText: 'Local de destino da Nota Fiscal', border: OutlineInputBorder()),
-          items: [for (final o in opcoesLocalDestinoNF) DropdownMenuItem(value: o, child: Text(o))],
+          decoration: const InputDecoration(
+              labelText: 'Local de destino da Nota Fiscal',
+              border: OutlineInputBorder()),
+          items: [
+            for (final o in opcoesLocalDestinoNF)
+              DropdownMenuItem(value: o, child: Text(o))
+          ],
           onChanged: (v) => setState(() {
             _localDestino = v ?? opcoesLocalDestinoNF.first;
             _planoEstado = null;
@@ -335,26 +411,34 @@ class _FormParametroNFState extends State<_FormParametroNF> {
           const SizedBox(height: 10),
           TextField(
             controller: _cnpjPersonalizadoCtrl,
-            decoration: const InputDecoration(labelText: 'CNPJ de destino personalizado', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'CNPJ de destino personalizado',
+                border: OutlineInputBorder()),
           ),
         ],
         const SizedBox(height: 10),
         TextField(
           controller: _dadosAdicionaisCtrl,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Dados adicionais para a nota fiscal', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Dados adicionais para a nota fiscal',
+              border: OutlineInputBorder()),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _obsCtrl,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Observação', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Observação', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _salvando ? null : _salvar,
           child: _salvando
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Salvar Regra'),
         ),
       ],

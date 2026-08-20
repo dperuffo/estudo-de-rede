@@ -8,7 +8,8 @@ import '../../../core/services/supabase_service.dart';
 // de um model tipado) de propósito: o formulário só lê os campos uma vez
 // pra inicializar os controllers, e a tabela `empresas` tem bem mais
 // colunas do que as usadas aqui.
-final meuPostoProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+final meuPostoProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;

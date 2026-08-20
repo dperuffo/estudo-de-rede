@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/avaliacoes_admin_provider.dart';
 import '../services/avaliacoes_admin_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataHora = DateFormat('dd/MM/yyyy HH:mm');
 
 // Fase FLT-4 — Avaliações dos Clientes (admin): painel de feedback dos
@@ -14,7 +16,8 @@ class AvaliacoesAdminScreen extends ConsumerStatefulWidget {
   const AvaliacoesAdminScreen({super.key});
 
   @override
-  ConsumerState<AvaliacoesAdminScreen> createState() => _AvaliacoesAdminScreenState();
+  ConsumerState<AvaliacoesAdminScreen> createState() =>
+      _AvaliacoesAdminScreenState();
 }
 
 class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
@@ -24,7 +27,8 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
   final _erros = <String, String>{};
 
   TextEditingController _controllerDe(String id, String? respostaAtual) {
-    return _controllers.putIfAbsent(id, () => TextEditingController(text: respostaAtual ?? ''));
+    return _controllers.putIfAbsent(
+        id, () => TextEditingController(text: respostaAtual ?? ''));
   }
 
   Future<void> _enviar(String avaliacaoId) async {
@@ -35,11 +39,16 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
       _enviando.add(avaliacaoId);
     });
     try {
-      await AvaliacoesAdminService().responder(avaliacaoId: avaliacaoId, resposta: texto, respondidoPor: sessao.email);
+      await AvaliacoesAdminService().responder(
+          avaliacaoId: avaliacaoId,
+          resposta: texto,
+          respondidoPor: sessao.email);
       ref.invalidate(avaliacoesAdminProvider);
       if (mounted) setState(() => _editando.remove(avaliacaoId));
     } catch (e) {
-      if (mounted) setState(() => _erros[avaliacaoId] = '$e'.replaceFirst('Exception: ', ''));
+      if (mounted)
+        setState(
+            () => _erros[avaliacaoId] = '$e'.replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _enviando.remove(avaliacaoId));
     }
@@ -59,7 +68,14 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Avaliações dos Clientes')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Avaliações dos Clientes')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -73,7 +89,8 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso restrito', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('Acesso restrito',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(height: 8),
               Text(
                 'Esta tela é exclusiva do time interno (perfil administrador). Fale com um '
@@ -102,18 +119,22 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                _indicador('Nota média', '${kpis.notaMedia.toStringAsFixed(1)} ★'),
+                _indicador(
+                    'Nota média', '${kpis.notaMedia.toStringAsFixed(1)} ★'),
                 const SizedBox(width: 8),
                 _indicador('Total', '${kpis.total}'),
                 const SizedBox(width: 8),
-                _indicador('Pendentes', '${kpis.pendentes}', destaque: kpis.pendentes > 0),
+                _indicador('Pendentes', '${kpis.pendentes}',
+                    destaque: kpis.pendentes > 0),
               ],
             ),
             const SizedBox(height: 16),
             if (lista.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('Nenhuma avaliação recebida ainda.', style: TextStyle(color: Colors.grey.shade500))),
+                child: Center(
+                    child: Text('Nenhuma avaliação recebida ainda.',
+                        style: TextStyle(color: Colors.grey.shade500))),
               )
             else
               ...lista.map(_cardAvaliacao),
@@ -132,14 +153,24 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
         decoration: BoxDecoration(
           color: destaque ? const Color(0xFFFEF3C7) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
+          border: Border.all(
+              color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(valor, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: destaque ? const Color(0xFF92400E) : Colors.black87)),
+            Text(valor,
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color:
+                        destaque ? const Color(0xFF92400E) : Colors.black87)),
           ],
         ),
       ),
@@ -165,8 +196,12 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(a.empresaNome ?? 'Sem cliente vinculado', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                      Text(a.userEmail, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      Text(a.empresaNome ?? 'Sem cliente vinculado',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13)),
+                      Text(a.userEmail,
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500)),
                     ],
                   ),
                 ),
@@ -177,16 +212,29 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         for (var i = 1; i <= 5; i++)
-                          Icon(Icons.star, size: 14, color: i <= a.estrelas ? const Color(0xFFFBBF24) : Colors.grey.shade300),
+                          Icon(Icons.star,
+                              size: 14,
+                              color: i <= a.estrelas
+                                  ? const Color(0xFFFBBF24)
+                                  : Colors.grey.shade300),
                       ],
                     ),
-                    Text(rotuloNota(a.estrelas), style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                    Text(rotuloNota(a.estrelas),
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade600)),
                     if (pendente)
                       Container(
                         margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(8)),
-                        child: const Text('Pendente', style: TextStyle(fontSize: 9, color: Color(0xFF92400E), fontWeight: FontWeight.w700)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: const Text('Pendente',
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: Color(0xFF92400E),
+                                fontWeight: FontWeight.w700)),
                       ),
                   ],
                 ),
@@ -198,31 +246,46 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
             ],
             if (a.criadoEm != null) ...[
               const SizedBox(height: 4),
-              Text(_dataHora.format(DateTime.parse(a.criadoEm!).toLocal()), style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+              Text(_dataHora.format(DateTime.parse(a.criadoEm!).toLocal()),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
             ],
             const SizedBox(height: 10),
             if (!editando)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(8)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (a.respostaAdmin != null && a.respostaAdmin!.isNotEmpty) ...[
-                      const Text('Sua resposta', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF1D4ED8))),
+                    if (a.respostaAdmin != null &&
+                        a.respostaAdmin!.isNotEmpty) ...[
+                      const Text('Sua resposta',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1D4ED8))),
                       const SizedBox(height: 2),
-                      Text(a.respostaAdmin!, style: const TextStyle(fontSize: 13)),
+                      Text(a.respostaAdmin!,
+                          style: const TextStyle(fontSize: 13)),
                     ] else
-                      Text('Ainda sem resposta.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      Text('Ainda sem resposta.',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade500)),
                     const SizedBox(height: 6),
                     TextButton(
                       onPressed: () => setState(() {
                         _controllerDe(a.id, a.respostaAdmin);
                         _editando.add(a.id);
                       }),
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                      child: Text(pendente ? 'Responder' : 'Editar resposta', style: const TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                      child: Text(pendente ? 'Responder' : 'Editar resposta',
+                          style: const TextStyle(fontSize: 12)),
                     ),
                   ],
                 ),
@@ -242,19 +305,24 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                   ),
                   if (_erros[a.id] != null) ...[
                     const SizedBox(height: 4),
-                    Text(_erros[a.id]!, style: const TextStyle(fontSize: 11, color: Colors.red)),
+                    Text(_erros[a.id]!,
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.red)),
                   ],
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       FilledButton(
                         onPressed: enviando ? null : () => _enviar(a.id),
-                        child: Text(enviando ? 'Enviando...' : 'Enviar resposta', style: const TextStyle(fontSize: 12)),
+                        child: Text(
+                            enviando ? 'Enviando...' : 'Enviar resposta',
+                            style: const TextStyle(fontSize: 12)),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
                         onPressed: () => setState(() => _editando.remove(a.id)),
-                        child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
+                        child: const Text('Cancelar',
+                            style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),

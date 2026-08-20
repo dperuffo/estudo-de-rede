@@ -75,8 +75,8 @@ class CicloAbertoDetalhe {
   });
 }
 
-final cicloAbertoDetalheProvider =
-    FutureProvider.autoDispose.family<CicloAbertoDetalhe?, String>((ref, negociacaoId) async {
+final cicloAbertoDetalheProvider = FutureProvider.autoDispose
+    .family<CicloAbertoDetalhe?, String>((ref, negociacaoId) async {
   final supabase = SupabaseService.client;
 
   final ciclosRaw = await supabase.rpc('ciclos_abertos_postos') as List;
@@ -94,11 +94,12 @@ final cicloAbertoDetalheProvider =
   final todos = <ItemExtratoCiclo>[];
   var offset = 0;
   while (true) {
-    final lote = await supabase
-        .rpc('abastecimentos_do_ciclo_aberto', params: {'p_negociacao_id': negociacaoId}).range(
-            offset, offset + tamanhoLote - 1) as List;
+    final lote = await supabase.rpc('abastecimentos_do_ciclo_aberto', params: {
+      'p_negociacao_id': negociacaoId
+    }).range(offset, offset + tamanhoLote - 1) as List;
     if (lote.isEmpty) break;
-    todos.addAll(lote.map((m) => ItemExtratoCiclo.fromMap(m as Map<String, dynamic>)));
+    todos.addAll(
+        lote.map((m) => ItemExtratoCiclo.fromMap(m as Map<String, dynamic>)));
     if (lote.length < tamanhoLote) break;
     offset += tamanhoLote;
   }
@@ -112,9 +113,11 @@ final cicloAbertoDetalheProvider =
     vencimentoPrevisto: ciclo['vencimento_previsto'] as String?,
     valorAcumulado: (ciclo['valor_acumulado'] as num?)?.toDouble() ?? 0,
     volumeAcumulado: (ciclo['volume_acumulado'] as num?)?.toDouble() ?? 0,
-    quantidadeAbastecimentos: (ciclo['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
+    quantidadeAbastecimentos:
+        (ciclo['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
     valorPendenteNfe: (ciclo['valor_pendente_nfe'] as num?)?.toDouble() ?? 0,
-    quantidadePendenteNfe: (ciclo['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
+    quantidadePendenteNfe:
+        (ciclo['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
     itens: todos,
   );
 });

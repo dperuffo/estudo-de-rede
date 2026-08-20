@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../posto/providers/negociacao_detalhe_provider.dart' show RodadaNegociacao;
+import '../../posto/providers/negociacao_detalhe_provider.dart'
+    show RodadaNegociacao;
 
 // Fase FLT-3 — detalhe de uma negociação + histórico de rodadas (cliente),
 // espelho de negociacao_detalhe_provider.dart (lado posto, FLT-2). Mesma
@@ -34,15 +35,16 @@ class NegociacaoDetalheCliente {
     required this.rodadas,
   });
 
-  bool get emAndamento => status == 'pendente_posto' || status == 'pendente_cliente';
+  bool get emAndamento =>
+      status == 'pendente_posto' || status == 'pendente_cliente';
   // Fase FLT-3 — esta tela só existe dentro do shell do cliente, então
   // "minha vez de responder" é sempre do ponto de vista do cliente.
   bool get minhaVezDeResponder => status == 'pendente_cliente';
   RodadaNegociacao? get ultimaRodada => rodadas.isEmpty ? null : rodadas.last;
 }
 
-final negociacaoDetalheClienteProvider =
-    FutureProvider.autoDispose.family<NegociacaoDetalheCliente, String>((ref, id) async {
+final negociacaoDetalheClienteProvider = FutureProvider.autoDispose
+    .family<NegociacaoDetalheCliente, String>((ref, id) async {
   final supabase = SupabaseService.client;
 
   final negociacao = await supabase
@@ -56,9 +58,14 @@ final negociacaoDetalheClienteProvider =
   String? nomeAtualizadoPor;
   final atualizadoPor = negociacao['atualizado_por'] as String?;
   if (atualizadoPor != null) {
-    final usuario = await supabase.from('usuarios_app').select('nome').eq('email', atualizadoPor).maybeSingle();
+    final usuario = await supabase
+        .from('usuarios_app')
+        .select('nome')
+        .eq('email', atualizadoPor)
+        .maybeSingle();
     final nome = usuario?['nome'] as String?;
-    nomeAtualizadoPor = (nome != null && nome.isNotEmpty) ? nome : atualizadoPor;
+    nomeAtualizadoPor =
+        (nome != null && nome.isNotEmpty) ? nome : atualizadoPor;
   }
 
   final rodadasRaw = await supabase
@@ -79,6 +86,8 @@ final negociacaoDetalheClienteProvider =
     nomeAtualizadoPor: nomeAtualizadoPor,
     clienteNome: negociacao['cliente_nome'] as String?,
     postoNome: negociacao['posto_nome'] as String?,
-    rodadas: rodadasRaw.map((m) => RodadaNegociacao.fromMap(m as Map<String, dynamic>)).toList(),
+    rodadas: rodadasRaw
+        .map((m) => RodadaNegociacao.fromMap(m as Map<String, dynamic>))
+        .toList(),
   );
 });

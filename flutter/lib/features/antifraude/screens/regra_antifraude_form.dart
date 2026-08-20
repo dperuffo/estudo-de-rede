@@ -13,7 +13,8 @@ import '../services/antifraude_service.dart';
 // Fase Antifraude→Ações-Sugeridas — o tipo "localizacao_posto" que existia
 // aqui foi migrado pra Ações Sugeridas (ver features/acoes_sugeridas).
 
-num? _paraNum(String s) => s.trim().isEmpty ? null : num.tryParse(s.trim().replaceAll(',', '.'));
+num? _paraNum(String s) =>
+    s.trim().isEmpty ? null : num.tryParse(s.trim().replaceAll(',', '.'));
 
 Widget _erroBox(String? erro) {
   if (erro == null) return const SizedBox.shrink();
@@ -22,8 +23,11 @@ Widget _erroBox(String? erro) {
     child: Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-      child: Text(erro, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+      decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(8)),
+      child: Text(erro,
+          style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
     ),
   );
 }
@@ -41,7 +45,8 @@ Future<void> mostrarFormRegraAntifraude(
     context: context,
     isScrollControlled: true,
     builder: (_) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: DraggableScrollableSheet(
         initialChildSize: 0.9,
         minChildSize: 0.5,
@@ -52,7 +57,10 @@ Future<void> mostrarFormRegraAntifraude(
           child: ListView(
             controller: scrollController,
             children: [
-              Text(regraExistente == null ? 'Nova Regra Antifraude' : 'Editar Regra',
+              Text(
+                  regraExistente == null
+                      ? 'Nova Regra Antifraude'
+                      : 'Editar Regra',
                   style: Theme.of(ctx).textTheme.titleMedium),
               const SizedBox(height: 12),
               _FormRegraAntifraude(
@@ -92,12 +100,14 @@ class _FormRegraAntifraude extends StatefulWidget {
 }
 
 class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
-  late final _nomeCtrl = TextEditingController(text: widget.regraExistente?.nome ?? '');
+  late final _nomeCtrl =
+      TextEditingController(text: widget.regraExistente?.nome ?? '');
   late String _tipo = widget.regraExistente?.tipo ?? widget.tipoInicial;
   late String _escopo = widget.regraExistente?.escopo ?? 'empresa';
   String? _escopoReferencia;
-  late DateTime _vigenciaInicio =
-      widget.regraExistente != null ? DateTime.parse(widget.regraExistente!.vigenciaInicio) : DateTime.now();
+  late DateTime _vigenciaInicio = widget.regraExistente != null
+      ? DateTime.parse(widget.regraExistente!.vigenciaInicio)
+      : DateTime.now();
   DateTime? _vigenciaFim;
   late bool _ativo = widget.regraExistente?.ativo ?? true;
 
@@ -121,8 +131,10 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
       if (r.vigenciaFim != null) _vigenciaFim = DateTime.parse(r.vigenciaFim!);
       final c = r.condicoes;
       _litrosMaxDiaCtrl.text = c['litros_max_dia']?.toString() ?? '';
-      _valorMaxAbastecimentoCtrl.text = c['valor_max_abastecimento']?.toString() ?? '';
-      _intervaloMinimoHorasCtrl.text = c['intervalo_minimo_horas']?.toString() ?? '';
+      _valorMaxAbastecimentoCtrl.text =
+          c['valor_max_abastecimento']?.toString() ?? '';
+      _intervaloMinimoHorasCtrl.text =
+          c['intervalo_minimo_horas']?.toString() ?? '';
       final horario = c['horario_permitido'] as Map?;
       _horarioInicioCtrl.text = horario?['inicio']?.toString() ?? '';
       _horarioFimCtrl.text = horario?['fim']?.toString() ?? '';
@@ -148,8 +160,12 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
             litrosMaxDia: _paraNum(_litrosMaxDiaCtrl.text),
             valorMaxAbastecimento: _paraNum(_valorMaxAbastecimentoCtrl.text),
             intervaloMinimoHoras: _paraNum(_intervaloMinimoHorasCtrl.text),
-            horarioInicio: _horarioInicioCtrl.text.trim().isEmpty ? null : _horarioInicioCtrl.text.trim(),
-            horarioFim: _horarioFimCtrl.text.trim().isEmpty ? null : _horarioFimCtrl.text.trim(),
+            horarioInicio: _horarioInicioCtrl.text.trim().isEmpty
+                ? null
+                : _horarioInicioCtrl.text.trim(),
+            horarioFim: _horarioFimCtrl.text.trim().isEmpty
+                ? null
+                : _horarioFimCtrl.text.trim(),
           )
         : await service.atualizar(
             id: widget.regraExistente!.id,
@@ -163,8 +179,12 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
             litrosMaxDia: _paraNum(_litrosMaxDiaCtrl.text),
             valorMaxAbastecimento: _paraNum(_valorMaxAbastecimentoCtrl.text),
             intervaloMinimoHoras: _paraNum(_intervaloMinimoHorasCtrl.text),
-            horarioInicio: _horarioInicioCtrl.text.trim().isEmpty ? null : _horarioInicioCtrl.text.trim(),
-            horarioFim: _horarioFimCtrl.text.trim().isEmpty ? null : _horarioFimCtrl.text.trim(),
+            horarioInicio: _horarioInicioCtrl.text.trim().isEmpty
+                ? null
+                : _horarioInicioCtrl.text.trim(),
+            horarioFim: _horarioFimCtrl.text.trim().isEmpty
+                ? null
+                : _horarioFimCtrl.text.trim(),
           );
 
     if (!mounted) return;
@@ -175,7 +195,8 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
     }
     widget.ref.invalidate(regrasAntifraudeProvider(_tipo));
     if (widget.regraExistente != null && widget.regraExistente!.tipo != _tipo) {
-      widget.ref.invalidate(regrasAntifraudeProvider(widget.regraExistente!.tipo));
+      widget.ref
+          .invalidate(regrasAntifraudeProvider(widget.regraExistente!.tipo));
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -205,23 +226,31 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
         _erroBox(_erro),
         TextField(
           controller: _nomeCtrl,
-          decoration: const InputDecoration(labelText: 'Nome *', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Nome *', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _tipo,
-          decoration: const InputDecoration(labelText: 'Tipo de regra *', border: OutlineInputBorder()),
-          items: [for (final t in tiposRegraAntifraude) DropdownMenuItem(value: t.$1, child: Text(t.$2))],
+          decoration: const InputDecoration(
+              labelText: 'Tipo de regra *', border: OutlineInputBorder()),
+          items: [
+            for (final t in tiposRegraAntifraude)
+              DropdownMenuItem(value: t.$1, child: Text(t.$2))
+          ],
           onChanged: (v) => setState(() => _tipo = v ?? _tipo),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _escopo,
-          decoration: const InputDecoration(labelText: 'Escopo *', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Escopo *', border: OutlineInputBorder()),
           items: const [
             DropdownMenuItem(value: 'empresa', child: Text('Empresa toda')),
-            DropdownMenuItem(value: 'motorista', child: Text('Um motorista específico')),
-            DropdownMenuItem(value: 'veiculo', child: Text('Um veículo específico')),
+            DropdownMenuItem(
+                value: 'motorista', child: Text('Um motorista específico')),
+            DropdownMenuItem(
+                value: 'veiculo', child: Text('Um veículo específico')),
           ],
           onChanged: (v) => setState(() {
             _escopo = v ?? 'empresa';
@@ -232,15 +261,23 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
         if (_escopo == 'motorista')
           DropdownButtonFormField<String>(
             value: _escopoReferencia,
-            decoration: const InputDecoration(labelText: 'Motorista *', border: OutlineInputBorder()),
-            items: [for (final m in widget.motoristas) DropdownMenuItem(value: m.cpf, child: Text(m.nomeCompleto))],
+            decoration: const InputDecoration(
+                labelText: 'Motorista *', border: OutlineInputBorder()),
+            items: [
+              for (final m in widget.motoristas)
+                DropdownMenuItem(value: m.cpf, child: Text(m.nomeCompleto))
+            ],
             onChanged: (v) => setState(() => _escopoReferencia = v),
           ),
         if (_escopo == 'veiculo')
           DropdownButtonFormField<String>(
             value: _escopoReferencia,
-            decoration: const InputDecoration(labelText: 'Veículo (placa) *', border: OutlineInputBorder()),
-            items: [for (final v in widget.veiculos) DropdownMenuItem(value: v.placa, child: Text(v.placa))],
+            decoration: const InputDecoration(
+                labelText: 'Veículo (placa) *', border: OutlineInputBorder()),
+            items: [
+              for (final v in widget.veiculos)
+                DropdownMenuItem(value: v.placa, child: Text(v.placa))
+            ],
             onChanged: (v) => setState(() => _escopoReferencia = v),
           ),
         const SizedBox(height: 10),
@@ -249,14 +286,17 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
             Expanded(
               child: OutlinedButton(
                 onPressed: () => _escolherData(inicio: true),
-                child: Text('Início: ${_vigenciaInicio.toIso8601String().substring(0, 10)}'),
+                child: Text(
+                    'Início: ${_vigenciaInicio.toIso8601String().substring(0, 10)}'),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton(
                 onPressed: () => _escolherData(inicio: false),
-                child: Text(_vigenciaFim == null ? 'Fim: sem prazo' : 'Fim: ${_vigenciaFim!.toIso8601String().substring(0, 10)}'),
+                child: Text(_vigenciaFim == null
+                    ? 'Fim: sem prazo'
+                    : 'Fim: ${_vigenciaFim!.toIso8601String().substring(0, 10)}'),
               ),
             ),
           ],
@@ -292,17 +332,21 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
         TextField(
           controller: _litrosMaxDiaCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Litros máximos por dia', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Litros máximos por dia',
+              border: OutlineInputBorder()),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _valorMaxAbastecimentoCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration:
-              const InputDecoration(labelText: 'Valor máximo por abastecimento (R\$)', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Valor máximo por abastecimento (R\$)',
+              border: OutlineInputBorder()),
         ),
         const SizedBox(height: 6),
-        const Text('Preencha ao menos um dos dois campos acima.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text('Preencha ao menos um dos dois campos acima.',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
       ];
     }
     // janela_tempo_frequencia
@@ -311,7 +355,8 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
         controller: _intervaloMinimoHorasCtrl,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: const InputDecoration(
-            labelText: 'Intervalo mínimo entre abastecimentos (horas)', border: OutlineInputBorder()),
+            labelText: 'Intervalo mínimo entre abastecimentos (horas)',
+            border: OutlineInputBorder()),
       ),
       const SizedBox(height: 10),
       Row(
@@ -319,20 +364,23 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
           Expanded(
             child: TextField(
               controller: _horarioInicioCtrl,
-              decoration: const InputDecoration(labelText: 'Início (HH:MM)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Início (HH:MM)', border: OutlineInputBorder()),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _horarioFimCtrl,
-              decoration: const InputDecoration(labelText: 'Fim (HH:MM)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Fim (HH:MM)', border: OutlineInputBorder()),
             ),
           ),
         ],
       ),
       const SizedBox(height: 6),
-      const Text('Preencha o intervalo mínimo, o horário permitido, ou os dois.',
+      const Text(
+          'Preencha o intervalo mínimo, o horário permitido, ou os dois.',
           style: TextStyle(fontSize: 11, color: Colors.grey)),
     ];
   }

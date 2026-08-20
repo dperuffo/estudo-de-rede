@@ -8,6 +8,8 @@ import '../services/ajustes_abastecimentos_service.dart';
 import '../services/abastecimentos_posto_service.dart' show nomeProvedor;
 import '../../../core/services/sessao_provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
@@ -39,7 +41,8 @@ String _fmtDataHora(String? iso) {
 String _fmtCampo(String campo, dynamic valor) {
   if (valor == null) return '';
   if (campo == 'data_abastecimento') return _fmtDataHora(valor as String);
-  if (campo == 'item_valor_unitario' || campo == 'item_valor_total') return _moeda.format(valor as num);
+  if (campo == 'item_valor_unitario' || campo == 'item_valor_total')
+    return _moeda.format(valor as num);
   if (campo == 'item_quantidade') return '${_numero.format(valor as num)} L';
   if (campo == 'hodometro') return '${_numero.format(valor as num)} km';
   return valor.toString();
@@ -55,10 +58,12 @@ class AbastecimentoDetalheScreen extends ConsumerStatefulWidget {
   const AbastecimentoDetalheScreen({super.key, required this.chave});
 
   @override
-  ConsumerState<AbastecimentoDetalheScreen> createState() => _AbastecimentoDetalheScreenState();
+  ConsumerState<AbastecimentoDetalheScreen> createState() =>
+      _AbastecimentoDetalheScreenState();
 }
 
-class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalheScreen> {
+class _AbastecimentoDetalheScreenState
+    extends ConsumerState<AbastecimentoDetalheScreen> {
   final _service = AjustesAbastecimentosService();
   bool _formularioAberto = false;
   bool _processando = false;
@@ -92,10 +97,14 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
     _origValorTotal = a.valorTotal?.toString();
 
     _dataHora = TextEditingController(text: a.dataAbastecimento ?? '');
-    _hodometro = TextEditingController(text: a.hodometro != null ? a.hodometro!.toStringAsFixed(0) : '');
-    _litros = TextEditingController(text: a.litros != null ? a.litros!.toStringAsFixed(3) : '');
-    _precoUnitario = TextEditingController(text: a.precoLitro != null ? a.precoLitro!.toStringAsFixed(2) : '');
-    _valorTotal = TextEditingController(text: a.valorTotal != null ? a.valorTotal!.toStringAsFixed(2) : '');
+    _hodometro = TextEditingController(
+        text: a.hodometro != null ? a.hodometro!.toStringAsFixed(0) : '');
+    _litros = TextEditingController(
+        text: a.litros != null ? a.litros!.toStringAsFixed(3) : '');
+    _precoUnitario = TextEditingController(
+        text: a.precoLitro != null ? a.precoLitro!.toStringAsFixed(2) : '');
+    _valorTotal = TextEditingController(
+        text: a.valorTotal != null ? a.valorTotal!.toStringAsFixed(2) : '');
     _combustivel = produtosPosto.contains(a.produto) ? a.produto : null;
     _controllersProntos = true;
   }
@@ -122,7 +131,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
   }
 
   Future<void> _selecionarDataHora() async {
-    final atual = DateTime.tryParse(_dataHora.text)?.toLocal() ?? DateTime.now();
+    final atual =
+        DateTime.tryParse(_dataHora.text)?.toLocal() ?? DateTime.now();
     final data = await showDatePicker(
       context: context,
       initialDate: atual,
@@ -130,9 +140,11 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
       lastDate: DateTime(2100),
     );
     if (data == null || !mounted) return;
-    final hora = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(atual));
+    final hora = await showTimePicker(
+        context: context, initialTime: TimeOfDay.fromDateTime(atual));
     if (hora == null) return;
-    final combinado = DateTime(data.year, data.month, data.day, hora.hour, hora.minute);
+    final combinado =
+        DateTime(data.year, data.month, data.day, hora.hour, hora.minute);
     setState(() => _dataHora.text = combinado.toIso8601String());
   }
 
@@ -148,11 +160,14 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
     }
 
     return CamposAjuste(
-      dataAbastecimento: _dataHora.text.trim().isNotEmpty && _dataHora.text.trim() != (_origDataHora ?? '')
+      dataAbastecimento: _dataHora.text.trim().isNotEmpty &&
+              _dataHora.text.trim() != (_origDataHora ?? '')
           ? DateTime.parse(_dataHora.text).toUtc().toIso8601String()
           : null,
       hodometro: numeroSeMudou(_hodometro.text, _origHodometro),
-      itemNome: (_combustivel != null && _combustivel != _origCombustivel) ? _combustivel : null,
+      itemNome: (_combustivel != null && _combustivel != _origCombustivel)
+          ? _combustivel
+          : null,
       itemQuantidade: numeroSeMudou(_litros.text, _origLitros),
       itemValorUnitario: numeroSeMudou(_precoUnitario.text, _origPrecoUnitario),
       itemValorTotal: numeroSeMudou(_valorTotal.text, _origValorTotal),
@@ -170,7 +185,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
     }
     final empresaPostoId = _empresaPostoId;
     if (empresaPostoId == null) {
-      setState(() => _erro = 'Não foi possível identificar seu posto na sessão atual.');
+      setState(() =>
+          _erro = 'Não foi possível identificar seu posto na sessão atual.');
       return;
     }
     setState(() {
@@ -178,7 +194,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
       _erro = null;
     });
     final erro = await _service.criarSolicitacaoAjuste(
-      identificador: IdentificadorAbastecimento(tipo: a.identificadorTipo, id: int.parse(a.id)),
+      identificador: IdentificadorAbastecimento(
+          tipo: a.identificadorTipo, id: int.parse(a.id)),
       empresaClienteId: a.empresaClienteId!,
       empresaPostoId: empresaPostoId,
       campos: _montarCampos(),
@@ -220,7 +237,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
       _processando = true;
       _erro = null;
     });
-    final erro = await _service.decidirAjuste(ajusteId: ajusteId, aceitar: aceitar);
+    final erro =
+        await _service.decidirAjuste(ajusteId: ajusteId, aceitar: aceitar);
     if (!mounted) return;
     setState(() => _processando = false);
     if (erro != null) {
@@ -245,7 +263,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
     }
   }
 
-  String? get _empresaPostoId => ref.read(sessaoProvider).valueOrNull?.empresaId;
+  String? get _empresaPostoId =>
+      ref.read(sessaoProvider).valueOrNull?.empresaId;
 
   @override
   Widget build(BuildContext context) {
@@ -253,11 +272,19 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Abastecimento'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/abastecimentos'),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go('/posto/abastecimentos'),
         ),
       ),
       body: async.when(
@@ -265,13 +292,16 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
         error: (e, _) => Center(child: Text('Não deu pra carregar: $e')),
         data: (d) {
           final a = d.abastecimento;
-          if (a == null) return const Center(child: Text('Abastecimento não encontrado.'));
-          if (d.minhaVezDeResponder || d.ajusteAberto != null) _prepararControllers(a);
+          if (a == null)
+            return const Center(child: Text('Abastecimento não encontrado.'));
+          if (d.minhaVezDeResponder || d.ajusteAberto != null)
+            _prepararControllers(a);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('ID ${a.codigoAbastecimento ?? a.id} · ${nomeProvedor(a.provedor)}',
+              Text(
+                  'ID ${a.codigoAbastecimento ?? a.id} · ${nomeProvedor(a.provedor)}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
               const SizedBox(height: 12),
               Card(
@@ -280,33 +310,43 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Valores atuais', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      const Text('Valores atuais',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
                       const SizedBox(height: 12),
                       _valor('Data e hora', _fmtDataHora(a.dataAbastecimento)),
                       _valor('Placa', a.placa ?? '—'),
                       _valor('Motorista', a.motoristaNome ?? '—'),
-                      if (a.hodometro != null) _valor('Hodômetro', '${_numero.format(a.hodometro)} km'),
+                      if (a.hodometro != null)
+                        _valor(
+                            'Hodômetro', '${_numero.format(a.hodometro)} km'),
                       _valor('Combustível', a.produto ?? '—'),
-                      if (a.litros != null) _valor('Litros', '${_numero.format(a.litros)} L'),
-                      if (a.precoLitro != null) _valor('Preço por litro', _moeda.format(a.precoLitro)),
-                      if (a.valorTotal != null) _valor('Valor total', _moeda.format(a.valorTotal)),
+                      if (a.litros != null)
+                        _valor('Litros', '${_numero.format(a.litros)} L'),
+                      if (a.precoLitro != null)
+                        _valor('Preço por litro', _moeda.format(a.precoLitro)),
+                      if (a.valorTotal != null)
+                        _valor('Valor total', _moeda.format(a.valorTotal)),
                       _valor('Cliente', a.nomeCliente ?? '—'),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-
               if (_erro != null) ...[
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(_erro!,
+                      style: const TextStyle(
+                          color: Color(0xFFB91C1C), fontSize: 13)),
                 ),
                 const SizedBox(height: 12),
               ],
-
               _painelAjusteConteudo(d, a),
             ],
           );
@@ -320,13 +360,21 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 120, child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
-            Expanded(child: Text(valor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+            SizedBox(
+                width: 120,
+                child: Text(label,
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade600))),
+            Expanded(
+                child: Text(valor,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w500))),
           ],
         ),
       );
 
-  Widget _painelAjusteConteudo(AjusteAbastecimentoDetalhe d, AbastecimentoParaAjuste a) {
+  Widget _painelAjusteConteudo(
+      AjusteAbastecimentoDetalhe d, AbastecimentoParaAjuste a) {
     if (d.ajusteAberto == null) {
       return Card(
         child: Padding(
@@ -334,7 +382,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Ajuste de registro', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text('Ajuste de registro',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 4),
               Text(
                 'Encontrou um erro neste abastecimento? Solicite um ajuste — o cliente recebe uma notificação para aprovar ou recusar antes de qualquer mudança valer.',
@@ -346,7 +395,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
               // em vez de escondido, mesmo padrão da web
               // (PainelAjusteAbastecimento.tsx).
               if (a.cicloFechado) ...[
-                const OutlinedButton(onPressed: null, child: Text('Solicitar ajuste')),
+                const OutlinedButton(
+                    onPressed: null, child: Text('Solicitar ajuste')),
                 const SizedBox(height: 6),
                 const Text(
                   'Este abastecimento já está em um ciclo fechado (faturado) e não pode mais ser ajustado.',
@@ -382,12 +432,21 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Ajuste de registro', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text('Ajuste de registro',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(12)),
-                  child: Text(_statusAjusteLabel[ajuste.status] ?? ajuste.status,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w600)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text(
+                      _statusAjusteLabel[ajuste.status] ?? ajuste.status,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF92400E),
+                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -405,27 +464,46 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Rodada #${r.numeroRodada} — ${r.autor == 'cliente' ? 'cliente' : 'posto'}',
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                          Text(_fmtDataHora(r.criadoEm), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                          Text(
+                              'Rodada #${r.numeroRodada} — ${r.autor == 'cliente' ? 'cliente' : 'posto'}',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade500)),
+                          Text(_fmtDataHora(r.criadoEm),
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade500)),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      if (r.dataAbastecimento != null) Text('Data/hora: ${_fmtCampo('data_abastecimento', r.dataAbastecimento)}'),
-                      if (r.hodometro != null) Text('Hodômetro: ${_fmtCampo('hodometro', r.hodometro)}'),
-                      if (r.itemNome != null) Text('Combustível: ${r.itemNome}'),
-                      if (r.itemQuantidade != null) Text('Litros: ${_fmtCampo('item_quantidade', r.itemQuantidade)}'),
+                      if (r.dataAbastecimento != null)
+                        Text(
+                            'Data/hora: ${_fmtCampo('data_abastecimento', r.dataAbastecimento)}'),
+                      if (r.hodometro != null)
+                        Text(
+                            'Hodômetro: ${_fmtCampo('hodometro', r.hodometro)}'),
+                      if (r.itemNome != null)
+                        Text('Combustível: ${r.itemNome}'),
+                      if (r.itemQuantidade != null)
+                        Text(
+                            'Litros: ${_fmtCampo('item_quantidade', r.itemQuantidade)}'),
                       if (r.itemValorUnitario != null)
-                        Text('Preço por litro: ${_fmtCampo('item_valor_unitario', r.itemValorUnitario)}'),
-                      if (r.itemValorTotal != null) Text('Valor total: ${_fmtCampo('item_valor_total', r.itemValorTotal)}'),
+                        Text(
+                            'Preço por litro: ${_fmtCampo('item_valor_unitario', r.itemValorUnitario)}'),
+                      if (r.itemValorTotal != null)
+                        Text(
+                            'Valor total: ${_fmtCampo('item_valor_total', r.itemValorTotal)}'),
                       if (r.motivo != null && r.motivo!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text('"${r.motivo}"',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic)),
                         ),
                       const SizedBox(height: 2),
-                      Text(_decisaoLabel[r.decisao] ?? r.decisao, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      Text(_decisaoLabel[r.decisao] ?? r.decisao,
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500)),
                     ],
                   ),
                 )),
@@ -437,7 +515,8 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
                   runSpacing: 8,
                   children: [
                     ElevatedButton(
-                      onPressed: _processando ? null : () => _decidir(ajuste.id, true),
+                      onPressed:
+                          _processando ? null : () => _decidir(ajuste.id, true),
                       child: const Text('Aprovar'),
                     ),
                     OutlinedButton(
@@ -450,8 +529,11 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
                       child: const Text('Enviar contraproposta'),
                     ),
                     OutlinedButton(
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                      onPressed: _processando ? null : () => _decidir(ajuste.id, false),
+                      style:
+                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      onPressed: _processando
+                          ? null
+                          : () => _decidir(ajuste.id, false),
                       child: const Text('Recusar'),
                     ),
                   ],
@@ -465,16 +547,21 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
             ] else
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(8)),
-                child: const Text('Aguardando resposta do cliente.', style: TextStyle(color: Color(0xFF92400E), fontSize: 13)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Text('Aguardando resposta do cliente.',
+                    style: TextStyle(color: Color(0xFF92400E), fontSize: 13)),
               ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _processando ? null : () => _cancelar(ajuste.id),
-                child: const Text('Cancelar solicitação', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                child: const Text('Cancelar solicitação',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
               ),
             ),
           ],
@@ -483,35 +570,50 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
     );
   }
 
-  Widget _formularioCampos({required String titulo, required VoidCallback onEnviar, required VoidCallback onCancelar}) {
+  Widget _formularioCampos(
+      {required String titulo,
+      required VoidCallback onEnviar,
+      required VoidCallback onCancelar}) {
     if (!_controllersProntos) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(titulo, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(titulo,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 4),
-        Text('Os campos já vêm com os valores atuais — edite só o que precisa corrigir.',
+        Text(
+            'Os campos já vêm com os valores atuais — edite só o que precisa corrigir.',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
         const SizedBox(height: 12),
         TextField(
           controller: _dataHora,
           readOnly: true,
           onTap: _selecionarDataHora,
-          decoration: const InputDecoration(labelText: 'Data e hora', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Data e hora',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _hodometro,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Hodômetro (km)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Hodômetro (km)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _combustivel,
-          decoration: const InputDecoration(labelText: 'Combustível', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Combustível',
+              border: OutlineInputBorder(),
+              isDense: true),
           items: [
             const DropdownMenuItem(value: null, child: Text('Sem alteração')),
-            for (final p in produtosPosto) DropdownMenuItem(value: p, child: Text(p)),
+            for (final p in produtosPosto)
+              DropdownMenuItem(value: p, child: Text(p)),
           ],
           onChanged: (v) => setState(() => _combustivel = v),
         ),
@@ -520,20 +622,27 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
           controller: _litros,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => _recalcularTotal(),
-          decoration: const InputDecoration(labelText: 'Litros', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Litros', border: OutlineInputBorder(), isDense: true),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _precoUnitario,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => _recalcularTotal(),
-          decoration: const InputDecoration(labelText: 'Preço por litro (R\$)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Preço por litro (R\$)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _valorTotal,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Valor total (R\$)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(
+              labelText: 'Valor total (R\$)',
+              border: OutlineInputBorder(),
+              isDense: true),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -552,11 +661,16 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
             ElevatedButton(
               onPressed: _processando ? null : onEnviar,
               child: _processando
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Enviar'),
             ),
             const SizedBox(width: 8),
-            TextButton(onPressed: _processando ? null : onCancelar, child: const Text('Cancelar')),
+            TextButton(
+                onPressed: _processando ? null : onCancelar,
+                child: const Text('Cancelar')),
           ],
         ),
       ],

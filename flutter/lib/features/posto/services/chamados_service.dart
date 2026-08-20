@@ -36,7 +36,8 @@ class ChamadosService {
         .replaceAll(RegExp('[ÚÙÛÜ]'), 'U')
         .replaceAll(RegExp('[Ç]'), 'C');
     final seguro = semAcentos.replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_');
-    final cortado = seguro.length > 150 ? seguro.substring(seguro.length - 150) : seguro;
+    final cortado =
+        seguro.length > 150 ? seguro.substring(seguro.length - 150) : seguro;
     return cortado.isEmpty ? 'arquivo' : cortado;
   }
 
@@ -47,7 +48,8 @@ class ChamadosService {
     String? mimeType,
   }) async {
     final autorEmail = AuthService().emailAtual ?? '';
-    final caminho = '$ticketId/${DateTime.now().millisecondsSinceEpoch}_${_sanitizarNomeParaStorage(nome)}';
+    final caminho =
+        '$ticketId/${DateTime.now().millisecondsSinceEpoch}_${_sanitizarNomeParaStorage(nome)}';
     await _supabase.storage.from(ticketBucketAnexos).uploadBinary(
           caminho,
           bytes,
@@ -63,7 +65,8 @@ class ChamadosService {
     });
     // Anexo também conta como atualização do chamado pra fins de
     // notificação visual (mesmo comentário da web em enviarAnexo()).
-    await _supabase.from('tickets').update({'atualizado_em': DateTime.now().toIso8601String()}).eq('id', ticketId);
+    await _supabase.from('tickets').update(
+        {'atualizado_em': DateTime.now().toIso8601String()}).eq('id', ticketId);
   }
 
   Future<String> criarChamado({
@@ -77,7 +80,8 @@ class ChamadosService {
     String? anexoMime,
   }) async {
     final email = AuthService().emailAtual;
-    if (email == null) throw Exception('Sessão expirada, faça login novamente.');
+    if (email == null)
+      throw Exception('Sessão expirada, faça login novamente.');
 
     final inserido = await _supabase
         .from('tickets')
@@ -100,7 +104,11 @@ class ChamadosService {
     // comitou.
     if (anexoBytes != null && anexoNome != null) {
       try {
-        await _enviarAnexo(ticketId: ticketId, bytes: anexoBytes, nome: anexoNome, mimeType: anexoMime);
+        await _enviarAnexo(
+            ticketId: ticketId,
+            bytes: anexoBytes,
+            nome: anexoNome,
+            mimeType: anexoMime);
       } catch (_) {
         // Ignorado de propósito — chamado foi criado, anexo pode ser
         // reenviado depois pela tela de detalhe.
@@ -116,14 +124,16 @@ class ChamadosService {
     required String nome,
     String? mimeType,
   }) async {
-    await _enviarAnexo(ticketId: ticketId, bytes: bytes, nome: nome, mimeType: mimeType);
+    await _enviarAnexo(
+        ticketId: ticketId, bytes: bytes, nome: nome, mimeType: mimeType);
   }
 
   Future<void> comentar(String ticketId, String texto) async {
     final textoLimpo = texto.trim();
     if (textoLimpo.isEmpty) throw Exception('Escreva uma mensagem.');
     final email = AuthService().emailAtual;
-    if (email == null) throw Exception('Sessão expirada, faça login novamente.');
+    if (email == null)
+      throw Exception('Sessão expirada, faça login novamente.');
     final papel = await _resolverPapel();
 
     await _supabase.from('ticket_comentarios').insert({
@@ -140,15 +150,20 @@ class ChamadosService {
     final papel = await _resolverPapel();
     final agora = DateTime.now().toIso8601String();
     if (papel == 'admin') {
-      await _supabase.from('tickets').update({'admin_visto_em': agora}).eq('id', ticketId);
+      await _supabase
+          .from('tickets')
+          .update({'admin_visto_em': agora}).eq('id', ticketId);
     } else {
-      await _supabase.from('tickets').update({'usuario_visto_em': agora}).eq('id', ticketId);
+      await _supabase
+          .from('tickets')
+          .update({'usuario_visto_em': agora}).eq('id', ticketId);
     }
   }
 
   Future<void> marcarResolvido(String ticketId) async {
-    await _supabase
-        .from('tickets')
-        .update({'status': 'resolvido', 'atualizado_em': DateTime.now().toIso8601String()}).eq('id', ticketId);
+    await _supabase.from('tickets').update({
+      'status': 'resolvido',
+      'atualizado_em': DateTime.now().toIso8601String()
+    }).eq('id', ticketId);
   }
 }

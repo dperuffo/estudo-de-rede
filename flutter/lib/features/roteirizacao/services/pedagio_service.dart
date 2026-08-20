@@ -87,7 +87,8 @@ Future<List<PracaPedagioNaRota>> buscarPracasPedagioNaRota(
   for (final box in boxes) {
     final rows = await supabase
         .from('pracas_pedagio')
-        .select('id, nome, concessionaria, rodovia, uf, lat, lon, valor_carro, valor_moto, valor_caminhao_eixo')
+        .select(
+            'id, nome, concessionaria, rodovia, uf, lat, lon, valor_carro, valor_moto, valor_caminhao_eixo')
         .gte('lat', box.minLat)
         .lte('lat', box.maxLat)
         .gte('lon', box.minLon)
@@ -102,7 +103,8 @@ Future<List<PracaPedagioNaRota>> buscarPracasPedagioNaRota(
   final resultado = <PracaPedagioNaRota>[];
   for (final m in porId.values) {
     final praca = PracaPedagio.fromMap(m);
-    final pos = geo.posicaoNaRotaKm(geo.Ponto(praca.lat, praca.lon), rota, acumuladas);
+    final pos =
+        geo.posicaoNaRotaKm(geo.Ponto(praca.lat, praca.lon), rota, acumuladas);
     if (pos.desvioKm > raioKm) continue;
     resultado.add(PracaPedagioNaRota(
       id: praca.id,
@@ -123,18 +125,23 @@ Future<List<PracaPedagioNaRota>> buscarPracasPedagioNaRota(
   return resultado;
 }
 
-double? valorPedagio(PracaPedagio praca, CategoriaVeiculoPedagio categoria, {int numEixos = 2}) {
+double? valorPedagio(PracaPedagio praca, CategoriaVeiculoPedagio categoria,
+    {int numEixos = 2}) {
   switch (categoria) {
     case CategoriaVeiculoPedagio.moto:
       return praca.valorMoto;
     case CategoriaVeiculoPedagio.caminhao:
-      return praca.valorCaminhaoEixo != null ? praca.valorCaminhaoEixo! * numEixos : null;
+      return praca.valorCaminhaoEixo != null
+          ? praca.valorCaminhaoEixo! * numEixos
+          : null;
     case CategoriaVeiculoPedagio.carro:
       return praca.valorCarro;
   }
 }
 
-double custoPedagioTotal(List<PracaPedagio> pracas, CategoriaVeiculoPedagio categoria, {int numEixos = 2}) {
+double custoPedagioTotal(
+    List<PracaPedagio> pracas, CategoriaVeiculoPedagio categoria,
+    {int numEixos = 2}) {
   var soma = 0.0;
   for (final p in pracas) {
     soma += valorPedagio(p, categoria, numEixos: numEixos) ?? 0;
@@ -151,8 +158,11 @@ Future<List<PracaPedagio>> buscarPracasPedagioPorNome(String termo) async {
   if (t.length < 2) return [];
   final rows = await SupabaseService.client
       .from('pracas_pedagio')
-      .select('id, nome, concessionaria, rodovia, uf, lat, lon, valor_carro, valor_moto, valor_caminhao_eixo')
+      .select(
+          'id, nome, concessionaria, rodovia, uf, lat, lon, valor_carro, valor_moto, valor_caminhao_eixo')
       .or('nome.ilike.%$t%,rodovia.ilike.%$t%,concessionaria.ilike.%$t%')
       .limit(10) as List;
-  return rows.map((r) => PracaPedagio.fromMap(r as Map<String, dynamic>)).toList();
+  return rows
+      .map((r) => PracaPedagio.fromMap(r as Map<String, dynamic>))
+      .toList();
 }

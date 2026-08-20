@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-2 (achado real) — quando o usuário está vinculado a 2+ empresas
 // (Rede de Postos/grupo econômico), a "empresa atual" não pode ser
 // escolhida sozinha (ver comentário em sessao_provider.dart) — precisa de
@@ -29,10 +31,12 @@ class SelecionarEmpresaScreen extends ConsumerStatefulWidget {
   const SelecionarEmpresaScreen({super.key});
 
   @override
-  ConsumerState<SelecionarEmpresaScreen> createState() => _SelecionarEmpresaScreenState();
+  ConsumerState<SelecionarEmpresaScreen> createState() =>
+      _SelecionarEmpresaScreenState();
 }
 
-class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScreen> {
+class _SelecionarEmpresaScreenState
+    extends ConsumerState<SelecionarEmpresaScreen> {
   Future<List<({String id, String nome})>>? _futuro;
   String _busca = '';
 
@@ -50,7 +54,9 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
         .select('id, nome')
         .inFilter('id', sessao.empresasIds)
         .order('nome');
-    return rows.map((m) => (id: m['id'] as String, nome: m['nome'] as String? ?? '—')).toList();
+    return rows
+        .map((m) => (id: m['id'] as String, nome: m['nome'] as String? ?? '—'))
+        .toList();
   }
 
   @override
@@ -68,19 +74,34 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(ehAdmin ? 'Selecione o cliente' : (ehPosto ? 'Selecione o posto' : 'Selecione a empresa')),
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+            decoration:
+                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        title: Text(ehAdmin
+            ? 'Selecione o cliente'
+            : (ehPosto ? 'Selecione o posto' : 'Selecione a empresa')),
         leading: context.canPop()
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop())
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop())
             : null,
       ),
       body: FutureBuilder<List<({String id, String nome})>>(
         future: _futuro,
         builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData)
+            return const Center(child: CircularProgressIndicator());
           final todas = snap.data!;
           final empresas = _busca.trim().isEmpty
               ? todas
-              : todas.where((e) => e.nome.toLowerCase().contains(_busca.trim().toLowerCase())).toList();
+              : todas
+                  .where((e) => e.nome
+                      .toLowerCase()
+                      .contains(_busca.trim().toLowerCase()))
+                  .toList();
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -112,7 +133,9 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
               if (empresas.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('Nenhum cliente encontrado.', style: TextStyle(color: Colors.grey.shade500))),
+                  child: Center(
+                      child: Text('Nenhum cliente encontrado.',
+                          style: TextStyle(color: Colors.grey.shade500))),
                 ),
               ...empresas.map((e) {
                 final atual = e.id == empresaAtualId;
@@ -120,15 +143,27 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
                   margin: const EdgeInsets.only(bottom: 8),
                   color: atual ? const Color(0xFFEFF6FF) : null,
                   child: ListTile(
-                    title: Text(e.nome, style: TextStyle(fontWeight: atual ? FontWeight.bold : FontWeight.normal)),
+                    title: Text(e.nome,
+                        style: TextStyle(
+                            fontWeight:
+                                atual ? FontWeight.bold : FontWeight.normal)),
                     subtitle: atual
-                        ? Text(ehAdmin ? 'Cliente atual' : (ehPosto ? 'Posto atual' : 'Empresa atual'), style: const TextStyle(color: Color(0xFF1D4ED8)))
+                        ? Text(
+                            ehAdmin
+                                ? 'Cliente atual'
+                                : (ehPosto ? 'Posto atual' : 'Empresa atual'),
+                            style: const TextStyle(color: Color(0xFF1D4ED8)))
                         : null,
-                    trailing: atual ? const Icon(Icons.check_circle, color: Color(0xFF1D4ED8)) : const Icon(Icons.chevron_right),
+                    trailing: atual
+                        ? const Icon(Icons.check_circle,
+                            color: Color(0xFF1D4ED8))
+                        : const Icon(Icons.chevron_right),
                     onTap: atual
                         ? null
                         : () {
-                            ref.read(empresaSelecionadaProvider.notifier).state = e.id;
+                            ref
+                                .read(empresaSelecionadaProvider.notifier)
+                                .state = e.id;
                             context.go('/');
                           },
                   ),

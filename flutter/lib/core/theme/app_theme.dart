@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
 class AppTheme {
   static const _primary = Color(0xFF0D2D6B);
-  static const _accent  = Color(0xFF00B4D8);
+  static const _accent = Color(0xFF00B4D8);
   // Achado real (reportado pelo Daniel): a barra do topo (AppBarTheme,
   // usada em toda tela) e o menu/drawer (cabeçalho em home_screen.dart)
   // usavam 2 navies diferentes — `_primary` (0xFF0D2D6B, mais "azul vivo")
@@ -47,29 +48,37 @@ class AppTheme {
   );
 
   static ThemeData get light => ThemeData(
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(seedColor: _primary, secondary: _accent),
-    appBarTheme: const AppBarTheme(backgroundColor: _menu, foregroundColor: Colors.white, elevation: 0),
-    // Fase Liquid-Glass-PWA (20/08/2026) - Card e usado em dezenas de telas
-    // (dashboard, indicadores, listas) sem nenhum estilo proprio (cada uma
-    // so chamava `Card(child: ...)`, dependendo do visual padrao do
-    // Material). Como e um unico ponto central (igual ao `.card` do
-    // globals.css na web), da pra dar o efeito vidro (translucido + borda
-    // clara + sombra suave) em TODA tela que usa Card de uma vez so, sem
-    // editar arquivo por arquivo.
-    cardTheme: CardThemeData(
-      elevation: 1,
-      color: Colors.white.withOpacity(0.82),
-      surfaceTintColor: Colors.transparent,
-      shadowColor: _menu.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.white.withOpacity(0.7)),
-      ),
-    ),
-  );
+        useMaterial3: true,
+        colorScheme:
+            ColorScheme.fromSeed(seedColor: _primary, secondary: _accent),
+        appBarTheme: const AppBarTheme(
+            backgroundColor: _menu,
+            foregroundColor: Colors.white,
+            elevation: 0),
+        // Fase Liquid-Glass-PWA (20/08/2026) - Card e usado em dezenas de telas
+        // (dashboard, indicadores, listas) sem nenhum estilo proprio (cada uma
+        // so chamava `Card(child: ...)`, dependendo do visual padrao do
+        // Material). Como e um unico ponto central (igual ao `.card` do
+        // globals.css na web), da pra dar o efeito vidro (translucido + borda
+        // clara + sombra suave) em TODA tela que usa Card de uma vez so, sem
+        // editar arquivo por arquivo.
+        cardTheme: CardThemeData(
+          elevation: 1,
+          color: Colors.white.withOpacity(0.82),
+          surfaceTintColor: Colors.transparent,
+          shadowColor: _menu.withOpacity(0.15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.white.withOpacity(0.7)),
+          ),
+        ),
+      );
   static ThemeData get dark => ThemeData(
-    useMaterial3: true, brightness: Brightness.dark,
-    colorScheme: ColorScheme.fromSeed(seedColor: _primary, secondary: _accent, brightness: Brightness.dark),
-  );
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: _primary,
+            secondary: _accent,
+            brightness: Brightness.dark),
+      );
 }

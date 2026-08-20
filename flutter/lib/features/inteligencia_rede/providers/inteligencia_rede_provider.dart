@@ -91,8 +91,10 @@ class EvolucaoMensalPonto {
   final String mes;
   final String combustivel;
   final double precoMedio;
-  const EvolucaoMensalPonto({required this.mes, required this.combustivel, required this.precoMedio});
-  factory EvolucaoMensalPonto.fromMap(Map<String, dynamic> m) => EvolucaoMensalPonto(
+  const EvolucaoMensalPonto(
+      {required this.mes, required this.combustivel, required this.precoMedio});
+  factory EvolucaoMensalPonto.fromMap(Map<String, dynamic> m) =>
+      EvolucaoMensalPonto(
         mes: m['mes'] as String? ?? '',
         combustivel: m['combustivel'] as String? ?? '—',
         precoMedio: (m['preco_medio'] as num?)?.toDouble() ?? 0,
@@ -146,7 +148,8 @@ class ResumoAlertaEstado {
   final String uf;
   final int postosAlerta;
   final double piorDesvio;
-  const ResumoAlertaEstado({required this.uf, required this.postosAlerta, required this.piorDesvio});
+  const ResumoAlertaEstado(
+      {required this.uf, required this.postosAlerta, required this.piorDesvio});
 }
 
 class CoberturaMacro {
@@ -188,7 +191,11 @@ class CoberturaUf {
   final int postosGf;
   final int totalAnp;
   final double penetracao;
-  const CoberturaUf({required this.uf, required this.postosGf, required this.totalAnp, required this.penetracao});
+  const CoberturaUf(
+      {required this.uf,
+      required this.postosGf,
+      required this.totalAnp,
+      required this.penetracao});
 }
 
 class PontoMapaSimples {
@@ -220,7 +227,8 @@ class MunicipioRede {
   final String municipio;
   final String uf;
   final int total;
-  const MunicipioRede({required this.municipio, required this.uf, required this.total});
+  const MunicipioRede(
+      {required this.municipio, required this.uf, required this.total});
   factory MunicipioRede.fromMap(Map<String, dynamic> m) => MunicipioRede(
         municipio: m['municipio'] as String? ?? '—',
         uf: m['uf'] as String? ?? '',
@@ -232,7 +240,8 @@ class DistribuidoraUf {
   final String uf;
   final String distribuidora;
   final int total;
-  const DistribuidoraUf({required this.uf, required this.distribuidora, required this.total});
+  const DistribuidoraUf(
+      {required this.uf, required this.distribuidora, required this.total});
   factory DistribuidoraUf.fromMap(Map<String, dynamic> m) => DistribuidoraUf(
         uf: m['uf'] as String? ?? '',
         distribuidora: m['distribuidora'] as String? ?? '—',
@@ -245,7 +254,11 @@ class PrecoUf {
   final String combustivel;
   final double precoMedio;
   final int qtdPostos;
-  const PrecoUf({required this.uf, required this.combustivel, required this.precoMedio, required this.qtdPostos});
+  const PrecoUf(
+      {required this.uf,
+      required this.combustivel,
+      required this.precoMedio,
+      required this.qtdPostos});
   factory PrecoUf.fromMap(Map<String, dynamic> m) => PrecoUf(
         uf: m['uf'] as String? ?? '',
         combustivel: m['combustivel'] as String? ?? '—',
@@ -273,7 +286,8 @@ class RegistroPrecoHistorico {
     required this.mes,
     required this.preco,
   });
-  factory RegistroPrecoHistorico.fromMap(Map<String, dynamic> m) => RegistroPrecoHistorico(
+  factory RegistroPrecoHistorico.fromMap(Map<String, dynamic> m) =>
+      RegistroPrecoHistorico(
         cnpj: m['cnpj'] as String? ?? '',
         razaoSocial: m['razao_social'] as String?,
         municipio: m['municipio'] as String?,
@@ -326,7 +340,8 @@ class PontoPrecoMapaOperacional {
     required this.lat,
     required this.lon,
   });
-  factory PontoPrecoMapaOperacional.fromMap(Map<String, dynamic> m) => PontoPrecoMapaOperacional(
+  factory PontoPrecoMapaOperacional.fromMap(Map<String, dynamic> m) =>
+      PontoPrecoMapaOperacional(
         cnpj: m['cnpj'] as String? ?? '',
         razaoSocial: m['razao_social'] as String?,
         municipio: m['municipio'] as String?,
@@ -380,8 +395,17 @@ class ServicoPosto {
         convenienciaAmPm: m['conveniencia_am_pm'] as bool?,
       );
   int get nServicos => [
-        arla, funciona24h, possuiBanheiro, possuiEstacionamento, possuiInternet, possuiOleoGranel,
-        possuiRestaurante, possuiTrocaOleo, pistaCaminhao, conveniencia, convenienciaAmPm,
+        arla,
+        funciona24h,
+        possuiBanheiro,
+        possuiEstacionamento,
+        possuiInternet,
+        possuiOleoGranel,
+        possuiRestaurante,
+        possuiTrocaOleo,
+        pistaCaminhao,
+        conveniencia,
+        convenienciaAmPm,
       ].where((v) => v == true).length;
 }
 
@@ -432,7 +456,8 @@ class SerieTendenciaPonto {
     required this.precoMedio,
     required this.qtd,
   });
-  factory SerieTendenciaPonto.fromMap(Map<String, dynamic> m) => SerieTendenciaPonto(
+  factory SerieTendenciaPonto.fromMap(Map<String, dynamic> m) =>
+      SerieTendenciaPonto(
         mes: m['mes'] as String? ?? '',
         uf: m['uf'] as String? ?? '',
         combustivel: m['combustivel'] as String? ?? '—',
@@ -452,7 +477,8 @@ class VolatilidadeMensalPonto {
     required this.volatilidade,
     required this.qtd,
   });
-  factory VolatilidadeMensalPonto.fromMap(Map<String, dynamic> m) => VolatilidadeMensalPonto(
+  factory VolatilidadeMensalPonto.fromMap(Map<String, dynamic> m) =>
+      VolatilidadeMensalPonto(
         mes: m['mes'] as String? ?? '',
         combustivel: m['combustivel'] as String? ?? '—',
         volatilidade: (m['volatilidade'] as num?)?.toDouble() ?? 0,
@@ -488,7 +514,8 @@ class ItemPrecoMeioPagamento {
     required this.valorTotal,
     required this.qtd,
   });
-  factory ItemPrecoMeioPagamento.fromMap(Map<String, dynamic> m) => ItemPrecoMeioPagamento(
+  factory ItemPrecoMeioPagamento.fromMap(Map<String, dynamic> m) =>
+      ItemPrecoMeioPagamento(
         provedor: m['provedor'] as String? ?? '—',
         uf: m['uf'] as String?,
         regiao: m['regiao'] as String?,
@@ -576,15 +603,18 @@ class InteligenciaRedeCompleta {
 // Provider
 // ---------------------------------------------------------------------
 
-final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<InteligenciaRedeCompleta?>((ref) async {
+final inteligenciaRedeCompletaProvider =
+    FutureProvider.autoDispose<InteligenciaRedeCompleta?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;
   final supabase = SupabaseService.client;
 
-  double? resolverReferencia(String combustivel, Map<String, double> referenciaOficialPorProduto) {
+  double? resolverReferencia(
+      String combustivel, Map<String, double> referenciaOficialPorProduto) {
     final categoriaAnp = produtoParaCategoriaAnp[combustivel];
-    final referenciaOficial = categoriaAnp != null ? referenciaOficialPorProduto[categoriaAnp] : null;
+    final referenciaOficial =
+        categoriaAnp != null ? referenciaOficialPorProduto[categoriaAnp] : null;
     return referenciaOficial ?? anpPrecoReferenciaFallback[combustivel];
   }
 
@@ -592,26 +622,53 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
   // resto do app (não Future.wait).
   final postosPorUfRaw = await supabase.rpc('postos_gf_por_uf') as List;
   final anpPorUfRaw = await supabase.rpc('anp_postos_por_uf') as List;
-  final municipiosUnicos = (await supabase.rpc('postos_gf_municipios_unicos') as int?) ?? 0;
-  final precoPorCombustivelRaw = await supabase.rpc('preco_medio_por_combustivel', params: {'p_empresa_id': empresaId}) as List;
-  final totalPostosResp = await supabase.from('postos_gf').select('cnpj').eq('empresa_id', empresaId).count(CountOption.exact);
-  final topMunicipiosRaw = await supabase.rpc('postos_gf_top_municipios', params: {'p_limit': 10}) as List;
-  final pontosMapaRaw = await supabase.rpc('postos_gf_pontos_mapa', params: {'p_empresa_id': empresaId}) as List;
-  final evolucaoMensalRaw = await supabase.rpc('historico_precos_evolucao_mensal') as List;
-  final alertasRaw = await supabase.rpc('postos_gf_alertas_preco', params: {'p_threshold': 0.05, 'p_empresa_id': empresaId}) as List;
-  final universoAvaliadoRaw = await supabase.rpc('postos_gf_alertas_preco', params: {'p_threshold': -100, 'p_empresa_id': empresaId}) as List;
-  final municipiosPorUfRaw = await supabase.rpc('postos_gf_municipios_por_uf') as List;
-  final distribuidorasPorUfRaw = await supabase.rpc('postos_gf_distribuidoras_por_uf') as List;
-  final precosPorUfRaw = await supabase.rpc('preco_medio_por_combustivel_uf') as List;
-  final serieTendenciaRaw = await supabase.rpc('historico_precos_serie_uf_combustivel', params: {'p_empresa_id': empresaId}) as List;
-  final volatilidadeMensalRaw = await supabase.rpc('historico_precos_volatilidade_mensal', params: {'p_empresa_id': empresaId}) as List;
-  final historicoDetalhadoRaw = await supabase.rpc('historico_precos_detalhado', params: {'p_empresa_id': empresaId}) as List;
-  final precoRealPeriodoRaw = await supabase.rpc('abastecimentos_preco_periodo') as List;
-  final precosMapaOperacionalRaw = await supabase.rpc('postos_gf_precos_mapa') as List;
-  final desvioAnpRaw = await supabase.rpc('postos_gf_desvio_anp', params: {'p_empresa_id': empresaId}) as List;
-  final servicosPostoRaw = await supabase.rpc('postos_gf_servicos', params: {'p_empresa_id': empresaId}) as List;
-  final postosVisitadosRaw = await supabase.rpc('abastecimentos_postos_visitados') as List;
-  final precosPorMeioPagamentoRaw = await supabase.rpc('preco_medio_por_meio_pagamento', params: {'p_empresa_id': empresaId}) as List;
+  final municipiosUnicos =
+      (await supabase.rpc('postos_gf_municipios_unicos') as int?) ?? 0;
+  final precoPorCombustivelRaw = await supabase.rpc(
+      'preco_medio_por_combustivel',
+      params: {'p_empresa_id': empresaId}) as List;
+  final totalPostosResp = await supabase
+      .from('postos_gf')
+      .select('cnpj')
+      .eq('empresa_id', empresaId)
+      .count(CountOption.exact);
+  final topMunicipiosRaw = await supabase
+      .rpc('postos_gf_top_municipios', params: {'p_limit': 10}) as List;
+  final pontosMapaRaw = await supabase.rpc('postos_gf_pontos_mapa',
+      params: {'p_empresa_id': empresaId}) as List;
+  final evolucaoMensalRaw =
+      await supabase.rpc('historico_precos_evolucao_mensal') as List;
+  final alertasRaw = await supabase.rpc('postos_gf_alertas_preco',
+      params: {'p_threshold': 0.05, 'p_empresa_id': empresaId}) as List;
+  final universoAvaliadoRaw = await supabase.rpc('postos_gf_alertas_preco',
+      params: {'p_threshold': -100, 'p_empresa_id': empresaId}) as List;
+  final municipiosPorUfRaw =
+      await supabase.rpc('postos_gf_municipios_por_uf') as List;
+  final distribuidorasPorUfRaw =
+      await supabase.rpc('postos_gf_distribuidoras_por_uf') as List;
+  final precosPorUfRaw =
+      await supabase.rpc('preco_medio_por_combustivel_uf') as List;
+  final serieTendenciaRaw = await supabase.rpc(
+      'historico_precos_serie_uf_combustivel',
+      params: {'p_empresa_id': empresaId}) as List;
+  final volatilidadeMensalRaw = await supabase.rpc(
+      'historico_precos_volatilidade_mensal',
+      params: {'p_empresa_id': empresaId}) as List;
+  final historicoDetalhadoRaw = await supabase.rpc('historico_precos_detalhado',
+      params: {'p_empresa_id': empresaId}) as List;
+  final precoRealPeriodoRaw =
+      await supabase.rpc('abastecimentos_preco_periodo') as List;
+  final precosMapaOperacionalRaw =
+      await supabase.rpc('postos_gf_precos_mapa') as List;
+  final desvioAnpRaw = await supabase
+      .rpc('postos_gf_desvio_anp', params: {'p_empresa_id': empresaId}) as List;
+  final servicosPostoRaw = await supabase
+      .rpc('postos_gf_servicos', params: {'p_empresa_id': empresaId}) as List;
+  final postosVisitadosRaw =
+      await supabase.rpc('abastecimentos_postos_visitados') as List;
+  final precosPorMeioPagamentoRaw = await supabase.rpc(
+      'preco_medio_por_meio_pagamento',
+      params: {'p_empresa_id': empresaId}) as List;
 
   // Preço do diesel S10 por estado (ANP) — só pro score de oportunidade de
   // expansão.
@@ -634,7 +691,8 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
   final referenciaOficialPorProduto = <String, double>{};
   if (semanaMaisRecenteRaw != null) {
     semanaMaisRecente = SemanaAnp(
-      dataInicial: DateTime.parse(semanaMaisRecenteRaw['data_inicial'] as String),
+      dataInicial:
+          DateTime.parse(semanaMaisRecenteRaw['data_inicial'] as String),
       dataFinal: DateTime.parse(semanaMaisRecenteRaw['data_final'] as String),
     );
     final referenciaSemana = await supabase
@@ -645,39 +703,42 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
     for (final r in referenciaSemana) {
       final precoMedio = (r['preco_medio'] as num?)?.toDouble();
       final produto = r['produto'] as String?;
-      if (precoMedio != null && produto != null) referenciaOficialPorProduto[produto] = precoMedio;
+      if (precoMedio != null && produto != null)
+        referenciaOficialPorProduto[produto] = precoMedio;
     }
   }
 
   // ---- Visão Geral ----
   final postosPorUf = <String, int>{
-    for (final r in postosPorUfRaw) (r['uf'] as String): (r['total'] as num).toInt(),
+    for (final r in postosPorUfRaw)
+      (r['uf'] as String): (r['total'] as num).toInt(),
   };
   final anpPorUf = <String, int>{
-    for (final r in anpPorUfRaw) (r['uf'] as String): (r['total'] as num).toInt(),
+    for (final r in anpPorUfRaw)
+      (r['uf'] as String): (r['total'] as num).toInt(),
   };
   final estadosComPosto = postosPorUf.keys.toSet();
   final coberturaBr = ((estadosComPosto.length / 27) * 100).round();
   final totalGf = (totalPostosResp).count;
 
-  final cobertura = postosPorUf.entries
-      .map((e) {
-        final totalAnp = anpPorUf[e.key] ?? 0;
-        return CoberturaUf(
-          uf: e.key,
-          postosGf: e.value,
-          totalAnp: totalAnp,
-          penetracao: totalAnp > 0 ? (e.value / totalAnp) * 100 : 0,
-        );
-      })
-      .toList()
+  final cobertura = postosPorUf.entries.map((e) {
+    final totalAnp = anpPorUf[e.key] ?? 0;
+    return CoberturaUf(
+      uf: e.key,
+      postosGf: e.value,
+      totalAnp: totalAnp,
+      penetracao: totalAnp > 0 ? (e.value / totalAnp) * 100 : 0,
+    );
+  }).toList()
     ..sort((a, b) => b.postosGf.compareTo(a.postosGf));
 
   final precoPorCombustivel = (precoPorCombustivelRaw).map((r) {
     final combustivel = r['combustivel'] as String? ?? '—';
-    final referencia = resolverReferencia(combustivel, referenciaOficialPorProduto);
+    final referencia =
+        resolverReferencia(combustivel, referenciaOficialPorProduto);
     final categoriaAnp = produtoParaCategoriaAnp[combustivel];
-    final ehOficial = categoriaAnp != null && referenciaOficialPorProduto.containsKey(categoriaAnp);
+    final ehOficial = categoriaAnp != null &&
+        referenciaOficialPorProduto.containsKey(categoriaAnp);
     final precoMedio = (r['preco_medio'] as num?)?.toDouble() ?? 0;
     return PrecoCombustivelRef(
       combustivel: combustivel,
@@ -685,25 +746,42 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
       qtdPostos: (r['qtd_postos'] as num?)?.toInt() ?? 0,
       referencia: referencia,
       ehOficial: ehOficial,
-      deltaPct: referencia != null && referencia != 0 ? ((precoMedio - referencia) / referencia) * 100 : null,
+      deltaPct: referencia != null && referencia != 0
+          ? ((precoMedio - referencia) / referencia) * 100
+          : null,
     );
   }).toList();
 
-  final itensDiesel = precoPorCombustivel.where((p) => p.combustivel.toLowerCase().startsWith('diesel')).toList();
-  final somaPostosDiesel = itensDiesel.fold<int>(0, (soma, p) => soma + p.qtdPostos);
+  final itensDiesel = precoPorCombustivel
+      .where((p) => p.combustivel.toLowerCase().startsWith('diesel'))
+      .toList();
+  final somaPostosDiesel =
+      itensDiesel.fold<int>(0, (soma, p) => soma + p.qtdPostos);
   final dieselGf = somaPostosDiesel > 0
-      ? itensDiesel.fold<double>(0, (soma, p) => soma + p.precoMedio * p.qtdPostos) / somaPostosDiesel
+      ? itensDiesel.fold<double>(
+              0, (soma, p) => soma + p.precoMedio * p.qtdPostos) /
+          somaPostosDiesel
       : 0.0;
-  final dieselAnpRef = referenciaOficialPorProduto['OLEO DIESEL S10'] ?? anpPrecoReferenciaFallback['Diesel S10'];
-  final deltaDieselPct = dieselGf > 0 && dieselAnpRef != null ? ((dieselGf - dieselAnpRef) / dieselAnpRef) * 100 : null;
-  final savingPotencialAno = (dieselGf > 0 && dieselAnpRef != null && dieselAnpRef > dieselGf)
-      ? (dieselAnpRef - dieselGf) * 100 * 52 * totalGf
-      : 0.15 * 100 * 52 * totalGf;
+  final dieselAnpRef = referenciaOficialPorProduto['OLEO DIESEL S10'] ??
+      anpPrecoReferenciaFallback['Diesel S10'];
+  final deltaDieselPct = dieselGf > 0 && dieselAnpRef != null
+      ? ((dieselGf - dieselAnpRef) / dieselAnpRef) * 100
+      : null;
+  final savingPotencialAno =
+      (dieselGf > 0 && dieselAnpRef != null && dieselAnpRef > dieselGf)
+          ? (dieselAnpRef - dieselGf) * 100 * 52 * totalGf
+          : 0.15 * 100 * 52 * totalGf;
 
-  final topMunicipios = (topMunicipiosRaw).map((m) => MunicipioRede.fromMap(m as Map<String, dynamic>)).toList();
-  final pontosMapa = (pontosMapaRaw).map((m) => PontoMapaSimples.fromMap(m as Map<String, dynamic>)).toList();
+  final topMunicipios = (topMunicipiosRaw)
+      .map((m) => MunicipioRede.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final pontosMapa = (pontosMapaRaw)
+      .map((m) => PontoMapaSimples.fromMap(m as Map<String, dynamic>))
+      .toList();
 
-  final evolucaoMensal = (evolucaoMensalRaw).map((m) => EvolucaoMensalPonto.fromMap(m as Map<String, dynamic>)).toList();
+  final evolucaoMensal = (evolucaoMensalRaw)
+      .map((m) => EvolucaoMensalPonto.fromMap(m as Map<String, dynamic>))
+      .toList();
   final referenciasPorCombustivel = <String, double>{};
   for (final combustivel in evolucaoMensal.map((e) => e.combustivel).toSet()) {
     final ref = resolverReferencia(combustivel, referenciaOficialPorProduto);
@@ -711,12 +789,18 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
   }
 
   // ---- Alertas de Preço ----
-  final alertas = (alertasRaw).map((m) => AlertaPreco.fromMap(m as Map<String, dynamic>)).toList(); // já vem ordenado desc (diff_pct) do banco
+  final alertas = (alertasRaw)
+      .map((m) => AlertaPreco.fromMap(m as Map<String, dynamic>))
+      .toList(); // já vem ordenado desc (diff_pct) do banco
   final totalAvaliados = universoAvaliadoRaw.length;
   final totalAlertas = alertas.length;
-  final pctAlerta = totalAvaliados > 0 ? (totalAlertas / totalAvaliados) * 100 : 0.0;
-  final piorDesvio = alertas.fold<double>(0, (max, a) => math.max(max, a.diffPct));
-  final desvioMedio = totalAlertas > 0 ? alertas.fold<double>(0, (s, a) => s + a.diffPct) / totalAlertas : 0.0;
+  final pctAlerta =
+      totalAvaliados > 0 ? (totalAlertas / totalAvaliados) * 100 : 0.0;
+  final piorDesvio =
+      alertas.fold<double>(0, (max, a) => math.max(max, a.diffPct));
+  final desvioMedio = totalAlertas > 0
+      ? alertas.fold<double>(0, (s, a) => s + a.diffPct) / totalAlertas
+      : 0.0;
 
   final alertasPorEstadoMap = <String, ResumoAlertaEstado>{};
   for (final a in alertas) {
@@ -733,13 +817,16 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
 
   // ---- Macrorregião & Expansão ----
   final municipiosPorUf = <String, int>{
-    for (final r in municipiosPorUfRaw) (r['uf'] as String): (r['municipios'] as num).toInt(),
+    for (final r in municipiosPorUfRaw)
+      (r['uf'] as String): (r['municipios'] as num).toInt(),
   };
   final coberturaMacrorregiao = regioesBrasil.entries.map((entry) {
     final regiao = entry.key;
     final ufs = entry.value;
-    final postosGf = ufs.fold<int>(0, (soma, uf) => soma + (postosPorUf[uf] ?? 0));
-    final municipiosComGf = ufs.fold<int>(0, (soma, uf) => soma + (municipiosPorUf[uf] ?? 0));
+    final postosGf =
+        ufs.fold<int>(0, (soma, uf) => soma + (postosPorUf[uf] ?? 0));
+    final municipiosComGf =
+        ufs.fold<int>(0, (soma, uf) => soma + (municipiosPorUf[uf] ?? 0));
     final totalMunicipios = totalMunicipiosRegiao[regiao] ?? 1;
     final estadosComGf = ufs.where((uf) => postosPorUf.containsKey(uf)).length;
     return CoberturaMacro(
@@ -762,13 +849,16 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
     final uf = estadoParaUf[estado] ?? estado;
     if (uf != null) dieselPorUf[uf] = precoMedio;
   }
-  final dieselMax = dieselPorUf.values.fold<double>(1, (m, v) => math.max(m, v));
+  final dieselMax =
+      dieselPorUf.values.fold<double>(1, (m, v) => math.max(m, v));
   final oportunidades = anpPorUf.keys.map((uf) {
     final postosGf = postosPorUf[uf] ?? 0;
     final totalAnp = anpPorUf[uf] ?? 0;
     final penetracaoPct = totalAnp > 0 ? (postosGf / totalAnp) * 100 : 0.0;
     final dieselUf = dieselPorUf[uf];
-    final score = dieselUf != null ? (1 - math.min(penetracaoPct / 100, 1)) * (dieselUf / dieselMax) * 100 : 0.0;
+    final score = dieselUf != null
+        ? (1 - math.min(penetracaoPct / 100, 1)) * (dieselUf / dieselMax) * 100
+        : 0.0;
     return OportunidadeExpansao(
       uf: uf,
       postosGf: postosGf,
@@ -786,22 +876,42 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
     if (p.uf == null || p.uf!.isEmpty) continue;
     coordPorUf[p.uf!] = (coordPorUf[p.uf!] ?? 0) + 1;
   }
-  final distribuidorasPorUf = (distribuidorasPorUfRaw).map((m) => DistribuidoraUf.fromMap(m as Map<String, dynamic>)).toList();
-  final precosPorUf = (precosPorUfRaw).map((m) => PrecoUf.fromMap(m as Map<String, dynamic>)).toList();
+  final distribuidorasPorUf = (distribuidorasPorUfRaw)
+      .map((m) => DistribuidoraUf.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final precosPorUf = (precosPorUfRaw)
+      .map((m) => PrecoUf.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // ---- Tendência × Sazonalidade ----
-  final serieTendencia = (serieTendenciaRaw).map((m) => SerieTendenciaPonto.fromMap(m as Map<String, dynamic>)).toList();
-  final volatilidadeMensal = (volatilidadeMensalRaw).map((m) => VolatilidadeMensalPonto.fromMap(m as Map<String, dynamic>)).toList();
+  final serieTendencia = (serieTendenciaRaw)
+      .map((m) => SerieTendenciaPonto.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final volatilidadeMensal = (volatilidadeMensalRaw)
+      .map((m) => VolatilidadeMensalPonto.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // ---- Evolução Temporal ----
-  final historicoDetalhado = (historicoDetalhadoRaw).map((m) => RegistroPrecoHistorico.fromMap(m as Map<String, dynamic>)).toList();
-  final precoRealPeriodo = (precoRealPeriodoRaw).map((m) => PrecoRealPeriodo.fromMap(m as Map<String, dynamic>)).toList();
+  final historicoDetalhado = (historicoDetalhadoRaw)
+      .map((m) => RegistroPrecoHistorico.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final precoRealPeriodo = (precoRealPeriodoRaw)
+      .map((m) => PrecoRealPeriodo.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // ---- Operacional ----
-  final precosMapaOperacional = (precosMapaOperacionalRaw).map((m) => PontoPrecoMapaOperacional.fromMap(m as Map<String, dynamic>)).toList();
-  final desvioAnp = (desvioAnpRaw).map((m) => AlertaPreco.fromMap(m as Map<String, dynamic>)).toList();
-  final servicosPosto = (servicosPostoRaw).map((m) => ServicoPosto.fromMap(m as Map<String, dynamic>)).toList();
-  final postosVisitados = (postosVisitadosRaw).map((m) => PostoVisitado.fromMap(m as Map<String, dynamic>)).toList();
+  final precosMapaOperacional = (precosMapaOperacionalRaw)
+      .map((m) => PontoPrecoMapaOperacional.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final desvioAnp = (desvioAnpRaw)
+      .map((m) => AlertaPreco.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final servicosPosto = (servicosPostoRaw)
+      .map((m) => ServicoPosto.fromMap(m as Map<String, dynamic>))
+      .toList();
+  final postosVisitados = (postosVisitadosRaw)
+      .map((m) => PostoVisitado.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   // ---- Cobertura × Demanda ----
   final demandaPorUf = <String, int>{};
@@ -811,7 +921,9 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
   }
 
   // ---- Meios de Pagamento ----
-  final precosPorMeioPagamento = (precosPorMeioPagamentoRaw).map((m) => ItemPrecoMeioPagamento.fromMap(m as Map<String, dynamic>)).toList();
+  final precosPorMeioPagamento = (precosPorMeioPagamentoRaw)
+      .map((m) => ItemPrecoMeioPagamento.fromMap(m as Map<String, dynamic>))
+      .toList();
 
   return InteligenciaRedeCompleta(
     kpis: KpisGerais(

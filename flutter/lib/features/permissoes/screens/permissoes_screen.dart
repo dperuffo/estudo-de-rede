@@ -5,6 +5,8 @@ import '../../../core/services/sessao_usuario.dart';
 import '../providers/permissoes_provider.dart';
 import '../services/permissoes_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 // Fase FLT-3 — Permissões por Perfil (cliente): matriz funcionalidade x
 // perfil com toggles, porta de permissoes/page.tsx. Ver escopo em
 // permissoes_provider.dart. Layout em cards (1 por funcionalidade, com um
@@ -21,7 +23,8 @@ class PermissoesScreen extends ConsumerStatefulWidget {
 class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
   final _salvando = <String>{};
 
-  Future<void> _alternar(String funcionalidade, String perfil, bool novoValor, String empresaEdicao) async {
+  Future<void> _alternar(String funcionalidade, String perfil, bool novoValor,
+      String empresaEdicao) async {
     final sessao = await ref.read(sessaoProvider.future);
     final chave = '$funcionalidade|$perfil';
     setState(() => _salvando.add(chave));
@@ -36,7 +39,8 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
       ref.invalidate(permissoesMatrizProvider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível salvar: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Não foi possível salvar: $e')));
       }
     } finally {
       if (mounted) setState(() => _salvando.remove(chave));
@@ -49,7 +53,14 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
     final sessao = ref.watch(sessaoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Permissões por Perfil')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Permissões por Perfil')),
       body: matrizAsync.when(
         data: (matriz) => _conteudo(matriz, sessao.valueOrNull),
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -78,11 +89,12 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
           style: const TextStyle(fontSize: 12, color: Color(0xFF0369A1)),
         ),
         const SizedBox(height: 16),
-
         if (matriz.funcionalidades.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: Text('Nenhuma permissão cadastrada ainda.', style: TextStyle(color: Colors.grey.shade500))),
+            child: Center(
+                child: Text('Nenhuma permissão cadastrada ainda.',
+                    style: TextStyle(color: Colors.grey.shade500))),
           )
         else
           ...matriz.funcionalidades.map((f) => _cardFuncionalidade(f, matriz)),
@@ -98,7 +110,9 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(formatarFuncionalidade(funcionalidade), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Text(formatarFuncionalidade(funcionalidade),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 16,
@@ -107,7 +121,11 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
                 for (final perfil in matriz.perfisVisiveis)
                   SizedBox(
                     width: 68,
-                    child: _celulaPerfil(funcionalidade, perfil, matriz.celula(funcionalidade, perfil), matriz.empresaEdicao),
+                    child: _celulaPerfil(
+                        funcionalidade,
+                        perfil,
+                        matriz.celula(funcionalidade, perfil),
+                        matriz.empresaEdicao),
                   ),
               ],
             ),
@@ -117,7 +135,8 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
     );
   }
 
-  Widget _celulaPerfil(String funcionalidade, String perfil, PermissaoCelula? celula, String empresaEdicao) {
+  Widget _celulaPerfil(String funcionalidade, String perfil,
+      PermissaoCelula? celula, String empresaEdicao) {
     final permitido = celula?.permitido ?? false;
     final chave = '$funcionalidade|$perfil';
     final ocupado = _salvando.contains(chave);
@@ -149,14 +168,21 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
           height: 32,
           width: 32,
           child: ocupado
-              ? const Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2))
+              ? const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : Switch(
                   value: permitido,
-                  onChanged: (v) => _alternar(funcionalidade, perfil, v, empresaEdicao),
+                  onChanged: (v) =>
+                      _alternar(funcionalidade, perfil, v, empresaEdicao),
                 ),
         ),
         if (celula?.customizado == true)
-          const Text('Personalizado', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Color(0xFF0369A1))),
+          const Text('Personalizado',
+              style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0369A1))),
       ],
     );
   }

@@ -59,7 +59,8 @@ class PesosOtimizacao {
   final double preco;
   final double score;
   final double desvio;
-  const PesosOtimizacao({required this.preco, required this.score, required this.desvio});
+  const PesosOtimizacao(
+      {required this.preco, required this.score, required this.desvio});
 }
 
 class PerfilPeso {
@@ -95,7 +96,8 @@ const perfisPeso = [
     icone: '⚖️',
     pesos: PesosOtimizacao(preco: 0.5, score: 0.3, desvio: 0.2),
     fillMode: 'normal',
-    descricao: 'Pondera preço, qualidade do posto (score A-D) e distância da rota.',
+    descricao:
+        'Pondera preço, qualidade do posto (score A-D) e distância da rota.',
   ),
   PerfilPeso(
     chave: 'qualidade',
@@ -111,7 +113,8 @@ const perfisPeso = [
     icone: '🛑',
     pesos: PesosOtimizacao(preco: 0.8, score: 0.1, desvio: 0.1),
     fillMode: 'minimo',
-    descricao: 'Para o mínimo de vezes — abastece só o necessário a cada parada.',
+    descricao:
+        'Para o mínimo de vezes — abastece só o necessário a cada parada.',
   ),
 ];
 
@@ -141,12 +144,14 @@ List<ParadaSugerida> otimizarAbastecimento({
   final rmin = rcap * _nivelMinimoPct;
   final alcanceEfetivoKm = (rcap - rmin) * raut;
 
-  final precos = candidatos.map((c) => c.preco).where((p) => p.isFinite).toList();
+  final precos =
+      candidatos.map((c) => c.preco).where((p) => p.isFinite).toList();
   final pmin = precos.isEmpty ? 0.0 : precos.reduce((a, b) => a < b ? a : b);
   final pmax = precos.isEmpty ? 1.0 : precos.reduce((a, b) => a > b ? a : b);
 
   double metrica(CandidatoAbastecimento c) {
-    final p = 1 - (c.preco - pmin) / (pmax - pmin > 0.01 ? (pmax - pmin) : 0.01);
+    final p =
+        1 - (c.preco - pmin) / (pmax - pmin > 0.01 ? (pmax - pmin) : 0.01);
     final g = _gradePeso[c.grade ?? 'D'] ?? 0.25;
     final d = 1 - (c.desvioKm / 5).clamp(0, 1);
     return pesos.preco * p + pesos.score * g + pesos.desvio * d;
@@ -165,9 +170,15 @@ List<ParadaSugerida> otimizarAbastecimento({
     final alcancaSem = pos + podeIr;
     if (alcancaSem >= rd) break;
 
-    final janela = candidatos.where((c) => pos < c.km && c.km <= alcancaSem && !vistos.contains(c.cnpj)).toList();
+    final janela = candidatos
+        .where(
+            (c) => pos < c.km && c.km <= alcancaSem && !vistos.contains(c.cnpj))
+        .toList();
     final janelaEstendida = candidatos
-        .where((c) => alcancaSem < c.km && c.km <= pos + alcanceEfetivoKm * 1.85 && !vistos.contains(c.cnpj))
+        .where((c) =>
+            alcancaSem < c.km &&
+            c.km <= pos + alcanceEfetivoKm * 1.85 &&
+            !vistos.contains(c.cnpj))
         .toList();
 
     CandidatoAbastecimento best;
@@ -175,17 +186,23 @@ List<ParadaSugerida> otimizarAbastecimento({
     double? fillAlvoKm;
 
     if (janela.isEmpty) {
-      final alemDoAlcance = candidatos.where((c) => c.km > pos && !vistos.contains(c.cnpj)).toList()
+      final alemDoAlcance = candidatos
+          .where((c) => c.km > pos && !vistos.contains(c.cnpj))
+          .toList()
         ..sort((a, b) => a.km.compareTo(b.km));
       if (alemDoAlcance.isEmpty) break;
       best = alemDoAlcance.first;
       motivo = 'emergencia';
     } else {
-      final bestObrigatorio = janela.reduce((m, c) => metrica(c) > metrica(m) ? c : m);
+      final bestObrigatorio =
+          janela.reduce((m, c) => metrica(c) > metrica(m) ? c : m);
       if (janelaEstendida.isNotEmpty) {
-        final bestEstendido = janelaEstendida.reduce((m, c) => metrica(c) > metrica(m) ? c : m);
-        if (metrica(bestEstendido) > metrica(bestObrigatorio) * _vantagemMetricaMinima &&
-            bestEstendido.preco < bestObrigatorio.preco * (1 - _vantagemPrecoMinima)) {
+        final bestEstendido =
+            janelaEstendida.reduce((m, c) => metrica(c) > metrica(m) ? c : m);
+        if (metrica(bestEstendido) >
+                metrica(bestObrigatorio) * _vantagemMetricaMinima &&
+            bestEstendido.preco <
+                bestObrigatorio.preco * (1 - _vantagemPrecoMinima)) {
           fillAlvoKm = bestEstendido.km;
         }
       }
@@ -194,7 +211,8 @@ List<ParadaSugerida> otimizarAbastecimento({
     }
 
     final kmAte = best.km - pos;
-    final fuelChegada = (fuel - kmAte / raut).clamp(0, double.infinity).toDouble();
+    final fuelChegada =
+        (fuel - kmAte / raut).clamp(0, double.infinity).toDouble();
     final pctChegada = fuelChegada / rcap * 100;
 
     if (motivo != 'emergencia' &&
@@ -212,7 +230,9 @@ List<ParadaSugerida> otimizarAbastecimento({
     double litrosNecessarios;
 
     if (fillMode == 'minimo') {
-      final restantes = candidatos.where((c) => c.km > best.km && !vistos.contains(c.cnpj)).toList()
+      final restantes = candidatos
+          .where((c) => c.km > best.km && !vistos.contains(c.cnpj))
+          .toList()
         ..sort((a, b) => a.km.compareTo(b.km));
       if (restantes.isNotEmpty) {
         final distProx = restantes.first.km - best.km;
@@ -230,7 +250,8 @@ List<ParadaSugerida> otimizarAbastecimento({
     }
 
     var litrosFill = litrosNecessarios < 0 ? 0.0 : litrosNecessarios;
-    litrosFill = litrosFill > (rcap - fuelChegada) ? (rcap - fuelChegada) : litrosFill;
+    litrosFill =
+        litrosFill > (rcap - fuelChegada) ? (rcap - fuelChegada) : litrosFill;
     litrosFill = litrosFill.ceilToDouble();
 
     if (litrosFill < _litrosMinimos) {

@@ -5,6 +5,8 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/postos_duplicados_provider.dart';
 import '../services/postos_duplicados_service.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 final _dataHora = DateFormat('dd/MM/yyyy HH:mm');
 
 // Fase FLT-4 — Possíveis Duplicados (Postos, admin), porta de
@@ -14,20 +16,29 @@ class PostosDuplicadosScreen extends ConsumerStatefulWidget {
   const PostosDuplicadosScreen({super.key});
 
   @override
-  ConsumerState<PostosDuplicadosScreen> createState() => _PostosDuplicadosScreenState();
+  ConsumerState<PostosDuplicadosScreen> createState() =>
+      _PostosDuplicadosScreenState();
 }
 
-class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen> {
+class _PostosDuplicadosScreenState
+    extends ConsumerState<PostosDuplicadosScreen> {
   final Set<String> _enviando = {};
-  final Map<String, String> _resolvidos = {}; // id -> 'descartado' | 'confirmado_duplicata'
+  final Map<String, String> _resolvidos =
+      {}; // id -> 'descartado' | 'confirmado_duplicata'
   final Map<String, String> _erros = {};
 
   Future<void> _descartar(String id) async {
-    await _decidir(id, (svc, email) => svc.descartar(id: id, revisadoPor: email), 'descartado');
+    await _decidir(
+        id,
+        (svc, email) => svc.descartar(id: id, revisadoPor: email),
+        'descartado');
   }
 
   Future<void> _confirmar(String id) async {
-    await _decidir(id, (svc, email) => svc.confirmar(id: id, revisadoPor: email), 'confirmado_duplicata');
+    await _decidir(
+        id,
+        (svc, email) => svc.confirmar(id: id, revisadoPor: email),
+        'confirmado_duplicata');
   }
 
   Future<void> _decidir(
@@ -58,7 +69,14 @@ class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen>
     final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Possíveis Duplicados')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Possíveis Duplicados')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
@@ -72,9 +90,12 @@ class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso restrito', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text('Acesso restrito',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(height: 8),
-              Text('Esta tela é exclusiva do time interno (perfil administrador).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Text(
+                  'Esta tela é exclusiva do time interno (perfil administrador).',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
             ],
           ),
         ),
@@ -92,7 +113,9 @@ class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen>
         if (lista.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(24),
-            child: Center(child: Text('Nenhum possível duplicado pendente de revisão.', style: TextStyle(color: Colors.grey))),
+            child: Center(
+                child: Text('Nenhum possível duplicado pendente de revisão.',
+                    style: TextStyle(color: Colors.grey))),
           );
         }
         return ListView(
@@ -128,10 +151,18 @@ class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('POSTO RECÉM-CADASTRADO', style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                      Text('POSTO RECÉM-CADASTRADO',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
-                      Text(d.empresaNome ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      Text('CNPJ: ${d.cnpjInformado ?? '—'}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text(d.empresaNome ?? '—',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
+                      Text('CNPJ: ${d.cnpjInformado ?? '—'}',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -141,13 +172,19 @@ class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('POSSÍVEL DUPLICATA (${d.candidato?.fonte ?? '—'})',
-                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
-                      Text(d.candidato?.razaoSocial ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      Text(d.candidato?.razaoSocial ?? '—',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
                       Text(
                         'CNPJ: ${d.candidato?.cnpj ?? '—'}'
                         '${d.candidato?.municipio != null ? ' — ${d.candidato!.municipio}/${d.candidato!.uf ?? ''}' : ''}',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -162,24 +199,37 @@ class _PostosDuplicadosScreenState extends ConsumerState<PostosDuplicadosScreen>
             ),
             const SizedBox(height: 8),
             if (resolvido == 'descartado')
-              const Text('✓ Descartado — não é duplicata.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey))
+              const Text('✓ Descartado — não é duplicata.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey))
             else if (resolvido == 'confirmado_duplicata')
-              const Text('✓ Confirmado como duplicata.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFB91C1C)))
+              const Text('✓ Confirmado como duplicata.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB91C1C)))
             else ...[
               if (_erros[d.id] != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(_erros[d.id]!, style: const TextStyle(fontSize: 12, color: Colors.red)),
+                  child: Text(_erros[d.id]!,
+                      style: const TextStyle(fontSize: 12, color: Colors.red)),
                 ),
               Row(
                 children: [
                   OutlinedButton(
-                    onPressed: _enviando.contains(d.id) ? null : () => _descartar(d.id),
+                    onPressed: _enviando.contains(d.id)
+                        ? null
+                        : () => _descartar(d.id),
                     child: const Text('Não é duplicata'),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: _enviando.contains(d.id) ? null : () => _confirmar(d.id),
+                    onPressed: _enviando.contains(d.id)
+                        ? null
+                        : () => _confirmar(d.id),
                     child: const Text('Confirmar duplicata'),
                   ),
                 ],

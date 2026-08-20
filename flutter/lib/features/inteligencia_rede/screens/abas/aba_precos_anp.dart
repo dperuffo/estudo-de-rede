@@ -31,7 +31,9 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Preço médio da rede vs referência ANP', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('Preço médio da rede vs referência ANP',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 4),
                   Text(
                     d.semanaAnpMaisRecente != null
@@ -43,13 +45,20 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                   if (d.precoPorCombustivel.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('Ainda não há preços cadastrados. Importe as planilhas em Postos Revendedores.', style: TextStyle(color: Colors.grey)),
+                      child: Text(
+                          'Ainda não há preços cadastrados. Importe as planilhas em Postos Revendedores.',
+                          style: TextStyle(color: Colors.grey)),
                     )
                   else ...[
                     _GraficoCustoAnp(dados: d.precoPorCombustivel),
                     const SizedBox(height: 12),
                     TabelaSimples(
-                      colunas: const ['Combustível', 'Preço GF', 'Referência', 'Diferença'],
+                      colunas: const [
+                        'Combustível',
+                        'Preço GF',
+                        'Referência',
+                        'Diferença'
+                      ],
                       flexColunas: const [3, 2, 3, 2],
                       linhas: d.precoPorCombustivel
                           .map((p) => [
@@ -58,7 +67,9 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                                 p.referencia != null
                                     ? '${formatarMoeda(p.referencia!, casas: 2)} ${p.ehOficial ? "(oficial)" : "(estim.)"}'
                                     : 'sem ref.',
-                                p.deltaPct != null ? '${p.deltaPct! > 0 ? "+" : ""}${p.deltaPct!.toStringAsFixed(1)}%' : '—',
+                                p.deltaPct != null
+                                    ? '${p.deltaPct! > 0 ? "+" : ""}${p.deltaPct!.toStringAsFixed(1)}%'
+                                    : '—',
                               ])
                           .toList(),
                     ),
@@ -74,7 +85,9 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('💰 Saving Mensal Acumulado', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const Text('💰 Saving Mensal Acumulado',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 4),
                   Text(
                     'Evolução mensal do preço médio GF. Barras verdes = abaixo do ANP (saving); vermelhas = acima do ANP (custo extra).',
@@ -93,25 +106,34 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
 
   Widget _graficoSavingMensal(InteligenciaRedeCompleta d) {
     if (d.evolucaoMensal.isEmpty) {
-      return const Text('Histórico de preços vazio.', style: TextStyle(color: Colors.grey));
+      return const Text('Histórico de preços vazio.',
+          style: TextStyle(color: Colors.grey));
     }
-    final combustiveis = d.evolucaoMensal.map((e) => e.combustivel).toSet().toList()..sort();
-    final referenciaAtual = _combustivelSaving != 'Todos' ? d.referenciasPorCombustivel[_combustivelSaving] : null;
+    final combustiveis =
+        d.evolucaoMensal.map((e) => e.combustivel).toSet().toList()..sort();
+    final referenciaAtual = _combustivelSaving != 'Todos'
+        ? d.referenciasPorCombustivel[_combustivelSaving]
+        : null;
 
     final porMes = <String, List<double>>{};
     for (final e in d.evolucaoMensal) {
-      if (_combustivelSaving != 'Todos' && e.combustivel != _combustivelSaving) continue;
+      if (_combustivelSaving != 'Todos' && e.combustivel != _combustivelSaving)
+        continue;
       porMes.putIfAbsent(e.mes, () => []).add(e.precoMedio);
     }
     final meses = porMes.keys.toList()..sort();
     final serie = meses.map((mes) {
       final precos = porMes[mes]!;
-      return (mes: mes, precoMedio: precos.reduce((a, b) => a + b) / precos.length);
+      return (
+        mes: mes,
+        precoMedio: precos.reduce((a, b) => a + b) / precos.length
+      );
     }).toList();
 
     double? savingAcumulado;
     if (referenciaAtual != null) {
-      savingAcumulado = serie.fold<double>(0, (soma, p) => soma + (referenciaAtual - p.precoMedio));
+      savingAcumulado = serie.fold<double>(
+          0, (soma, p) => soma + (referenciaAtual - p.precoMedio));
     }
 
     return Column(
@@ -119,35 +141,54 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
       children: [
         Row(
           children: [
-            const Text('Combustível: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const Text('Combustível: ',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(width: 4),
             DropdownButton<String>(
               value: _combustivelSaving,
               isDense: true,
               items: [
-                const DropdownMenuItem(value: 'Todos', child: Text('Todos', style: TextStyle(fontSize: 12))),
-                ...combustiveis.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12)))),
+                const DropdownMenuItem(
+                    value: 'Todos',
+                    child: Text('Todos', style: TextStyle(fontSize: 12))),
+                ...combustiveis.map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c, style: const TextStyle(fontSize: 12)))),
               ],
-              onChanged: (v) => setState(() => _combustivelSaving = v ?? 'Todos'),
+              onChanged: (v) =>
+                  setState(() => _combustivelSaving = v ?? 'Todos'),
             ),
           ],
         ),
         const SizedBox(height: 12),
         if (serie.isEmpty)
-          const Text('Sem histórico para esse combustível.', style: TextStyle(color: Colors.grey))
+          const Text('Sem histórico para esse combustível.',
+              style: TextStyle(color: Colors.grey))
         else ...[
           SizedBox(
             height: 260,
             child: BarChart(
               BarChartData(
-                maxY: (serie.map((s) => s.precoMedio).reduce((a, b) => a > b ? a : b) * 1.2).clamp(0.01, double.infinity),
-                barTouchData: barTouchPadrao(formatarY: (v) => formatarMoeda(v, casas: 3)),
+                maxY: (serie
+                            .map((s) => s.precoMedio)
+                            .reduce((a, b) => a > b ? a : b) *
+                        1.2)
+                    .clamp(0.01, double.infinity),
+                barTouchData: barTouchPadrao(
+                    formatarY: (v) => formatarMoeda(v, casas: 3)),
                 barGroups: serie.asMap().entries.map((e) {
                   final cor = referenciaAtual == null
                       ? const Color(0xFF1565C0)
-                      : (e.value.precoMedio < referenciaAtual ? const Color(0xFF2E7D32) : const Color(0xFFB71C1C));
+                      : (e.value.precoMedio < referenciaAtual
+                          ? const Color(0xFF2E7D32)
+                          : const Color(0xFFB71C1C));
                   return BarChartGroupData(x: e.key, barRods: [
-                    BarChartRodData(toY: e.value.precoMedio, color: cor, width: 14, borderRadius: const BorderRadius.vertical(top: Radius.circular(3))),
+                    BarChartRodData(
+                        toY: e.value.precoMedio,
+                        color: cor,
+                        width: 14,
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(3))),
                   ]);
                 }).toList(),
                 extraLinesData: referenciaAtual != null
@@ -159,27 +200,40 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                           dashArray: [4, 4],
                           label: HorizontalLineLabel(
                             show: true,
-                            labelResolver: (_) => 'ANP: ${formatarMoeda(referenciaAtual!, casas: 2)}',
-                            style: const TextStyle(fontSize: 10, color: Color(0xFFE65100)),
+                            labelResolver: (_) =>
+                                'ANP: ${formatarMoeda(referenciaAtual!, casas: 2)}',
+                            style: const TextStyle(
+                                fontSize: 10, color: Color(0xFFE65100)),
                           ),
                         ),
                       ])
                     : const ExtraLinesData(),
                 titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(2), style: const TextStyle(fontSize: 9)))),
+                  leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (v, _) => Text(v.toStringAsFixed(2),
+                              style: const TextStyle(fontSize: 9)))),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 28,
                       getTitlesWidget: (v, _) {
                         final i = v.toInt();
-                        if (i < 0 || i >= serie.length) return const SizedBox.shrink();
-                        return Padding(padding: const EdgeInsets.only(top: 4), child: Text(_mesLabel(serie[i].mes), style: const TextStyle(fontSize: 9)));
+                        if (i < 0 || i >= serie.length)
+                          return const SizedBox.shrink();
+                        return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(_mesLabel(serie[i].mes),
+                                style: const TextStyle(fontSize: 9)));
                       },
                     ),
                   ),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 gridData: const FlGridData(drawVerticalLine: false),
                 borderData: FlBorderData(show: false),
@@ -191,17 +245,26 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8)),
               child: RichText(
                 text: TextSpan(
                   style: const TextStyle(fontSize: 12, color: Colors.black87),
                   children: [
                     const TextSpan(text: 'Saldo acumulado do período: '),
                     TextSpan(
-                      text: '${formatarMoeda(savingAcumulado.abs(), casas: 3)}/L',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: savingAcumulado > 0 ? const Color(0xFF2E7D32) : const Color(0xFFB71C1C)),
+                      text:
+                          '${formatarMoeda(savingAcumulado.abs(), casas: 3)}/L',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: savingAcumulado > 0
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFB71C1C)),
                     ),
-                    TextSpan(text: ' (rede GF ${savingAcumulado > 0 ? "abaixo" : "acima"} do ANP em média)'),
+                    TextSpan(
+                        text:
+                            ' (rede GF ${savingAcumulado > 0 ? "abaixo" : "acima"} do ANP em média)'),
                   ],
                 ),
               ),
@@ -215,13 +278,27 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
   static String _mesLabel(String mes) {
     final partes = mes.split('-');
     if (partes.length < 2) return mes;
-    const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const nomes = [
+      'jan',
+      'fev',
+      'mar',
+      'abr',
+      'mai',
+      'jun',
+      'jul',
+      'ago',
+      'set',
+      'out',
+      'nov',
+      'dez'
+    ];
     final mesIdx = int.tryParse(partes[1]) ?? 1;
     final ano = partes[0].length == 4 ? partes[0].substring(2) : partes[0];
     return '${nomes[(mesIdx - 1).clamp(0, 11)]}/$ano';
   }
 
-  static String _dataBr(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  static String _dataBr(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 class _GraficoCustoAnp extends StatelessWidget {
@@ -245,7 +322,9 @@ class _GraficoCustoAnp extends StatelessWidget {
                 child: FractionallySizedBox(
                   alignment: Alignment.centerLeft,
                   widthFactor: (valor / maxValor).clamp(0.02, 1.0),
-                  child: Container(decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(3))),
+                  child: Container(
+                      decoration: BoxDecoration(
+                          color: cor, borderRadius: BorderRadius.circular(3))),
                 ),
               ),
             ],
@@ -266,12 +345,18 @@ class _GraficoCustoAnp extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(d.combustivel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(d.combustivel,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
                   barra(d.precoMedio, const Color(0xFFE65100)),
-                  Text(formatarMoeda(d.precoMedio, casas: 2), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text(formatarMoeda(d.precoMedio, casas: 2),
+                      style:
+                          TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                   if (d.referencia != null) ...[
                     barra(d.referencia!, const Color(0xFF1565C0)),
-                    Text(formatarMoeda(d.referencia!, casas: 2), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                    Text(formatarMoeda(d.referencia!, casas: 2),
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade500)),
                   ],
                 ],
               ),
@@ -280,7 +365,8 @@ class _GraficoCustoAnp extends StatelessWidget {
     );
   }
 
-  Widget _legendaItem(Color cor, String label) => Row(mainAxisSize: MainAxisSize.min, children: [
+  Widget _legendaItem(Color cor, String label) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 10, height: 10, color: cor),
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 10)),

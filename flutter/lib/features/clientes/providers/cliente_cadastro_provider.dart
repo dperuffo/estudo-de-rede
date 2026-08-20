@@ -88,7 +88,8 @@ class ClienteCadastro {
       );
 }
 
-final clienteCadastroProvider = FutureProvider.autoDispose<ClienteCadastro?>((ref) async {
+final clienteCadastroProvider =
+    FutureProvider.autoDispose<ClienteCadastro?>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return null;

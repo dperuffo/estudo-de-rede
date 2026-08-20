@@ -38,8 +38,10 @@ class AuthService {
   SupabaseClient get _supabase => SupabaseService.client;
 
   // Espelha entrarComSenha (web/src/app/login/actions.ts).
-  Future<void> signInWithPassword({required String email, required String senha}) async {
-    await _supabase.auth.signInWithPassword(email: email.trim().toLowerCase(), password: senha);
+  Future<void> signInWithPassword(
+      {required String email, required String senha}) async {
+    await _supabase.auth
+        .signInWithPassword(email: email.trim().toLowerCase(), password: senha);
   }
 
   // Fase FLT-1b/FLT-3 (hotfix) — troca de estratégia. A versão original
@@ -128,8 +130,9 @@ class AuthService {
     }
 
     final aal = _supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    final precisaSubirNivel = aal.nextLevel == AuthenticatorAssuranceLevels.aal2 &&
-        aal.currentLevel != AuthenticatorAssuranceLevels.aal2;
+    final precisaSubirNivel =
+        aal.nextLevel == AuthenticatorAssuranceLevels.aal2 &&
+            aal.currentLevel != AuthenticatorAssuranceLevels.aal2;
 
     return MfaStatus(
       temFatorVerificado: fatorVerificado != null,
@@ -138,12 +141,14 @@ class AuthService {
     );
   }
 
-  Future<bool> precisaConfigurarOuVerificarMfa() async => (await statusMfa()).bloqueado;
+  Future<bool> precisaConfigurarOuVerificarMfa() async =>
+      (await statusMfa()).bloqueado;
 
   // Desafio de login TOTP: pega o código de 6 dígitos atual do app
   // autenticador do usuário e eleva a sessão pro nível aal2. Precisa do
   // factorId que vem de statusMfa().
-  Future<void> verificarCodigoMfa({required String factorId, required String code}) async {
+  Future<void> verificarCodigoMfa(
+      {required String factorId, required String code}) async {
     await _supabase.auth.mfa.challengeAndVerify(factorId: factorId, code: code);
   }
 
@@ -185,11 +190,19 @@ class AuthService {
 
     List<String> empresasIds;
     if (perfil == 'admin') {
-      final rows = await _supabase.from('empresas').select('id').eq('segmento', 'Frota').order('nome') as List;
-      empresasIds = rows.map((m) => (m as Map<String, dynamic>)['id'] as String).toList();
+      final rows = await _supabase
+          .from('empresas')
+          .select('id')
+          .eq('segmento', 'Frota')
+          .order('nome') as List;
+      empresasIds =
+          rows.map((m) => (m as Map<String, dynamic>)['id'] as String).toList();
     } else {
-      final empresasIdsRaw = await _supabase.rpc('empresas_do_usuario', params: {'p_email': email});
-      empresasIds = (empresasIdsRaw as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+      final empresasIdsRaw = await _supabase
+          .rpc('empresas_do_usuario', params: {'p_email': email});
+      empresasIds =
+          (empresasIdsRaw as List?)?.map((e) => e.toString()).toList() ??
+              const <String>[];
     }
 
     String? empresaId;
@@ -214,6 +227,10 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>?> buscarEmpresa(String id) {
-    return _supabase.from('empresas').select('nome, segmento').eq('id', id).maybeSingle();
+    return _supabase
+        .from('empresas')
+        .select('nome, segmento')
+        .eq('id', id)
+        .maybeSingle();
   }
 }

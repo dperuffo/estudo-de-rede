@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../motoristas/providers/motoristas_provider.dart' show motoristasClienteProvider;
-import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
+import '../../motoristas/providers/motoristas_provider.dart'
+    show motoristasClienteProvider;
+import '../../veiculos/providers/veiculos_provider.dart'
+    show veiculosClienteProvider;
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
+
+import '../../../core/theme/app_theme.dart';
 
 class VinculoEditarScreen extends ConsumerStatefulWidget {
   final String id;
   const VinculoEditarScreen({super.key, required this.id});
 
   @override
-  ConsumerState<VinculoEditarScreen> createState() => _VinculoEditarScreenState();
+  ConsumerState<VinculoEditarScreen> createState() =>
+      _VinculoEditarScreenState();
 }
 
 class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
@@ -58,7 +63,8 @@ class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
     }
     ref.invalidate(vinculosProvider);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Alterações salvas.')));
     }
   }
 
@@ -69,12 +75,20 @@ class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
     final motoristasAsync = ref.watch(motoristasClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar Vínculo')),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+              decoration:
+                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          title: const Text('Editar Vínculo')),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (v) {
-          if (v == null) return const Center(child: Text('Vínculo não encontrado.'));
+          if (v == null)
+            return const Center(child: Text('Vínculo não encontrado.'));
           if (!_preenchido) _preencher(v);
 
           return Form(
@@ -85,9 +99,14 @@ class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
                 if (_erro != null) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-                    child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text(_erro!,
+                        style: const TextStyle(
+                            color: Color(0xFFB91C1C), fontSize: 13)),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -95,11 +114,18 @@ class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
                   loading: () => const LinearProgressIndicator(),
                   error: (e, _) => Text('Erro ao carregar veículos: $e'),
                   data: (veiculos) => DropdownButtonFormField<String>(
-                    value: veiculos.any((x) => x.placa == _placa) ? _placa : null,
-                    decoration: const InputDecoration(labelText: 'Veículo (placa) *', border: OutlineInputBorder()),
-                    items: [for (final vv in veiculos) DropdownMenuItem(value: vv.placa, child: Text(vv.placa))],
+                    value:
+                        veiculos.any((x) => x.placa == _placa) ? _placa : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Veículo (placa) *',
+                        border: OutlineInputBorder()),
+                    items: [
+                      for (final vv in veiculos)
+                        DropdownMenuItem(value: vv.placa, child: Text(vv.placa))
+                    ],
                     onChanged: (val) => setState(() => _placa = val),
-                    validator: (val) => val == null ? 'Selecione um veículo' : null,
+                    validator: (val) =>
+                        val == null ? 'Selecione um veículo' : null,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -107,18 +133,27 @@ class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
                   loading: () => const LinearProgressIndicator(),
                   error: (e, _) => Text('Erro ao carregar motoristas: $e'),
                   data: (motoristas) => DropdownButtonFormField<String>(
-                    value: motoristas.any((m) => m.id == _motoristaId) ? _motoristaId : null,
-                    decoration: const InputDecoration(labelText: 'Motorista *', border: OutlineInputBorder()),
-                    items: [for (final m in motoristas) DropdownMenuItem(value: m.id, child: Text(m.nomeCompleto))],
+                    value: motoristas.any((m) => m.id == _motoristaId)
+                        ? _motoristaId
+                        : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Motorista *', border: OutlineInputBorder()),
+                    items: [
+                      for (final m in motoristas)
+                        DropdownMenuItem(
+                            value: m.id, child: Text(m.nomeCompleto))
+                    ],
                     onChanged: (val) => setState(() => _motoristaId = val),
-                    validator: (val) => val == null ? 'Selecione um motorista' : null,
+                    validator: (val) =>
+                        val == null ? 'Selecione um motorista' : null,
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _observacaoCtrl,
                   maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Observação', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Observação', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
@@ -131,7 +166,10 @@ class _VinculoEditarScreenState extends ConsumerState<VinculoEditarScreen> {
                 FilledButton(
                   onPressed: _salvando ? null : _salvar,
                   child: _salvando
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Salvar alterações'),
                 ),
               ],

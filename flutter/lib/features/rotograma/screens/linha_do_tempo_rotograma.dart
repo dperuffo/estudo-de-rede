@@ -9,7 +9,12 @@ class LinhaDoTempoRotograma extends StatelessWidget {
   final String origem, destino;
   final List<RotogramaRisco> riscos;
   final List<RotogramaParada> paradas;
-  const LinhaDoTempoRotograma({super.key, required this.origem, required this.destino, required this.riscos, required this.paradas});
+  const LinhaDoTempoRotograma(
+      {super.key,
+      required this.origem,
+      required this.destino,
+      required this.riscos,
+      required this.paradas});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +30,8 @@ class LinhaDoTempoRotograma extends StatelessWidget {
           height: 260,
           width: double.infinity,
           child: CustomPaint(
-            painter: _LinhaDoTempoPainter(origem: origem, destino: destino, pontos: pontos),
+            painter: _LinhaDoTempoPainter(
+                origem: origem, destino: destino, pontos: pontos),
           ),
         ),
         if (temEstimado)
@@ -42,8 +48,10 @@ class LinhaDoTempoRotograma extends StatelessWidget {
           spacing: 12,
           runSpacing: 4,
           children: [
-            for (final c in categoriasRisco) _legendaItem(corRisco(c.valor), c.label),
-            _legendaItem(corParadaHex, 'Abastecimento / Alimentação / Pernoite / Pedágio'),
+            for (final c in categoriasRisco)
+              _legendaItem(corRisco(c.valor), c.label),
+            _legendaItem(corParadaHex,
+                'Abastecimento / Alimentação / Pernoite / Pedágio'),
           ],
         ),
       ],
@@ -54,9 +62,13 @@ class LinhaDoTempoRotograma extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
+        Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.black87)),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: Colors.black87)),
       ],
     );
   }
@@ -65,17 +77,24 @@ class LinhaDoTempoRotograma extends StatelessWidget {
 class _LinhaDoTempoPainter extends CustomPainter {
   final String origem, destino;
   final List<PontoLinhaDoTempo> pontos;
-  _LinhaDoTempoPainter({required this.origem, required this.destino, required this.pontos});
+  _LinhaDoTempoPainter(
+      {required this.origem, required this.destino, required this.pontos});
 
-  String _truncar(String texto, int max) => texto.length > max ? '${texto.substring(0, max - 1)}…' : texto;
+  String _truncar(String texto, int max) =>
+      texto.length > max ? '${texto.substring(0, max - 1)}…' : texto;
 
-  void _texto(Canvas canvas, String texto, Offset centro, double fontSize, Color cor, {FontWeight peso = FontWeight.normal}) {
+  void _texto(
+      Canvas canvas, String texto, Offset centro, double fontSize, Color cor,
+      {FontWeight peso = FontWeight.normal}) {
     final tp = TextPainter(
-      text: TextSpan(text: texto, style: TextStyle(fontSize: fontSize, color: cor, fontWeight: peso)),
+      text: TextSpan(
+          text: texto,
+          style: TextStyle(fontSize: fontSize, color: cor, fontWeight: peso)),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(centro.dx - tp.width / 2, centro.dy - tp.height / 2));
+    tp.paint(
+        canvas, Offset(centro.dx - tp.width / 2, centro.dy - tp.height / 2));
   }
 
   @override
@@ -88,7 +107,8 @@ class _LinhaDoTempoPainter extends CustomPainter {
 
     const yLinha = altura / 2;
     const margem = 60.0;
-    final kmMaximo = pontos.map((p) => p.km).fold<double>(1, (a, b) => a > b ? a : b);
+    final kmMaximo =
+        pontos.map((p) => p.km).fold<double>(1, (a, b) => a > b ? a : b);
 
     double x(double km) {
       final fracao = (km / kmMaximo).clamp(0.0, 1.0);
@@ -98,15 +118,28 @@ class _LinhaDoTempoPainter extends CustomPainter {
     final linhaBase = Paint()
       ..color = const Color(0xFFCBD5E1)
       ..strokeWidth = 3;
-    canvas.drawLine(const Offset(margem, yLinha), const Offset(largura - margem, yLinha), linhaBase);
+    canvas.drawLine(const Offset(margem, yLinha),
+        const Offset(largura - margem, yLinha), linhaBase);
 
-    canvas.drawCircle(const Offset(margem, yLinha), 7, Paint()..color = const Color(0xFF16A34A));
-    _texto(canvas, 'Origem', const Offset(margem, yLinha + 34), 13, const Color(0xFF166534), peso: FontWeight.w600);
-    _texto(canvas, _truncar(origem, 20), const Offset(margem, yLinha + 50), 10, const Color(0xFF64748B));
+    canvas.drawCircle(const Offset(margem, yLinha), 7,
+        Paint()..color = const Color(0xFF16A34A));
+    _texto(canvas, 'Origem', const Offset(margem, yLinha + 34), 13,
+        const Color(0xFF166534),
+        peso: FontWeight.w600);
+    _texto(canvas, _truncar(origem, 20), const Offset(margem, yLinha + 50), 10,
+        const Color(0xFF64748B));
 
-    canvas.drawCircle(const Offset(largura - margem, yLinha), 7, Paint()..color = const Color(0xFFDC2626));
-    _texto(canvas, 'Destino', const Offset(largura - margem, yLinha + 34), 13, const Color(0xFF991B1B), peso: FontWeight.w600);
-    _texto(canvas, _truncar(destino, 20), const Offset(largura - margem, yLinha + 50), 10, const Color(0xFF64748B));
+    canvas.drawCircle(const Offset(largura - margem, yLinha), 7,
+        Paint()..color = const Color(0xFFDC2626));
+    _texto(canvas, 'Destino', const Offset(largura - margem, yLinha + 34), 13,
+        const Color(0xFF991B1B),
+        peso: FontWeight.w600);
+    _texto(
+        canvas,
+        _truncar(destino, 20),
+        const Offset(largura - margem, yLinha + 50),
+        10,
+        const Color(0xFF64748B));
 
     final riscos = pontos.where((p) => p.tipo == 'risco').toList();
     final paradas = pontos.where((p) => p.tipo == 'parada').toList();
@@ -120,13 +153,19 @@ class _LinhaDoTempoPainter extends CustomPainter {
         ..color = cor
         ..strokeWidth = 1.5;
       if (p.kmEstimado) {
-        _linhaTracejada(canvas, Offset(cx, yLinha), Offset(cx, yLinha - stemAltura), paint);
+        _linhaTracejada(
+            canvas, Offset(cx, yLinha), Offset(cx, yLinha - stemAltura), paint);
       } else {
-        canvas.drawLine(Offset(cx, yLinha), Offset(cx, yLinha - stemAltura), paint);
+        canvas.drawLine(
+            Offset(cx, yLinha), Offset(cx, yLinha - stemAltura), paint);
       }
-      canvas.drawCircle(Offset(cx, yLinha - stemAltura), 6, Paint()..color = cor);
-      _texto(canvas, _truncar(p.local, 18), Offset(cx, yLinha - stemAltura - 16), 10, const Color(0xFF334155), peso: FontWeight.w600);
-      _texto(canvas, '${p.km.round()} km', Offset(cx, yLinha - stemAltura - 28), 9, const Color(0xFF64748B));
+      canvas.drawCircle(
+          Offset(cx, yLinha - stemAltura), 6, Paint()..color = cor);
+      _texto(canvas, _truncar(p.local, 18),
+          Offset(cx, yLinha - stemAltura - 16), 10, const Color(0xFF334155),
+          peso: FontWeight.w600);
+      _texto(canvas, '${p.km.round()} km', Offset(cx, yLinha - stemAltura - 28),
+          9, const Color(0xFF64748B));
     }
 
     for (var i = 0; i < paradas.length; i++) {
@@ -137,13 +176,19 @@ class _LinhaDoTempoPainter extends CustomPainter {
         ..color = corParadaHex
         ..strokeWidth = 1.5;
       if (p.kmEstimado) {
-        _linhaTracejada(canvas, Offset(cx, yLinha), Offset(cx, yLinha + stemAltura), paint);
+        _linhaTracejada(
+            canvas, Offset(cx, yLinha), Offset(cx, yLinha + stemAltura), paint);
       } else {
-        canvas.drawLine(Offset(cx, yLinha), Offset(cx, yLinha + stemAltura), paint);
+        canvas.drawLine(
+            Offset(cx, yLinha), Offset(cx, yLinha + stemAltura), paint);
       }
-      canvas.drawCircle(Offset(cx, yLinha + stemAltura), 6, Paint()..color = corParadaHex);
-      _texto(canvas, _truncar(p.local, 18), Offset(cx, yLinha + stemAltura + 16), 10, const Color(0xFF334155), peso: FontWeight.w600);
-      _texto(canvas, '${p.km.round()} km', Offset(cx, yLinha + stemAltura + 28), 9, const Color(0xFF64748B));
+      canvas.drawCircle(
+          Offset(cx, yLinha + stemAltura), 6, Paint()..color = corParadaHex);
+      _texto(canvas, _truncar(p.local, 18),
+          Offset(cx, yLinha + stemAltura + 16), 10, const Color(0xFF334155),
+          peso: FontWeight.w600);
+      _texto(canvas, '${p.km.round()} km', Offset(cx, yLinha + stemAltura + 28),
+          9, const Color(0xFF64748B));
     }
 
     canvas.restore();
@@ -156,12 +201,15 @@ class _LinhaDoTempoPainter extends CustomPainter {
     var percorrido = 0.0;
     while (percorrido < total) {
       final fim = (percorrido + tracoLen).clamp(0, total);
-      canvas.drawLine(a + direcao * percorrido, a + direcao * fim.toDouble(), paint);
+      canvas.drawLine(
+          a + direcao * percorrido, a + direcao * fim.toDouble(), paint);
       percorrido += tracoLen + espacoLen;
     }
   }
 
   @override
   bool shouldRepaint(covariant _LinhaDoTempoPainter oldDelegate) =>
-      oldDelegate.origem != origem || oldDelegate.destino != destino || oldDelegate.pontos != pontos;
+      oldDelegate.origem != origem ||
+      oldDelegate.destino != destino ||
+      oldDelegate.pontos != pontos;
 }
