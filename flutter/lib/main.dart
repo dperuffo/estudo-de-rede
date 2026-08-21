@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "core/router/app_router.dart";
 import "core/theme/app_theme.dart";
 import "core/services/supabase_service.dart";
+import "core/services/inactivity_guard.dart";
 
 // Fase FLT-1 — troca da inicialização da API Python própria (ApiService, só
 // configurava o Dio com o token salvo — nada de rede aqui) pela inicialização
@@ -24,6 +25,11 @@ class FniApp extends ConsumerWidget {
       themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      // Fase Timeout-Inatividade (21/08/2026) — envolve TODA a árvore
+      // roteada num único Listener global (ver inactivity_guard.dart),
+      // sem precisar tocar em nenhuma tela individualmente.
+      builder: (context, child) =>
+          InactivityGuard(child: child ?? const SizedBox.shrink()),
     );
   }
 }
