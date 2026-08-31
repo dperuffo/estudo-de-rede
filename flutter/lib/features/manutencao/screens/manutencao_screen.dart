@@ -181,7 +181,7 @@ class _State extends State<ManutencaoScreen>
                 style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D2D6B))),
+                    color: Color(0xFF171717))),
           ),
           const Divider(height: 16),
           Expanded(
@@ -203,7 +203,7 @@ class _State extends State<ManutencaoScreen>
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Color(0xFF0D2D6B))),
+                            color: Color(0xFF171717))),
                     const SizedBox(height: 8),
                     StatefulBuilder(
                         builder: (ctx2, setStateLocal) => Wrap(
@@ -222,7 +222,7 @@ class _State extends State<ManutencaoScreen>
                                   onSelected: (v) => setStateLocal(() => v
                                       ? itensSelecionados.add(item)
                                       : itensSelecionados.remove(item)),
-                                  selectedColor: const Color(0xFF0D2D6B),
+                                  selectedColor: const Color(0xFF171717),
                                   backgroundColor: Colors.grey[100],
                                   checkmarkColor: Colors.white,
                                 );
@@ -270,7 +270,7 @@ class _State extends State<ManutencaoScreen>
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D2D6B),
+                            backgroundColor: const Color(0xFF171717),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -538,7 +538,7 @@ class _DetalheManutencao extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D2D6B))),
+                          color: Color(0xFF171717))),
                   Text(m['data_manutencao'] ?? '-',
                       style: TextStyle(color: Colors.grey[600])),
                 ])),
@@ -567,7 +567,7 @@ class _DetalheManutencao extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF0D2D6B), Color(0xFF1565C0)],
+                      colors: [Color(0xFF171717), Color(0xFF171717)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(12),
@@ -624,7 +624,7 @@ class _DetalheManutencao extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0D2D6B))),
+                color: Color(0xFF171717))),
       );
 
   Widget _linha(String label, String valor) => Padding(

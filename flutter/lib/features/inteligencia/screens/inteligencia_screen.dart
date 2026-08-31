@@ -57,7 +57,7 @@ class _State extends State<InteligenciaScreen> {
         actions: [
           DropdownButton<int>(
             value: _dias,
-            dropdownColor: const Color(0xFF0D2D6B),
+            dropdownColor: const Color(0xFF171717),
             style: const TextStyle(color: Colors.white),
             items: [30, 60, 90, 180, 365]
                 .map((d) => DropdownMenuItem(value: d, child: Text('$d dias')))

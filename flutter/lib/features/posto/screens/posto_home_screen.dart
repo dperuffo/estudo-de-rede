@@ -286,13 +286,13 @@ class PostoHomeScreen extends ConsumerWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
                           border:
                               Border.all(color: Colors.white.withOpacity(0.1)),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF0B1220).withOpacity(0.3),
+                              color: const Color(0xFF111111).withOpacity(0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),

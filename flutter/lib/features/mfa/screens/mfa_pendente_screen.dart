@@ -97,7 +97,7 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.shield_outlined,
-                    size: 56, color: Color(0xFF0D2D6B)),
+                    size: 56, color: Color(0xFF171717)),
                 const SizedBox(height: 20),
                 Text(
                   precisaCadastrar

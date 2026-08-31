@@ -511,7 +511,7 @@ class AbaVisaoGeral extends ConsumerWidget {
               BarChartRodData(
                 toY: e.value.litros,
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                  colors: [Color(0xFF171717), Color(0xFF42A5F5)],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),

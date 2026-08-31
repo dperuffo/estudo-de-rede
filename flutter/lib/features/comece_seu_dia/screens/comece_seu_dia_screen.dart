@@ -104,7 +104,7 @@ class _State extends State<ComeceSeuDiaScreen> {
         actions: [
           DropdownButton<String>(
             value: _selecao,
-            dropdownColor: const Color(0xFF0D2D6B),
+            dropdownColor: const Color(0xFF171717),
             style: const TextStyle(color: Colors.white),
             items: const [
               DropdownMenuItem(value: 'hoje', child: Text('Hoje')),
@@ -145,7 +145,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF0D2D6B), Color(0xFF1565C0)],
+                        colors: [Color(0xFF171717), Color(0xFF171717)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -265,7 +265,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                         'Total Geral',
                         fmt.format(kpis['total_geral'] ?? 0),
                         Icons.account_balance_wallet,
-                        const Color(0xFF0D2D6B)),
+                        const Color(0xFF171717)),
                   ]),
                   const SizedBox(height: 24),
 
@@ -360,7 +360,7 @@ class _State extends State<ComeceSeuDiaScreen> {
             style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0D2D6B))),
+                color: Color(0xFF171717))),
       );
 
   Widget _kpiCard(String label, String value, IconData icon, Color color) =>
@@ -412,7 +412,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                 barRods: [
                   BarChartRodData(
                     toY: (e.value['gasto'] as num? ?? 0).toDouble(),
-                    color: const Color(0xFF1565C0),
+                    color: const Color(0xFF171717),
                     width: 12,
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(4)),
@@ -467,7 +467,7 @@ class _State extends State<ComeceSeuDiaScreen> {
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0D2D6B))),
+                  color: Color(0xFF171717))),
         ]),
         const SizedBox(height: 4),
         ClipRRect(
@@ -475,7 +475,7 @@ class _State extends State<ComeceSeuDiaScreen> {
           child: LinearProgressIndicator(
             value: pct.toDouble(),
             backgroundColor: Colors.grey[200],
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF1565C0)),
+            valueColor: const AlwaysStoppedAnimation(Color(0xFF171717)),
             minHeight: 8,
           ),
         ),

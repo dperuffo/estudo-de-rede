@@ -83,7 +83,7 @@ class _State extends State<_VeiculoSheet> {
                   style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0D2D6B)))),
+                      color: Color(0xFF171717)))),
           const Divider(height: 16),
           Expanded(
               child: SingleChildScrollView(
@@ -171,7 +171,7 @@ class _State extends State<_VeiculoSheet> {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D2D6B),
+                            backgroundColor: const Color(0xFF171717),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -251,7 +251,7 @@ class _State extends State<_VeiculoSheet> {
           padding: const EdgeInsets.all(16),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-                colors: [Color(0xFF0D2D6B), Color(0xFF1565C0)],
+                colors: [Color(0xFF171717), Color(0xFF171717)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight),
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -339,7 +339,7 @@ class _State extends State<_VeiculoSheet> {
                             'Total Geral',
                             fmt.format((resAbast['total_gasto'] as num? ?? 0) +
                                 totalManut),
-                            const Color(0xFF0D2D6B)),
+                            const Color(0xFF171717)),
                       ]),
                       const SizedBox(height: 16),
                     ],
@@ -437,7 +437,7 @@ class _State extends State<_VeiculoSheet> {
             style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0D2D6B))),
+                color: Color(0xFF171717))),
       );
 
   Widget _linha(String label, String valor) => Padding(

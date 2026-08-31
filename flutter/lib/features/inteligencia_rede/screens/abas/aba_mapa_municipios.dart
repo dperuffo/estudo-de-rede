@@ -39,7 +39,7 @@ class AbaMapaMunicipios extends StatelessWidget {
                         .map((p) => PontoCirculo(
                               lat: p.lat,
                               lon: p.lon,
-                              cor: const Color(0xFF1565C0),
+                              cor: const Color(0xFF171717),
                               raio: 4,
                               tooltip: '${p.razaoSocial ?? "Posto GF"}\n${[
                                 p.municipio,
@@ -72,7 +72,7 @@ class AbaMapaMunicipios extends StatelessWidget {
                           .map((m) => BarraHorizontalItem(
                               label: '${m.municipio}/${m.uf}',
                               valor: m.total.toDouble(),
-                              cor: const Color(0xFF1565C0),
+                              cor: const Color(0xFF171717),
                               texto: '${m.total}'))
                           .toList(),
                       eixoX: 'Postos GF',

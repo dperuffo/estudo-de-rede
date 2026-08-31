@@ -6,7 +6,7 @@ import '../providers/relatorios_provider.dart';
 import '../../../core/theme/app_theme.dart';
 
 const _cores = [
-  Color(0xFF1565C0),
+  Color(0xFF171717),
   Color(0xFFE65100),
   Color(0xFF2E7D32),
   Color(0xFF6A1B9A),

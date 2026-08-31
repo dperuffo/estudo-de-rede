@@ -20,7 +20,7 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
     if (score >= 80) return const Color(0xFFB71C1C);
     if (score >= 60) return const Color(0xFFE65100);
     if (score >= 40) return const Color(0xFFF57F17);
-    return const Color(0xFF1565C0);
+    return const Color(0xFF171717);
   }
 
   @override

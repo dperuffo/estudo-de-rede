@@ -19,7 +19,7 @@ class AbaEvolucaoTemporal extends StatefulWidget {
 
 const _coresUf = [
   Color(0xFF1040A0),
-  Color(0xFF1565C0),
+  Color(0xFF171717),
   Color(0xFF1976D2),
   Color(0xFF42A5F5),
   Color(0xFF90CAF9),

@@ -128,7 +128,7 @@ class _State extends State<TicketsScreen> {
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0D2D6B))),
+                            color: Color(0xFF171717))),
                   ),
                   const Divider(height: 16),
                   Expanded(
@@ -206,7 +206,7 @@ class _State extends State<TicketsScreen> {
                                     }
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0D2D6B),
+                                    backgroundColor: const Color(0xFF171717),
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 14),
@@ -247,7 +247,7 @@ class _State extends State<TicketsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _novoTicket,
-        backgroundColor: const Color(0xFF0D2D6B),
+        backgroundColor: const Color(0xFF171717),
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _loading
@@ -463,7 +463,7 @@ class _DetalheState extends State<_DetalheTicket> {
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D2D6B)))),
+                          color: Color(0xFF171717)))),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -505,7 +505,7 @@ class _DetalheState extends State<_DetalheTicket> {
                 const Text('Resposta do Suporte',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D2D6B),
+                        color: Color(0xFF171717),
                         fontSize: 13)),
                 const SizedBox(height: 8),
                 Container(
@@ -534,7 +534,7 @@ class _DetalheState extends State<_DetalheTicket> {
                 const Text('Historico',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D2D6B),
+                        color: Color(0xFF171717),
                         fontSize: 13)),
                 const SizedBox(height: 8),
                 ..._comentarios.map((c) => Container(
@@ -566,7 +566,7 @@ class _DetalheState extends State<_DetalheTicket> {
                 const Text('Anexos',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D2D6B),
+                        color: Color(0xFF171717),
                         fontSize: 13)),
                 const SizedBox(height: 8),
                 ..._parseAnexos(t['anexos']).map((a) => Container(
@@ -605,7 +605,7 @@ class _DetalheState extends State<_DetalheTicket> {
                 const Text('Adicionar observacao',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D2D6B),
+                        color: Color(0xFF171717),
                         fontSize: 13)),
                 const SizedBox(height: 8),
                 TextField(
@@ -624,7 +624,7 @@ class _DetalheState extends State<_DetalheTicket> {
                     icon: const Icon(Icons.attach_file, size: 18),
                     label: const Text('Anexar arquivo'),
                     style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0D2D6B)),
+                        foregroundColor: const Color(0xFF171717)),
                   ),
                   const SizedBox(width: 8),
                   if (_anexoNome != null)
@@ -662,7 +662,7 @@ class _DetalheState extends State<_DetalheTicket> {
                       label:
                           Text(_enviando ? 'Enviando...' : 'Enviar observacao'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D2D6B),
+                        backgroundColor: const Color(0xFF171717),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),

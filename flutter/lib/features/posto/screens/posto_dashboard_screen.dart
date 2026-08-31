@@ -10,7 +10,7 @@ import '../providers/dashboard_posto_provider.dart';
 // já existentes (precos_screen.dart, analise_cliente_screen.dart), pra
 // manter a identidade visual entre as duas visões do app.
 const _coresCombustivel = [
-  Color(0xFF1565C0),
+  Color(0xFF171717),
   Colors.red,
   Colors.green,
   Colors.orange,

@@ -167,7 +167,7 @@ class _AssistenteClienteScreenState extends State<AssistenteClienteScreen> {
   Widget _buildBalao(_MensagemExibida m) {
     final ehUsuario = m.role == 'user';
     final cor = ehUsuario
-        ? const Color(0xFF0D2D6B)
+        ? const Color(0xFF171717)
         : (m.erro ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
     final corTexto = ehUsuario
         ? Colors.white

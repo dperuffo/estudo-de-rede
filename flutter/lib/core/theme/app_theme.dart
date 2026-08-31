@@ -1,99 +1,109 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const _primary = Color(0xFF0D2D6B);
-  static const _accent = Color(0xFF00B4D8);
-  // Achado real (reportado pelo Daniel): a barra do topo (AppBarTheme,
-  // usada em toda tela) e o menu/drawer (cabeçalho em home_screen.dart)
-  // usavam 2 navies diferentes — `_primary` (0xFF0D2D6B, mais "azul vivo")
-  // na AppBar contra 0xFF0B1220 (mais escuro/preto-azulado) no cabeçalho do
-  // drawer. Pedido do Daniel: a barra do topo tem que usar a MESMA cor do
-  // menu — `_menu` abaixo é literalmente o mesmo valor hardcoded do
-  // Container do cabeçalho do Drawer (ver home_screen.dart:69).
-  static const _menu = Color(0xFF0B1220);
+  // Fase Design-System-Swiss-Minimalism (29/08/2026, pedido do Daniel:
+  // "aplicar o mesmo design.md dos PWAs Motorista e Cliente, conforme
+  // aplicado na web") — a web trocou de "Corporate Blue" (Dark Navy/Royal
+  // Blue) pra "Minimalism & Swiss Style" em 27/08/2026 (ver
+  // tailwind.config.ts/globals.css do painel web): off-black/branco/cinza
+  // + acento taupe, cantos quase retos, superfícies lisas, SEM
+  // blur/gradiente/glow. Mesmos valores já aplicados no PWA Motorista
+  // (estrada-que-cuida/lib/core/theme/app_theme.dart) — nomes de
+  // constante mantidos por estabilidade (usados em ~150 telas deste app,
+  // que cobre as visões cliente/posto/admin), só o VALOR muda.
+  static const _primary = Color(0xFF171717); // era 0xFF0D2D6B (navy)
+  static const _accent = Color(0xFFB38B6D); // era 0xFF00B4D8 (ciano) — agora o taupe do design.md
+  // A barra do topo e o cabeçalho do menu/drawer usam a MESMA cor
+  // (decisão já tomada antes, mantida) — agora off-black em vez de
+  // preto-azulado.
+  static const _menu = Color(0xFF111111);
 
-  // Fase Liquid-Glass-PWA (20/08/2026, pedido do Daniel: aplicar nos PWAs
-  // cliente e motorista o mesmo liquid glass ja feito na web) - mesma
-  // paleta do menu lateral web (ver globals.css: .glass-nav/.glass-nav-*/
-  // .glass-tab-ativa). Diferente do CSS, o Flutter nao tem
-  // "backdrop-filter" aplicavel via Theme a qualquer widget - o efeito
-  // vidro aqui vem da combinacao gradiente + opacidade + borda clara +
-  // sombra suave, sem desfoque literal. Mesma linguagem visual da web, sem
-  // o blur que o framework nao oferece de graca nesses pontos.
-  //
-  // Fase Liquid-Glass-Anel (20/08/2026, pedido do Daniel: "o cinza anterior
-  // nao ficou bom" - 3a imagem de referencia: fundo quase preto
-  // azul-marinho, com um anel de luz azul-violeta brilhando so do lado
-  // esquerdo, tipo borda de esfera/portal) - troca a paleta cinza da fase
-  // anterior por esta nova, extraida por amostragem de pixel da imagem.
-  // Nomes das constantes mantidos (glassBronze*) por estabilidade - so o
-  // valor de cor mudou. O CSS da web usa varias camadas de
-  // radial-gradient pro anel (background: layer1, layer2, ...), mas o
-  // Flutter so aceita 1 gradient por BoxDecoration - por isso aqui e um
-  // UNICO RadialGradient com centro fora da tela (Alignment(-1.8, 0)) e
-  // paradas (stops) que criam transparent->brilho->transparent, o mesmo
-  // truque de "buraco no meio" que faz so a BORDA do circulo aparecer.
-  static const Color glassBronzeClaro = Color(0xFF2A2A45);
-  static const Color glassBronzeMedio = Color(0xFF1C1B2F);
-  static const Color glassBronzeEscuro = Color(0xFF10101F);
-  static const Color glassBrilho = Color(0xFF999ED9);
-  static const Color glassBrilhoMedio = Color(0xFF8D94CA);
-  static const Color glassTexto = Color(0xFFF5F5FA);
-  static const Color glassTextoMuted = Color(0xFFA5A6C4);
-  static const Color glassIcone = Color(0xFFE8E9F5);
-  static const Color glassAcento = Color(0xFFFFD9A0);
-  // Mesmos tons do preenchimento "aba ativa" da web (.glass-tab-ativa:
-  // linear-gradient(#a7ade0, #6b70a8), texto #14132a) - usado no indicador
-  // das TabBar (Dashboard/Inteligencia de Rede) e no item selecionado da
-  // NavigationBar inferior.
-  static const Color glassPillClaro = Color(0xFFA7ADE0);
-  static const Color glassPillEscuro = Color(0xFF6B70A8);
-  static const Color glassTextoAtivo = Color(0xFF14132A);
+  // Nomes `glass*` datam da fase "vidro" (20/08/2026); mantidos por
+  // estabilidade (usados em ~150 telas via `AppTheme.glass*`), mas o
+  // VALOR agora segue a identidade Swiss Minimalism — texto/ícone claros
+  // sobre o fundo off-black do menu, sem opacidade vidrada. Espelha
+  // .glass-nav-texto/-texto-muted/-icone/-acento do globals.css web
+  // (slate-100/slate-400/slate-300/accento).
+  static const Color glassTexto = Color(0xFFF1F5F9); // slate-100
+  static const Color glassTextoMuted = Color(0xFF94A3B8); // slate-400
+  static const Color glassIcone = Color(0xFFCBD5E1); // slate-300
+  static const Color glassAcento = _accent; // taupe
 
-  static const Gradient glassNavGradient = RadialGradient(
-    center: Alignment(-1.8, 0.0),
-    radius: 1.3,
-    colors: [
-      glassBronzeMedio,
-      glassBronzeMedio,
-      glassBrilhoMedio,
-      glassBrilho,
-      glassBronzeEscuro,
-      glassBronzeClaro,
-    ],
-    stops: [0.0, 0.55, 0.6, 0.64, 0.7, 1.0],
+  // Único acento decorativo do tema (design.md: "Taupe — Extended
+  // palette, decorative use") — alias com nome mais claro pra uso fora
+  // do contexto do menu (ex.: indicador de tab ativa).
+  static const Color accento = _accent;
+  static const Color accentoLight = Color(0xFFC9A788);
+
+  // Antes um RadialGradient "anel de luz"; a fase Swiss-Minimalism pede
+  // fundo LISO, sem blur/glow — igual ao `.glass-nav` da web (sólido).
+  // Mantido como `Gradient` (não `Color`) só pra não precisar editar as
+  // ~150 telas que fazem `BoxDecoration(gradient: AppTheme.glassNavGradient)`:
+  // um gradiente com as DUAS paradas na mesma cor renderiza idêntico a
+  // uma cor sólida.
+  static const Gradient glassNavGradient = LinearGradient(
+    colors: [_menu, _menu],
   );
 
+  // Antes um gradiente lilás (.glass-tab-ativa da fase vidro); a aba
+  // ativa no Swiss Minimalism vira preenchimento BRANCO sólido com texto
+  // quase-preto (mesmo `.glass-tab-ativa` da web já migrado: `bg-white
+  // text-frota-600`). `glassPillGradient` continua `Gradient` pelo mesmo
+  // motivo do `glassNavGradient` acima (não editar cada TabBar/indicador).
+  static const Color glassPillClaro = Colors.white;
+  static const Color glassPillEscuro = Colors.white;
+  static const Color glassTextoAtivo = _menu; // texto quase-preto sobre o branco
+
   static const LinearGradient glassPillGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
     colors: [glassPillClaro, glassPillEscuro],
   );
 
   static ThemeData get light => ThemeData(
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC), // slate-50, igual ao painel web
         colorScheme:
             ColorScheme.fromSeed(seedColor: _primary, secondary: _accent),
         appBarTheme: const AppBarTheme(
             backgroundColor: _menu,
             foregroundColor: Colors.white,
             elevation: 0),
-        // Fase Liquid-Glass-PWA (20/08/2026) - Card e usado em dezenas de telas
-        // (dashboard, indicadores, listas) sem nenhum estilo proprio (cada uma
-        // so chamava `Card(child: ...)`, dependendo do visual padrao do
-        // Material). Como e um unico ponto central (igual ao `.card` do
-        // globals.css na web), da pra dar o efeito vidro (translucido + borda
-        // clara + sombra suave) em TODA tela que usa Card de uma vez so, sem
-        // editar arquivo por arquivo.
+        // Fase Design-System-Swiss-Minimalism (29/08/2026) — Card é usado em
+        // dezenas de telas (dashboard, indicadores, listas) sem estilo
+        // próprio (cada uma só chamava `Card(child: ...)`). Espelha `.card`
+        // do globals.css web: superfície branca SÓLIDA (sem translucidez da
+        // fase vidro anterior), 1px de borda cinza-clara, sombra suave,
+        // cantos quase retos.
         cardTheme: CardThemeData(
-          elevation: 1,
-          color: Colors.white.withOpacity(0.82),
+          elevation: 0,
+          color: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shadowColor: _menu.withOpacity(0.15),
+          shadowColor: _menu.withOpacity(0.06),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: Colors.white.withOpacity(0.7)),
+            borderRadius: BorderRadius.circular(4),
+            side: const BorderSide(color: Color(0xFFE2E8F0)), // slate-200
           ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: const BorderSide(color: Color(0xFFCBD5E1)), // slate-300
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: const BorderSide(color: _primary, width: 2),
+          ),
+          filled: true,
+          fillColor: Colors.white,
         ),
       );
   static ThemeData get dark => ThemeData(

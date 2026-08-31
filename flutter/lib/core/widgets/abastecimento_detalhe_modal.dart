@@ -92,11 +92,11 @@ class _State extends State<_DetalheSheet> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF0D2D6B).withOpacity(0.1),
+                color: const Color(0xFF171717).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.local_gas_station,
-                  color: Color(0xFF0D2D6B), size: 24),
+                  color: Color(0xFF171717), size: 24),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -107,7 +107,7 @@ class _State extends State<_DetalheSheet> {
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D2D6B))),
+                          color: Color(0xFF171717))),
                   Text(d['item_nome'] ?? '-',
                       style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                 ])),
@@ -137,7 +137,7 @@ class _State extends State<_DetalheSheet> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF0D2D6B), Color(0xFF1565C0)],
+                              colors: [Color(0xFF171717), Color(0xFF171717)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -240,7 +240,7 @@ class _State extends State<_DetalheSheet> {
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0D2D6B),
+                color: Color(0xFF171717),
                 letterSpacing: 0.5)),
       );
 

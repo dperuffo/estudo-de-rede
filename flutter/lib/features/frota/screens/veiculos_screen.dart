@@ -51,7 +51,7 @@ class _State extends State<VeiculosScreen> {
           SnackBar(
             content: Text('🔄 ' + evento.mensagemAmigavel),
             duration: const Duration(seconds: 3),
-            backgroundColor: const Color(0xFF0D2D6B),
+            backgroundColor: const Color(0xFF171717),
           ),
         );
         _load();
@@ -145,7 +145,7 @@ class _State extends State<VeiculosScreen> {
                   style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0D2D6B))),
+                      color: Color(0xFF171717))),
               const Spacer(),
               if (!isCadastrado)
                 Container(
@@ -284,7 +284,7 @@ class _State extends State<VeiculosScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D2D6B),
+                      backgroundColor: const Color(0xFF171717),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -356,7 +356,7 @@ class _State extends State<VeiculosScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _novoOuEditar(),
-        backgroundColor: const Color(0xFF0D2D6B),
+        backgroundColor: const Color(0xFF171717),
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _loading
@@ -442,7 +442,7 @@ class _State extends State<VeiculosScreen> {
                                     const SizedBox(width: 4),
                                     IconButton(
                                       icon: const Icon(Icons.info_outline,
-                                          color: Color(0xFF0D2D6B), size: 20),
+                                          color: Color(0xFF171717), size: 20),
                                       onPressed: () => VeiculoDetalheModal.show(
                                           context, v['placa'] ?? ''),
                                       padding: EdgeInsets.zero,
@@ -492,7 +492,7 @@ class _State extends State<VeiculosScreen> {
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0D2D6B))),
+                color: Color(0xFF171717))),
       );
 
   Widget _campo(TextEditingController ctrl, String label,
@@ -523,7 +523,7 @@ class _State extends State<VeiculosScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: _filtro == valor
-                ? (cor ?? const Color(0xFF0D2D6B))
+                ? (cor ?? const Color(0xFF171717))
                 : Colors.grey[100],
             borderRadius: BorderRadius.circular(20),
           ),

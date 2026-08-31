@@ -157,7 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _loadingSenha ? null : _entrarComSenha,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1565C0),
+                          backgroundColor: const Color(0xFF171717),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
@@ -194,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: _loadingGoogle ? null : _entrarComGoogle,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF0D2D6B),
+                          foregroundColor: const Color(0xFF171717),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                           elevation: 4,
@@ -204,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Color(0xFF0D2D6B)))
+                                    strokeWidth: 2, color: Color(0xFF171717)))
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -250,7 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1565C0)),
+          borderSide: const BorderSide(color: Color(0xFF171717)),
         ),
       );
 }

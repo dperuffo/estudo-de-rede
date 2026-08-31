@@ -72,7 +72,7 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: Color(0xFF0D2D6B))),
+                              color: Color(0xFF171717))),
                     );
                   }
                   return Padding(

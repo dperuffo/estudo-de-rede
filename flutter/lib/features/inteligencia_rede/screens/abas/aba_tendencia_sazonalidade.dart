@@ -28,7 +28,7 @@ const _coresUfTend = [
   Color(0xFF4E342E)
 ];
 const _coresCombustivelTend = [
-  Color(0xFF1565C0),
+  Color(0xFF171717),
   Color(0xFFC62828),
   Color(0xFF2E7D32),
   Color(0xFFEF6C00),
