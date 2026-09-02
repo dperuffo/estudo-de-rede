@@ -57,6 +57,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     label: 'Postos Revendedores',
     icon: Icons.local_gas_station
   ),
+  (
+    href: '/postos-internos',
+    label: 'Postos Internos',
+    icon: Icons.garage_outlined
+  ),
   (href: '/roteirizacao', label: 'Roteirização', icon: Icons.route),
   (href: '/rotograma', label: 'Rotograma', icon: Icons.shield_outlined),
   (href: '/planos-viagem', label: 'Planos de Viagem', icon: Icons.card_travel),
@@ -69,6 +74,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     href: '/abastecimentos/aprovacao',
     label: 'Pendentes de Aprovação',
     icon: Icons.fact_check_outlined
+  ),
+  (
+    href: '/conferencia-precos',
+    label: 'Conferência de Preços',
+    icon: Icons.price_check
   ),
   (href: '/parametros-uso', label: 'Parâmetros de Uso', icon: Icons.tune),
   (href: '/notas-fiscais', label: 'Notas Fiscais', icon: Icons.description),
@@ -517,6 +527,11 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/postos'))
               _item(context, Icons.local_gas_station, 'Postos Revendedores',
                   '/postos'),
+            // Fase FLT-Postos-Internos (02/09/2026) — configuração
+            // self-service da garagem/tanque próprio (matriz ou filial).
+            if (pode('/postos-internos'))
+              _item(context, Icons.garage_outlined, 'Postos Internos',
+                  '/postos-internos'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Roteirização e Abastecimento'),
             if (pode('/roteirizacao'))
@@ -536,6 +551,11 @@ class HomeScreen extends ConsumerWidget {
               _item(context, Icons.fact_check_outlined,
                   'Pendentes de Aprovação', '/abastecimentos/aprovacao',
                   badge: badges.pendentesAprovacaoManual),
+            // Fase FLT-Conferência-Precos (02/09/2026) — compara preço
+            // praticado x acordado com o posto + extrato diário.
+            if (pode('/conferencia-precos'))
+              _item(context, Icons.price_check, 'Conferência de Preços',
+                  '/conferencia-precos'),
             // Fase reorganizacao-menu-2 (04/08/2026, pedido do Daniel) —
             // movida de "Sistema" pra cá: é regra de abastecimento, não
             // configuração geral. Icons.tune = web: SlidersHorizontal.
