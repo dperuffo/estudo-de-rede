@@ -51,6 +51,7 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
   (href: '/usuarios', label: 'Usuários', icon: Icons.people),
   (href: '/motoristas', label: 'Motoristas', icon: Icons.badge),
   (href: '/veiculos', label: 'Veículos', icon: Icons.directions_car),
+  (href: '/pneus', label: 'Gestão de Pneus', icon: Icons.tire_repair),
   (href: '/centros-custo', label: 'Centros de Custo', icon: Icons.receipt_long),
   (
     href: '/postos',
@@ -122,6 +123,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     icon: Icons.fact_check
   ),
   (href: '/sinistros', label: 'Sinistros', icon: Icons.warning_amber),
+  (
+    href: '/apolices-seguro',
+    label: 'Apólices de Seguro',
+    icon: Icons.shield_outlined
+  ),
   (href: '/multas', label: 'Multas', icon: Icons.gavel),
   (
     href: '/oficinas',
@@ -521,6 +527,9 @@ class HomeScreen extends ConsumerWidget {
               _item(context, Icons.badge, 'Motoristas', '/motoristas'),
             if (pode('/veiculos'))
               _item(context, Icons.directions_car, 'Veículos', '/veiculos'),
+            // Fase FLT-Gestão-Pneus (02/09/2026) — porta de /pneus da web.
+            if (pode('/pneus'))
+              _item(context, Icons.tire_repair, 'Gestão de Pneus', '/pneus'),
             if (pode('/centros-custo'))
               _item(context, Icons.receipt_long, 'Centros de Custo',
                   '/centros-custo'),
@@ -643,6 +652,12 @@ class HomeScreen extends ConsumerWidget {
             // PWA: AlertTriangle (web). Alimenta índice de sinistralidade.
             if (pode('/sinistros'))
               _item(context, Icons.warning_amber, 'Sinistros', '/sinistros'),
+            // Fase FLT-Apólices-Seguro (02/09/2026) — porta de
+            // /apolices-seguro da web: número, seguradora, vigência,
+            // cobertura e franquia, com alerta de vencimento.
+            if (pode('/apolices-seguro'))
+              _item(context, Icons.shield_outlined, 'Apólices de Seguro',
+                  '/apolices-seguro'),
             // Fase Onda-2 (benchmark TicketLog, item #4) — ciclo de multas:
             // captura, indicação de condutor, histórico, prazo de desconto.
             if (pode('/multas'))

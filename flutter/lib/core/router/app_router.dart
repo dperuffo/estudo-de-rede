@@ -126,6 +126,10 @@ import '../../features/abastecimentos/screens/abastecimento_detalhe_cliente_scre
 import '../../features/abastecimentos/screens/abastecimentos_pendentes_aprovacao_screen.dart';
 import '../../features/postos_internos/screens/postos_internos_screen.dart';
 import '../../features/conferencia_precos/screens/conferencia_precos_screen.dart';
+import '../../features/pneus/screens/pneus_screen.dart';
+import '../../features/pneus/screens/pneu_form_screen.dart';
+import '../../features/apolices_seguro/screens/apolices_seguro_screen.dart';
+import '../../features/apolices_seguro/screens/apolice_form_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -372,6 +376,26 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(
                 path: '/conferencia-precos',
                 builder: (_, __) => const ConferenciaPrecosScreen()),
+            GoRoute(path: '/pneus', builder: (_, __) => const PneusScreen()),
+            GoRoute(
+                path: '/pneus/novo',
+                builder: (_, __) => const PneuFormScreen()),
+            GoRoute(
+              path: '/pneus/:id/editar',
+              builder: (_, state) =>
+                  PneuFormScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+                path: '/apolices-seguro',
+                builder: (_, __) => const ApolicesSeguroScreen()),
+            GoRoute(
+                path: '/apolices-seguro/nova',
+                builder: (_, __) => const ApoliceFormScreen()),
+            GoRoute(
+              path: '/apolices-seguro/:id/editar',
+              builder: (_, state) =>
+                  ApoliceFormScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(
                 path: '/postos/buscar',
                 builder: (_, __) => const PostosBuscarScreen()),
