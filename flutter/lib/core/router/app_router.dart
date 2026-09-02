@@ -123,6 +123,7 @@ import '../../features/postos/screens/posto_detalhe_screen.dart';
 import '../../features/abastecimentos/screens/abastecimentos_screen.dart';
 import '../../features/abastecimentos/screens/abastecimento_novo_screen.dart';
 import '../../features/abastecimentos/screens/abastecimento_detalhe_cliente_screen.dart';
+import '../../features/abastecimentos/screens/abastecimentos_pendentes_aprovacao_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -377,6 +378,10 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(
                 path: '/abastecimentos/novo',
                 builder: (_, __) => const AbastecimentoNovoScreen()),
+            GoRoute(
+                path: '/abastecimentos/aprovacao',
+                builder: (_, __) =>
+                    const AbastecimentosPendentesAprovacaoScreen()),
             GoRoute(
               path: '/abastecimentos/:chave',
               builder: (_, state) => AbastecimentoDetalheClienteScreen(

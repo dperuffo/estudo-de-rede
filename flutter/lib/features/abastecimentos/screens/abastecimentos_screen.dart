@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/providers/notificacoes_provider.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../posto/services/abastecimentos_posto_service.dart'
     show RegistroAbastecimentoPosto, coresProvedor, nomeProvedor, produtosPosto;
@@ -158,6 +159,14 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
             final precoMedio = dados.volumeTotal > 0
                 ? dados.receitaTotal / dados.volumeTotal
                 : 0.0;
+            // Fase FLT-Aprovação-Manual (02/09/2026) — mesmo pill amarelo
+            // de abastecimentos/page.tsx (web), reaproveitando a contagem
+            // que já alimenta o badge do menu (notificacoesBadgesProvider)
+            // em vez de fazer outra consulta só pra este banner.
+            final pendentesManuais =
+                ref.watch(notificacoesBadgesProvider).valueOrNull
+                        ?.pendentesAprovacaoManual ??
+                    0;
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
@@ -167,6 +176,28 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                   'Lançamento manual também disponível.',
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
+                if (pendentesManuais > 0) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () => context.push('/abastecimentos/aprovacao'),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '🟡 $pendentesManuais pendente${pendentesManuais == 1 ? '' : 's'} de aprovação',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF92400E)),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 GridView.count(
                   crossAxisCount: 2,

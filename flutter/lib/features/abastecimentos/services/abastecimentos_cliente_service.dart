@@ -68,8 +68,128 @@ class ResultadoAbastecimentosCliente {
   );
 }
 
+// Fase FLT-Aprovação-Manual (02/09/2026) — porta de
+// abastecimentos/pendentes-aprovacao/page.tsx: lançamentos manuais feitos
+// pelo motorista no PWA Motorista (foto do cupom + OCR) ficam com
+// status='pendente' em abastecimentos_externos até um gestor aprovar aqui —
+// só depois entram em abastecimentos_unificado (indicadores/financeiro).
+// Mesmas colunas da query web (ver page.tsx da mesma feature).
+class AbastecimentoManualPendente {
+  final int id;
+  final String empresaId;
+  final String placa;
+  final String? motoristaNome;
+  final String dataAbastecimento;
+  final double? hodometro;
+  final String? postoNome;
+  final String? combustivel;
+  final double quantidade;
+  final double? valorUnitario;
+  final double valorTotal;
+  final String? fotoUrl;
+
+  const AbastecimentoManualPendente({
+    required this.id,
+    required this.empresaId,
+    required this.placa,
+    required this.motoristaNome,
+    required this.dataAbastecimento,
+    required this.hodometro,
+    required this.postoNome,
+    required this.combustivel,
+    required this.quantidade,
+    required this.valorUnitario,
+    required this.valorTotal,
+    required this.fotoUrl,
+  });
+}
+
 class AbastecimentosClienteService {
   final _supabase = SupabaseService.client;
+
+  // Porta de AbastecimentosPendentesAprovacaoPage (só a query — a tela já
+  // resolve a empresa da sessão antes de chamar, diferente da web que
+  // também cobre "várias empresas sem seleção"; ver sessao_provider.dart).
+  Future<List<AbastecimentoManualPendente>> buscarPendentesManuais({
+    required String empresaId,
+  }) async {
+    final rows = await _supabase
+        .from('abastecimentos_externos')
+        .select(
+          'id, empresa_id, placa, motorista_nome, data_abastecimento, hodometro, posto_nome, combustivel, quantidade, valor_unitario, valor_total, foto_path',
+        )
+        .eq('provedor', 'manual')
+        .eq('status', 'pendente')
+        .eq('empresa_id', empresaId)
+        .order('criado_em', ascending: false);
+
+    final resultado = <AbastecimentoManualPendente>[];
+    for (final m in rows) {
+      String? fotoUrl;
+      final fotoPath = m['foto_path'] as String?;
+      if (fotoPath != null && fotoPath.isNotEmpty) {
+        try {
+          fotoUrl = await _supabase.storage
+              .from('abastecimentos-evidencias')
+              .createSignedUrl(fotoPath, 3600);
+        } catch (_) {
+          // Best-effort — card mostra "Sem foto" se a URL falhar.
+        }
+      }
+      resultado.add(AbastecimentoManualPendente(
+        id: m['id'] as int,
+        empresaId: m['empresa_id'] as String,
+        placa: m['placa'] as String,
+        motoristaNome: m['motorista_nome'] as String?,
+        dataAbastecimento: m['data_abastecimento'] as String,
+        hodometro: (m['hodometro'] as num?)?.toDouble(),
+        postoNome: m['posto_nome'] as String?,
+        combustivel: m['combustivel'] as String?,
+        quantidade: (m['quantidade'] as num).toDouble(),
+        valorUnitario: (m['valor_unitario'] as num?)?.toDouble(),
+        valorTotal: (m['valor_total'] as num).toDouble(),
+        fotoUrl: fotoUrl,
+      ));
+    }
+    return resultado;
+  }
+
+  // Porta de aprovarRejeitarAbastecimentoManualAcao
+  // (actions-pendentes-manual.ts) — mesma RPC SECURITY DEFINER
+  // (aprovar_rejeitar_abastecimento_manual), mesmos códigos de erro.
+  Future<String?> aprovarRejeitarManual({
+    required int id,
+    required bool aprovar,
+    String? motivoRejeicao,
+  }) async {
+    try {
+      final resultado = await _supabase.rpc(
+        'aprovar_rejeitar_abastecimento_manual',
+        params: {
+          'p_id': id,
+          'p_aprovar': aprovar,
+          'p_motivo_rejeicao': motivoRejeicao,
+        },
+      ) as String?;
+      switch (resultado) {
+        case 'ok':
+        case null:
+          return null;
+        case 'nao_encontrado':
+          return 'Lançamento não encontrado.';
+        case 'nao_e_lancamento_manual':
+          return 'Este lançamento não é manual.';
+        case 'ja_processado':
+          return 'Este lançamento já foi aprovado ou rejeitado.';
+        case 'motivo_obrigatorio':
+          return 'Informe o motivo da rejeição.';
+        default:
+          return 'Não foi possível processar: $resultado';
+      }
+    } catch (e) {
+      return 'Não foi possível processar: $e';
+    }
+  }
 
   // Porta de criarAbastecimento (abastecimentos/actions.ts) — lançamento
   // manual pra clientes sem integração automática com meio de pagamento.

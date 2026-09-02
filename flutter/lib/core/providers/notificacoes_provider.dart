@@ -42,6 +42,10 @@ class NotificacoesBadges {
   // indicação vencendo nos próximos 7 dias (ou já vencido), mesma regra da
   // web (contarMultasPendentesAcao em multas/actions.ts).
   final int multasPendentes;
+  // Fase FLT-Aprovação-Manual (02/09/2026) — lançamentos manuais do PWA
+  // Motorista (foto do cupom + OCR) esperando aprovação do gestor, mesma
+  // contagem do pill amarelo em abastecimentos/page.tsx (web).
+  final int pendentesAprovacaoManual;
 
   const NotificacoesBadges({
     required this.chamados,
@@ -54,6 +58,7 @@ class NotificacoesBadges {
     required this.antifraude,
     required this.acoesSugeridas,
     required this.multasPendentes,
+    required this.pendentesAprovacaoManual,
   });
 
   static const vazio = NotificacoesBadges(
@@ -67,6 +72,7 @@ class NotificacoesBadges {
     antifraude: 0,
     acoesSugeridas: 0,
     multasPendentes: 0,
+    pendentesAprovacaoManual: 0,
   );
 }
 
@@ -215,6 +221,23 @@ final notificacoesBadgesProvider =
     return resp.count;
   }
 
+  // Fase FLT-Aprovação-Manual (02/09/2026) — lançamentos manuais do PWA
+  // Motorista (foto do cupom + OCR) esperando aprovação. Só empresa própria
+  // (não há caso "admin" pra este badge — admin não lança abastecimento
+  // próprio, mesmo raciocínio de Ajustes de Abastecimento acima).
+  Future<int> contarPendentesAprovacaoManual() async {
+    final empresaId = sessao.empresaId;
+    if (empresaId == null) return 0;
+    final resp = await supabase
+        .from('abastecimentos_externos')
+        .select('id')
+        .eq('provedor', 'manual')
+        .eq('status', 'pendente')
+        .eq('empresa_id', empresaId)
+        .count(CountOption.exact);
+    return resp.count;
+  }
+
   final resultados = await Future.wait([
     _contagemSegura(contarChamados),
     _contagemSegura(contarNegociacoes),
@@ -226,6 +249,7 @@ final notificacoesBadgesProvider =
     _contagemSegura(contarAntifraude),
     _contagemSegura(contarAcoesSugeridas),
     _contagemSegura(contarMultasPendentes),
+    _contagemSegura(contarPendentesAprovacaoManual),
   ]);
 
   return NotificacoesBadges(
@@ -239,5 +263,6 @@ final notificacoesBadgesProvider =
     antifraude: resultados[7],
     acoesSugeridas: resultados[8],
     multasPendentes: resultados[9],
+    pendentesAprovacaoManual: resultados[10],
   );
 });

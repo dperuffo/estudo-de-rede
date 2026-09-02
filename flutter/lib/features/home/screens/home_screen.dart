@@ -65,6 +65,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     label: 'Abastecimentos',
     icon: Icons.local_gas_station
   ),
+  (
+    href: '/abastecimentos/aprovacao',
+    label: 'Pendentes de Aprovação',
+    icon: Icons.fact_check_outlined
+  ),
   (href: '/parametros-uso', label: 'Parâmetros de Uso', icon: Icons.tune),
   (href: '/notas-fiscais', label: 'Notas Fiscais', icon: Icons.description),
   (href: '/combustivel-ideal', label: 'Combustível Ideal', icon: Icons.eco),
@@ -525,6 +530,12 @@ class HomeScreen extends ConsumerWidget {
               _item(context, Icons.local_gas_station, 'Abastecimentos',
                   '/abastecimentos',
                   badge: badges.ajustesAbastecimento),
+            // Fase FLT-Aprovação-Manual (02/09/2026) — lançamentos manuais
+            // do PWA Motorista (foto do cupom + OCR) esperando aprovação.
+            if (pode('/abastecimentos/aprovacao'))
+              _item(context, Icons.fact_check_outlined,
+                  'Pendentes de Aprovação', '/abastecimentos/aprovacao',
+                  badge: badges.pendentesAprovacaoManual),
             // Fase reorganizacao-menu-2 (04/08/2026, pedido do Daniel) —
             // movida de "Sistema" pra cá: é regra de abastecimento, não
             // configuração geral. Icons.tune = web: SlidersHorizontal.

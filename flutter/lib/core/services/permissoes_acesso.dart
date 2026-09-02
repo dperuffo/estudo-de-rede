@@ -38,6 +38,7 @@ const rotaFuncionalidade = <String, String>{
   '/centros-custo': 'aba_centros_custo',
   '/postos': 'aba_postos',
   '/abastecimentos': 'aba_abastecimentos',
+  '/abastecimentos/aprovacao': 'aba_abastecimentos',
   '/notas-fiscais': 'aba_notas_fiscais',
   '/acoes-sugeridas': 'aba_anomalias',
   '/parcerias-locais': 'aba_parcerias_locais',
