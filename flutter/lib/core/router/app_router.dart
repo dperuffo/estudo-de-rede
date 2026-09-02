@@ -130,6 +130,18 @@ import '../../features/pneus/screens/pneus_screen.dart';
 import '../../features/pneus/screens/pneu_form_screen.dart';
 import '../../features/apolices_seguro/screens/apolices_seguro_screen.dart';
 import '../../features/apolices_seguro/screens/apolice_form_screen.dart';
+import '../../features/fidelidade_motoristas/screens/fidelidade_motoristas_screen.dart';
+import '../../features/conciliacao_bancaria/screens/conciliacao_bancaria_screen.dart';
+import '../../features/apuracao_tributaria/screens/apuracao_tributaria_screen.dart';
+import '../../features/cotacoes/screens/cotacoes_screen.dart';
+import '../../features/cotacoes/screens/cotacao_novo_screen.dart';
+import '../../features/tabelas_frete/screens/tabelas_frete_screen.dart';
+import '../../features/tabelas_frete/screens/tabela_frete_form_screen.dart';
+import '../../features/faturas_fretes/screens/faturas_fretes_screen.dart';
+import '../../features/faturas_fretes/screens/gerar_fatura_frete_screen.dart';
+import '../../features/bolsa_fretes/screens/bolsa_fretes_screen.dart';
+import '../../features/fiscal/screens/fiscal_screen.dart';
+import '../../features/insights_ia/screens/insights_ia_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -396,6 +408,44 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) =>
                   ApoliceFormScreen(id: state.pathParameters['id']!),
             ),
+            GoRoute(
+                path: '/fidelidade-motoristas',
+                builder: (_, __) => const FidelidadeMotoristasScreen()),
+            GoRoute(
+                path: '/conciliacao-bancaria',
+                builder: (_, __) => const ConciliacaoBancariaScreen()),
+            GoRoute(
+                path: '/apuracao-tributaria',
+                builder: (_, __) => const ApuracaoTributariaScreen()),
+            GoRoute(
+                path: '/cotacoes', builder: (_, __) => const CotacoesScreen()),
+            GoRoute(
+                path: '/cotacoes/novo',
+                builder: (_, __) => const CotacaoNovoScreen()),
+            GoRoute(
+                path: '/tabelas-frete',
+                builder: (_, __) => const TabelasFreteScreen()),
+            GoRoute(
+                path: '/tabelas-frete/novo',
+                builder: (_, __) => const TabelaFreteFormScreen()),
+            GoRoute(
+              path: '/tabelas-frete/:id/editar',
+              builder: (_, state) =>
+                  TabelaFreteFormScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+                path: '/faturas-fretes',
+                builder: (_, __) => const FaturasFretesScreen()),
+            GoRoute(
+                path: '/faturas-fretes/gerar',
+                builder: (_, __) => const GerarFaturaFreteScreen()),
+            GoRoute(
+                path: '/bolsa-fretes',
+                builder: (_, __) => const BolsaFretesScreen()),
+            GoRoute(path: '/fiscal', builder: (_, __) => const FiscalScreen()),
+            GoRoute(
+                path: '/insights-ia',
+                builder: (_, __) => const InsightsIaScreen()),
             GoRoute(
                 path: '/postos/buscar',
                 builder: (_, __) => const PostosBuscarScreen()),

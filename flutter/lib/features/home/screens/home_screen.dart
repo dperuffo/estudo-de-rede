@@ -83,6 +83,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
   ),
   (href: '/parametros-uso', label: 'Parâmetros de Uso', icon: Icons.tune),
   (href: '/notas-fiscais', label: 'Notas Fiscais', icon: Icons.description),
+  (
+    href: '/apuracao-tributaria',
+    label: 'Apuração de Crédito Tributário',
+    icon: Icons.balance
+  ),
   (href: '/combustivel-ideal', label: 'Combustível Ideal', icon: Icons.eco),
   (
     href: '/precos-postos',
@@ -97,6 +102,22 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
   (href: '/parametros-nf', label: 'Parâmetros de NF', icon: Icons.receipt_long),
   (href: '/fretes', label: 'Fretes', icon: Icons.local_shipping),
   (href: '/programacao', label: 'Programação', icon: Icons.calendar_month),
+  (href: '/cotacoes', label: 'Cotações', icon: Icons.calculate_outlined),
+  (
+    href: '/tabelas-frete',
+    label: 'Tabelas de Frete',
+    icon: Icons.rule_folder_outlined
+  ),
+  (
+    href: '/faturas-fretes',
+    label: 'Faturas de Frete',
+    icon: Icons.receipt_long
+  ),
+  (
+    href: '/bolsa-fretes',
+    label: 'Bolsa de Fretes do Grupo',
+    icon: Icons.location_on_outlined
+  ),
   (
     href: '/agendamentos-patio',
     label: 'Agendamento de Pátio',
@@ -128,6 +149,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     label: 'Apólices de Seguro',
     icon: Icons.shield_outlined
   ),
+  (
+    href: '/fidelidade-motoristas',
+    label: 'Fidelidade dos Motoristas',
+    icon: Icons.card_giftcard
+  ),
   (href: '/multas', label: 'Multas', icon: Icons.gavel),
   (
     href: '/oficinas',
@@ -135,6 +161,12 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     icon: Icons.build_circle_outlined
   ),
   (href: '/financeiro', label: 'Painel Financeiro', icon: Icons.attach_money),
+  (href: '/fiscal', label: 'Fiscal (CT-e/MDF-e)', icon: Icons.receipt_long),
+  (
+    href: '/conciliacao-bancaria',
+    label: 'Conciliação Bancária',
+    icon: Icons.compare_arrows
+  ),
   (href: '/relatorios', label: 'Relatórios', icon: Icons.bar_chart),
   (href: '/pegada-carbono', label: 'Pegada de Carbono', icon: Icons.public),
   (href: '/inteligencia-rede', label: 'Inteligência de Rede', icon: Icons.hub),
@@ -574,6 +606,13 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/notas-fiscais'))
               _item(context, Icons.description, 'Notas Fiscais',
                   '/notas-fiscais'),
+            // Fase FLT-Apuração-Tributária (02/09/2026) — porta de
+            // /apuracao-tributaria da web: crédito de ICMS monofásico
+            // sobre combustível (LC 192/2022), a partir do que já vem
+            // calculado no XML da NF-e do posto.
+            if (pode('/apuracao-tributaria'))
+              _item(context, Icons.balance, 'Apuração de Crédito Tributário',
+                  '/apuracao-tributaria'),
             // Fase Onda-2 (benchmark TicketLog, item #6) — comparador de
             // combustível ideal por veículo/região.
             if (pode('/combustivel-ideal'))
@@ -605,6 +644,30 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/agendamentos-patio'))
               _item(context, Icons.calendar_month, 'Agendamento de Pátio',
                   '/agendamentos-patio'),
+            // Fase FLT-Cotações (02/09/2026) — porta de /cotacoes da web:
+            // simulador de frete (tabela de frete + faixa de peso + piso
+            // ANTT), com opção de converter em frete de verdade.
+            if (pode('/cotacoes'))
+              _item(context, Icons.calculate_outlined, 'Cotações', '/cotacoes'),
+            // Fase FLT-Tabelas-Frete (02/09/2026) — porta de
+            // /tabelas-frete da web: faixas de peso + adicionais usados
+            // pelo simulador de Cotações.
+            if (pode('/tabelas-frete'))
+              _item(context, Icons.rule_folder_outlined, 'Tabelas de Frete',
+                  '/tabelas-frete'),
+            // Fase FLT-Faturas-Frete (02/09/2026) — porta de
+            // /faturas-fretes da web: agrupa CT-es autorizados por tomador
+            // pra gerar fatura, com marcar-como-paga/cancelar.
+            if (pode('/faturas-fretes'))
+              _item(context, Icons.receipt_long, 'Faturas de Frete',
+                  '/faturas-fretes'),
+            // Fase FLT-Bolsa-Fretes (02/09/2026) — porta de /bolsa-fretes
+            // da web: capacidade ociosa própria + fretes disponíveis nas
+            // empresas irmãs do mesmo Grupo Econômico (restrito, sem
+            // preço/contato — RPC bolsa_fretes_grupo já limita no server).
+            if (pode('/bolsa-fretes'))
+              _item(context, Icons.location_on_outlined,
+                  'Bolsa de Fretes do Grupo', '/bolsa-fretes'),
             // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) —
             // Icons.work_outline = PWA: Briefcase (web). Carteira de clientes
             // + funil de propostas (lê cotacoes) + histórico de relacionamento.
@@ -673,6 +736,19 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/financeiro'))
               _item(context, Icons.attach_money, 'Painel Financeiro',
                   '/financeiro'),
+            // Fase FLT-Conciliação-Bancária (02/09/2026) — porta de
+            // /conciliacao-bancaria da web: import de extrato OFX/CSV +
+            // matching automático (valor+data+fornecedor) contra
+            // contas_pagar/contas_receber em aberto.
+            if (pode('/conciliacao-bancaria'))
+              _item(context, Icons.compare_arrows, 'Conciliação Bancária',
+                  '/conciliacao-bancaria'),
+            // Fase FLT-Fiscal (02/09/2026) — porta de /fiscal da web:
+            // dados do emitente de CT-e/MDF-e (regime, série, ambiente).
+            // Envio de certificado/teste de conexão continuam só na web.
+            if (pode('/fiscal'))
+              _item(context, Icons.receipt_long, 'Fiscal (CT-e/MDF-e)',
+                  '/fiscal'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Relatórios e Sustentabilidade'),
             if (pode('/relatorios'))
@@ -693,6 +769,12 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/parcerias-locais'))
               _item(context, Icons.card_giftcard, 'Parcerias Locais',
                   '/parcerias-locais'),
+            // Fase FLT-Fidelidade-Motoristas (02/09/2026) — porta de
+            // /fidelidade-motoristas da web: indicadores de pontos/nível
+            // por motorista + gestão de missões.
+            if (pode('/fidelidade-motoristas'))
+              _item(context, Icons.emoji_events_outlined,
+                  'Fidelidade dos Motoristas', '/fidelidade-motoristas'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Conta e Ajuda'),
             if (pode('/assistente'))
