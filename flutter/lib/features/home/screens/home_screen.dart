@@ -11,6 +11,7 @@ import '../../../core/services/permissoes_acesso.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
+import '../../insights_ia/providers/insights_ia_provider.dart';
 import '../../../core/widgets/sino_avisos.dart';
 
 // Fase Acesso-Rápido-Favoritos (04/08/2026, pedido do Daniel: "mecanismo de
@@ -545,6 +546,16 @@ class HomeScreen extends ConsumerWidget {
               _item(context, Icons.auto_awesome, 'Ações Sugeridas',
                   '/acoes-sugeridas',
                   badge: badges.acoesSugeridas),
+            // Fase FLT-Insights-IA (02/09/2026) — porta de /insights-ia da
+            // web: sinais cruzados gerados 1x/dia. Igual na web, além do
+            // mapa de permissões padrão (aba_insights_ia), esse item só
+            // aparece se a empresa tiver plano enterprise ou liberação
+            // manual (acesso_insights_ia_liberado) — checagem dupla, único
+            // item do menu com esse gate extra por plano.
+            if (pode('/insights-ia') &&
+                (ref.watch(insightsIaAcessoProvider).valueOrNull ?? false))
+              _item(context, Icons.psychology_outlined, 'Insights de IA',
+                  '/insights-ia'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Cadastros'),
             if (pode('/clientes'))

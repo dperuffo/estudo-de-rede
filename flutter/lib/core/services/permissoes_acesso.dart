@@ -45,6 +45,7 @@ const rotaFuncionalidade = <String, String>{
   '/faturas-fretes': 'aba_faturas_fretes',
   '/bolsa-fretes': 'aba_bolsa_fretes',
   '/fiscal': 'aba_fiscal',
+  '/insights-ia': 'aba_insights_ia',
   '/centros-custo': 'aba_centros_custo',
   '/postos': 'aba_postos',
   '/postos-internos': 'aba_postos',
