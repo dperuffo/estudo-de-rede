@@ -60,6 +60,14 @@ class ManutencaoPreditivaService {
     required List<String> itensRealizados,
     String? obsGerais,
     String? criadoPor,
+    // Fase FLT-Aprovações (03/09/2026) — porta do vínculo com
+    // solicitacoes_aprovacao (verificar_aprovacao_manutencao trigger,
+    // BEFORE INSERT em manutencoes_realizadas). Se custo_total estiver no
+    // limiar configurado (configuracoes_regras.aprovacao_manutencao_valor_minimo,
+    // padrão 2000) ou acima, o trigger recusa o insert (erro P0001) a
+    // menos que este campo aponte pra uma solicitação categoria=manutencao
+    // com status='aprovada' e valor >= custo_total.
+    String? solicitacaoAprovacaoId,
   }) async {
     if (itensRealizados.isEmpty) {
       throw Exception('Selecione ao menos um item realizado.');
@@ -70,27 +78,39 @@ class ManutencaoPreditivaService {
         .eq('placa', placa)
         .maybeSingle();
 
-    final inserida = await _supabase
-        .from('manutencoes_realizadas')
-        .insert({
-          'empresa_id': empresaId,
-          'cnpj_frota': veiculo?['cnpj_frota'] ?? '',
-          'placa': placa,
-          'data_manutencao': dataManutencao,
-          'hodometro': hodometro,
-          'tecnico': (tecnico == null || tecnico.isEmpty) ? null : tecnico,
-          'oficina': (oficina == null || oficina.isEmpty) ? null : oficina,
-          'custo_total': custoTotal,
-          'dias_parado': diasParado,
-          'tipo': tipo,
-          'itens_realizados': itensRealizados,
-          'obs_gerais':
-              (obsGerais == null || obsGerais.isEmpty) ? null : obsGerais,
-          'criado_por': criadoPor,
-        })
-        .select('id')
-        .single();
-    return (inserida['id'] as num).toInt();
+    try {
+      final inserida = await _supabase
+          .from('manutencoes_realizadas')
+          .insert({
+            'empresa_id': empresaId,
+            'cnpj_frota': veiculo?['cnpj_frota'] ?? '',
+            'placa': placa,
+            'data_manutencao': dataManutencao,
+            'hodometro': hodometro,
+            'tecnico': (tecnico == null || tecnico.isEmpty) ? null : tecnico,
+            'oficina': (oficina == null || oficina.isEmpty) ? null : oficina,
+            'custo_total': custoTotal,
+            'dias_parado': diasParado,
+            'tipo': tipo,
+            'itens_realizados': itensRealizados,
+            'obs_gerais':
+                (obsGerais == null || obsGerais.isEmpty) ? null : obsGerais,
+            'criado_por': criadoPor,
+            'solicitacao_aprovacao_id': solicitacaoAprovacaoId,
+          })
+          .select('id')
+          .single();
+      return (inserida['id'] as num).toInt();
+    } on PostgrestException catch (e) {
+      // P0001 = RAISE EXCEPTION do trigger verificar_aprovacao_manutencao —
+      // a mensagem já vem em português, pronta pra mostrar ao usuário
+      // (mesmo espírito do `error.code === 'P0001' ? error.message : ...`
+      // da web).
+      if (e.code == 'P0001') {
+        throw Exception(e.message);
+      }
+      rethrow;
+    }
   }
 
   // Envia uma ou mais fotos como evidência de uma manutenção já registrada

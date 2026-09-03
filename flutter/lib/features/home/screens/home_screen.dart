@@ -164,6 +164,22 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
   (href: '/financeiro', label: 'Painel Financeiro', icon: Icons.attach_money),
   (href: '/fiscal', label: 'Fiscal (CT-e/MDF-e)', icon: Icons.receipt_long),
   (
+    href: '/central-regras',
+    label: 'Central de Regras & Alertas',
+    icon: Icons.rule
+  ),
+  (href: '/aprovacoes', label: 'Aprovações', icon: Icons.check_circle_outline),
+  (
+    href: '/central-avisos/gerenciar',
+    label: 'Meus Avisos',
+    icon: Icons.campaign_outlined
+  ),
+  (
+    href: '/treinamento',
+    label: 'Central de Treinamento',
+    icon: Icons.school_outlined
+  ),
+  (
     href: '/conciliacao-bancaria',
     label: 'Conciliação Bancária',
     icon: Icons.compare_arrows
@@ -527,9 +543,8 @@ class HomeScreen extends ConsumerWidget {
             // crescido fase após fase até virar confusa demais) — mesmos 9
             // grupos temáticos da web, adaptados ao subconjunto de telas que
             // existe neste PWA (nem toda rota web tem equivalente aqui —
-            // Cotações/Tabelas de Frete/Faturas de Frete/Conciliação
-            // Bancária/Fiscal/Fidelidade dos Motoristas/Central de
-            // Treinamento/Integrações continuam só na web).
+            // Integrações, por exemplo, continua só na web; a maior parte
+            // do restante já foi equalizada nas fases FLT-* de 02-03/09/2026).
             _grp('Visão Geral'),
             if (pode('/dashboard'))
               _item(context, Icons.dashboard, 'Dashboard', '/dashboard'),
@@ -556,6 +571,13 @@ class HomeScreen extends ConsumerWidget {
                 (ref.watch(insightsIaAcessoProvider).valueOrNull ?? false))
               _item(context, Icons.psychology_outlined, 'Insights de IA',
                   '/insights-ia'),
+            // Fase FLT-Central-Regras (03/09/2026) — porta de
+            // /central-regras da web: hub linkando pra Ações
+            // Sugeridas/Antifraude/Avisos/Insights de IA + tela de
+            // configuração dos 13 limiares numéricos usados nas detecções.
+            if (pode('/central-regras'))
+              _item(context, Icons.rule, 'Central de Regras & Alertas',
+                  '/central-regras'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Cadastros'),
             if (pode('/clientes'))
@@ -760,6 +782,12 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/fiscal'))
               _item(context, Icons.receipt_long, 'Fiscal (CT-e/MDF-e)',
                   '/fiscal'),
+            // Fase FLT-Aprovações (03/09/2026) — porta de /aprovacoes da
+            // web: fluxo de aprovação multi-nível (sequencial — nível 2
+            // exige perfil gestor_frota/admin, checado no servidor).
+            if (pode('/aprovacoes'))
+              _item(context, Icons.check_circle_outline, 'Aprovações',
+                  '/aprovacoes'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Relatórios e Sustentabilidade'),
             if (pode('/relatorios'))
@@ -798,6 +826,23 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/chamados'))
               _item(context, Icons.confirmation_number, 'Chamados', '/chamados',
                   badge: badges.chamados),
+            // Fase FLT-Central-Avisos (03/09/2026) — porta de
+            // /central-avisos/gerenciar da web ("Meus Avisos"): criar
+            // avisos visíveis pra própria empresa e demais do mesmo grupo
+            // econômico. Distinto do painel admin de broadcast
+            // (/administracao/central-avisos), que não existe no PWA
+            // Cliente.
+            if (pode('/central-avisos/gerenciar'))
+              _item(context, Icons.campaign_outlined, 'Meus Avisos',
+                  '/central-avisos/gerenciar'),
+            // Fase FLT-Treinamento (03/09/2026) — porta de /treinamento
+            // da web: biblioteca de referência (módulo → lições com
+            // texto/imagem/vídeo), sem progresso/conclusão (a web também
+            // não tem isso). Sem gate de permissão — igual na web, a
+            // rota fica de fora do mapa aba_* de propósito.
+            if (pode('/treinamento'))
+              _item(context, Icons.school_outlined, 'Central de Treinamento',
+                  '/treinamento'),
             const Divider(color: Colors.white24, height: 1),
             _grp('Sistema'),
             if (pode('/documentos'))

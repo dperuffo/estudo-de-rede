@@ -142,6 +142,12 @@ import '../../features/faturas_fretes/screens/gerar_fatura_frete_screen.dart';
 import '../../features/bolsa_fretes/screens/bolsa_fretes_screen.dart';
 import '../../features/fiscal/screens/fiscal_screen.dart';
 import '../../features/insights_ia/screens/insights_ia_screen.dart';
+import '../../features/central_regras/screens/central_regras_screen.dart';
+import '../../features/central_regras/screens/configuracoes_regras_screen.dart';
+import '../../features/aprovacoes/screens/aprovacoes_screen.dart';
+import '../../features/central_avisos/screens/meus_avisos_screen.dart';
+import '../../features/central_avisos/screens/aviso_empresa_form_screen.dart';
+import '../../features/treinamento/screens/treinamento_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -487,6 +493,29 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(
                 path: '/acoes-sugeridas',
                 builder: (_, __) => const AcoesSugeridasScreen()),
+            GoRoute(
+                path: '/central-regras',
+                builder: (_, __) => const CentralRegrasScreen()),
+            GoRoute(
+                path: '/central-regras/configuracoes',
+                builder: (_, __) => const ConfiguracoesRegrasScreen()),
+            GoRoute(
+                path: '/aprovacoes',
+                builder: (_, __) => const AprovacoesScreen()),
+            GoRoute(
+                path: '/central-avisos/gerenciar',
+                builder: (_, __) => const MeusAvisosScreen()),
+            GoRoute(
+                path: '/central-avisos/gerenciar/novo',
+                builder: (_, __) => const AvisoEmpresaFormScreen()),
+            GoRoute(
+              path: '/central-avisos/gerenciar/:id/editar',
+              builder: (_, state) => AvisoEmpresaFormScreen(
+                  id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+                path: '/treinamento',
+                builder: (_, __) => const TreinamentoScreen()),
             GoRoute(
                 path: '/combustivel-ideal',
                 builder: (_, __) => const CombustivelIdealScreen()),

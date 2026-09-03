@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../aprovacoes/providers/aprovacoes_provider.dart';
 import '../providers/manutencao_preditiva_provider.dart';
 import '../services/manutencao_preditiva_service.dart';
 
@@ -34,6 +35,12 @@ class _ManutencaoPreditivaDetalheScreenState
   // Fase Indicadores-da-Frota (30/07/2026) — alimenta o KPI de proporção
   // corretiva/preventiva (kpis_frota_resumo).
   String? _tipoManutencao;
+  // Fase FLT-Aprovações (03/09/2026) — vínculo opcional com uma
+  // solicitação de aprovação já aprovada (categoria=manutencao). Se o
+  // custo estiver no limiar configurado (aprovacao_manutencao_valor_minimo,
+  // padrão 2000) ou acima, o trigger do banco recusa o insert sem esse
+  // vínculo — a mensagem de erro do servidor já orienta o usuário.
+  String? _solicitacaoAprovacaoId;
   bool _salvando = false;
   String? _erroForm;
   bool _sucessoForm = false;
@@ -120,6 +127,7 @@ class _ManutencaoPreditivaDetalheScreenState
         itensRealizados: _itensSelecionados.toList(),
         obsGerais: _obsCtrl.text.trim(),
         criadoPor: sessao.email,
+        solicitacaoAprovacaoId: _solicitacaoAprovacaoId,
       );
 
       // Fotos são best-effort: a manutenção já foi salva acima, então uma
@@ -147,12 +155,14 @@ class _ManutencaoPreditivaDetalheScreenState
         _itensSelecionados.clear();
         _fotosSelecionadas.clear();
         _tipoManutencao = null;
+        _solicitacaoAprovacaoId = null;
         _sucessoForm = true;
         _erroForm = avisoFotos;
         _salvando = false;
       });
       ref.invalidate(manutencaoDetalheProvider(widget.placa));
       ref.invalidate(historicoManutencaoProvider(widget.placa));
+      ref.invalidate(aprovacoesAprovadasManutencaoProvider);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -546,6 +556,42 @@ class _ManutencaoPreditivaDetalheScreenState
           ],
         ),
         const SizedBox(height: 10),
+        // Fase FLT-Aprovações (03/09/2026) — se o custo estiver no limiar
+        // configurado ou acima, o banco exige vínculo com uma solicitação
+        // já aprovada (categoria=manutencao). Opcional aqui — se faltar e
+        // for necessário, a mensagem de erro do servidor orienta o usuário.
+        Consumer(builder: (context, ref, _) {
+          final aprovadas = ref.watch(aprovacoesAprovadasManutencaoProvider);
+          return aprovadas.when(
+            data: (lista) {
+              if (lista.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<String>(
+                  value: _solicitacaoAprovacaoId,
+                  decoration: const InputDecoration(
+                      labelText:
+                          'Vincular solicitação de aprovação (se custo alto)',
+                      border: OutlineInputBorder(),
+                      isDense: true),
+                  items: [
+                    const DropdownMenuItem<String>(
+                        value: null, child: Text('Nenhuma')),
+                    ...lista.map((s) => DropdownMenuItem(
+                        value: s.id,
+                        child: Text(
+                            '${s.titulo} — R\$ ${s.valor.toStringAsFixed(2)}',
+                            overflow: TextOverflow.ellipsis))),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _solicitacaoAprovacaoId = v),
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          );
+        }),
         Row(
           children: [
             Expanded(
