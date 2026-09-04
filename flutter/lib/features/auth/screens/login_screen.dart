@@ -71,17 +71,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  // Fase Paleta-Clara (04/09/2026, pedido do Daniel: "voce manteve o menu em
+  // preto nos PWAs de Cliente e Motorista? Não foi atualizado de jeito
+  // nenhum") — esta tela ficou de fora de TODAS as fases anteriores de
+  // redesign (Swiss Minimalism 29/08, Paleta-Clara 04/09): era construída
+  // com cor hardcoded própria (gradiente Dark Navy 0xFF0A0E27→0xFF0A2A6E),
+  // nunca usava `AppTheme` — por isso continuava escura mesmo depois do
+  // menu (`AppTheme.glassNavGradient`, ver app_theme.dart) já ter virado
+  // claro. Agora usa fundo liso claro (frota-50), sem gradiente, e botão
+  // primário no acento taupe do tema — mesma receita do login web
+  // (src/app/login/page.tsx).
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0A0E27), Color(0xFF0D1B4B), Color(0xFF0A2A6E)],
-            ),
-          ),
-          child: SafeArea(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(32),
@@ -93,12 +96,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           horizontal: 32, vertical: 24),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                         boxShadow: [
                           BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 30,
-                              offset: const Offset(0, 10)),
+                              color: const Color(0xFF171717).withOpacity(0.06),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Image.asset('assets/logo_fni.png',
@@ -107,13 +111,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 32),
                     const Text('Gestao de Frotas',
                         style: TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF171717),
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 8),
                     const Text('Plataforma de inteligencia de rede',
-                        style: TextStyle(color: Colors.white60, fontSize: 14)),
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 14)),
                     const SizedBox(height: 40),
 
                     // Fase FLT-1 — formulário de e-mail/senha (equivalente a
@@ -121,14 +125,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Color(0xFF0F172A)),
                       decoration: _inputDecoration('E-mail'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _senhaCtrl,
                       obscureText: !_senhaVisivel,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Color(0xFF0F172A)),
                       decoration: _inputDecoration(
                         'Senha',
                         suffixIcon: IconButton(
@@ -136,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             _senhaVisivel
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: Colors.white60,
+                            color: Color(0xFF64748B),
                           ),
                           onPressed: () =>
                               setState(() => _senhaVisivel = !_senhaVisivel),
@@ -157,7 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _loadingSenha ? null : _entrarComSenha,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF171717),
+                          backgroundColor: const Color(0xFFB38B6D),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
@@ -176,14 +180,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     const SizedBox(height: 20),
                     Row(children: const [
-                      Expanded(child: Divider(color: Colors.white24)),
+                      Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Text('ou',
                             style:
-                                TextStyle(color: Colors.white38, fontSize: 12)),
+                                TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
                       ),
-                      Expanded(child: Divider(color: Colors.white24)),
+                      Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                     ]),
                     const SizedBox(height: 20),
 
@@ -223,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 40),
                     const Text('Fleet Network Intelligence',
                         style: TextStyle(
-                            color: Colors.white24,
+                            color: Color(0xFF94A3B8),
                             fontSize: 12,
                             letterSpacing: 1)),
                   ],
@@ -231,26 +235,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-        ),
       );
 
   InputDecoration _inputDecoration(String label, {Widget? suffixIcon}) =>
       InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white60),
+        labelStyle: const TextStyle(color: Color(0xFF64748B)),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.06),
+        fillColor: Colors.white,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF171717)),
+          borderSide: const BorderSide(color: Color(0xFFB38B6D), width: 2),
         ),
       );
 }

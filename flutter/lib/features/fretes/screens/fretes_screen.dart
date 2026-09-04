@@ -55,7 +55,7 @@ class FretesScreen extends ConsumerWidget {
             data: (fretes) => TabBar(
               labelColor: AppTheme.glassTextoAtivo,
               unselectedLabelColor: AppTheme.glassTextoMuted,
-              indicatorColor: Colors.white,
+              indicatorColor: AppTheme.glassTextoAtivo,
               labelStyle:
                   const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
               unselectedLabelStyle: const TextStyle(fontSize: 12.5),

@@ -254,7 +254,7 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
           bottom: const TabBar(
             labelColor: AppTheme.glassTextoAtivo,
             unselectedLabelColor: AppTheme.glassTextoMuted,
-            indicatorColor: Colors.white,
+            indicatorColor: AppTheme.glassTextoAtivo,
             tabs: [
               Tab(text: '🔧 Catálogo'),
               Tab(text: '📋 Minhas Solicitações'),

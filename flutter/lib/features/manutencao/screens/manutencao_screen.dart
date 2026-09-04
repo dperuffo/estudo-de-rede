@@ -299,9 +299,9 @@ class _State extends State<ManutencaoScreen>
         title: const Text('Manutencao'),
         bottom: TabBar(
           controller: _tabCtrl,
-          indicatorColor: Colors.white,
+          indicatorColor: AppTheme.glassTextoAtivo,
           labelColor: AppTheme.glassTextoAtivo,
-          unselectedLabelColor: Colors.white60,
+          unselectedLabelColor: AppTheme.glassTextoMuted,
           tabs: const [Tab(text: 'Registros'), Tab(text: 'Status Frota')],
         ),
       ),

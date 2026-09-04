@@ -86,9 +86,9 @@ class _State extends State<AnaliseClienteScreen>
         bottom: TabBar(
           controller: _tabCtrl,
           isScrollable: true,
-          indicatorColor: Colors.white,
+          indicatorColor: AppTheme.glassTextoAtivo,
           labelColor: AppTheme.glassTextoAtivo,
-          unselectedLabelColor: Colors.white60,
+          unselectedLabelColor: AppTheme.glassTextoMuted,
           tabs: const [
             Tab(text: 'Resumo'),
             Tab(text: 'Veiculos'),
