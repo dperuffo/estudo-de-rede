@@ -305,7 +305,7 @@ class HomeScreen extends ConsumerWidget {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           gradient: AppTheme.glassNavGradient,
-          border: Border(top: BorderSide(color: Colors.white24)),
+          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
         ),
         child: Theme(
           data: Theme.of(context).copyWith(
@@ -455,7 +455,7 @@ class HomeScreen extends ConsumerWidget {
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.white24)),
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
               ),
               child: SafeArea(
                 bottom: false,
@@ -471,11 +471,10 @@ class HomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.1)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF111111).withOpacity(0.3),
+                              color: const Color(0xFF171717).withOpacity(0.06),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -578,7 +577,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/central-regras'))
               _item(context, Icons.rule, 'Central de Regras & Alertas',
                   '/central-regras'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Cadastros'),
             if (pode('/clientes'))
               _item(context, Icons.business, 'Clientes', '/clientes',
@@ -606,7 +605,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/postos-internos'))
               _item(context, Icons.garage_outlined, 'Postos Internos',
                   '/postos-internos'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Roteirização e Abastecimento'),
             if (pode('/roteirizacao'))
               _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
@@ -661,7 +660,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/parametros-nf'))
               _item(context, Icons.receipt_long, 'Parâmetros de NF',
                   '/parametros-nf'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Fretes'),
             if (pode('/fretes'))
               _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
@@ -718,7 +717,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/pisos-antt'))
               _item(context, Icons.price_check, 'Piso Mínimo ANTT',
                   '/pisos-antt'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Manutenção e Ativos'),
             if (pode('/manutencao-preditiva'))
               _item(context, Icons.build, 'Manutenção Preditiva',
@@ -764,7 +763,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/oficinas'))
               _item(context, Icons.build_circle_outlined, 'Rede de Oficinas',
                   '/oficinas'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Financeiro'),
             if (pode('/financeiro'))
               _item(context, Icons.attach_money, 'Painel Financeiro',
@@ -788,7 +787,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/aprovacoes'))
               _item(context, Icons.check_circle_outline, 'Aprovações',
                   '/aprovacoes'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Relatórios e Sustentabilidade'),
             if (pode('/relatorios'))
               _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
@@ -800,7 +799,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/inteligencia-rede'))
               _item(context, Icons.hub, 'Inteligência de Rede',
                   '/inteligencia-rede'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Engajamento'),
             // Fase Parcerias Locais (17/07) — o cliente cria seus próprios
             // benefícios (treinamentos, marketplace, telemedicina etc.) no
@@ -814,7 +813,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/fidelidade-motoristas'))
               _item(context, Icons.emoji_events_outlined,
                   'Fidelidade dos Motoristas', '/fidelidade-motoristas'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Conta e Ajuda'),
             if (pode('/assistente'))
               _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
@@ -843,7 +842,7 @@ class HomeScreen extends ConsumerWidget {
             if (pode('/treinamento'))
               _item(context, Icons.school_outlined, 'Central de Treinamento',
                   '/treinamento'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Sistema'),
             if (pode('/documentos'))
               _item(context, Icons.folder, 'Documentos', '/documentos'),
@@ -867,7 +866,7 @@ class HomeScreen extends ConsumerWidget {
             // uma já mostra "Acesso restrito" pra quem não é, mas nem faz
             // sentido oferecer o item de menu nesse caso).
             if (sessao?.ehAdmin ?? false) ...[
-              const Divider(color: Colors.white24, height: 1),
+              const Divider(color: Color(0xFFE2E8F0), height: 1),
               _grp('Administração'),
               _item(context, Icons.settings, 'Configurações do Sistema',
                   '/configuracoes'),
@@ -888,11 +887,11 @@ class HomeScreen extends ConsumerWidget {
               _item(context, Icons.account_tree, 'Grupo Econômico (todos)',
                   '/grupos-economicos'),
             ],
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             if (pode('/avisos'))
               _item(context, Icons.notifications_outlined, 'Avisos', '/avisos',
                   badge: avisosNaoLidos),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair', style: TextStyle(color: Colors.red)),

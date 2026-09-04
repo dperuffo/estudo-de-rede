@@ -13,20 +13,26 @@ class AppTheme {
   // que cobre as visões cliente/posto/admin), só o VALOR muda.
   static const _primary = Color(0xFF171717); // era 0xFF0D2D6B (navy)
   static const _accent = Color(0xFFB38B6D); // era 0xFF00B4D8 (ciano) — agora o taupe do design.md
-  // A barra do topo e o cabeçalho do menu/drawer usam a MESMA cor
-  // (decisão já tomada antes, mantida) — agora off-black em vez de
-  // preto-azulado.
-  static const _menu = Color(0xFF111111);
+
+  // Fase Paleta-Clara (04/09/2026, pedido do Daniel: "tons escuros no
+  // menu, botões e cores de gráficos ficaram muito pesados para a visão
+  // do usuário") — espelha a mudança feita no globals.css web
+  // (.glass-nav): o menu deixa de ser off-black sólido e passa a ser
+  // claro (mesmo `#F8FAFC` do scaffoldBackgroundColor), mantendo cantos
+  // quase retos e sem blur. `_primary` continua off-black — usado agora
+  // só como "tinta" (sombra, texto sobre a aba ativa branca, anel de foco
+  // do input), não mais como fundo do menu.
+  static const _menu = Color(0xFFF8FAFC);
 
   // Nomes `glass*` datam da fase "vidro" (20/08/2026); mantidos por
-  // estabilidade (usados em ~150 telas via `AppTheme.glass*`), mas o
-  // VALOR agora segue a identidade Swiss Minimalism — texto/ícone claros
-  // sobre o fundo off-black do menu, sem opacidade vidrada. Espelha
+  // estabilidade (usados em ~150 telas via `AppTheme.glass*`). Fase
+  // Paleta-Clara: com o fundo do menu agora claro, texto/ícone invertem
+  // de claro-sobre-escuro pra escuro-sobre-claro — espelha
   // .glass-nav-texto/-texto-muted/-icone/-acento do globals.css web
-  // (slate-100/slate-400/slate-300/accento).
-  static const Color glassTexto = Color(0xFFF1F5F9); // slate-100
-  static const Color glassTextoMuted = Color(0xFF94A3B8); // slate-400
-  static const Color glassIcone = Color(0xFFCBD5E1); // slate-300
+  // (agora slate-800/slate-500/slate-500/accento).
+  static const Color glassTexto = Color(0xFF1E293B); // slate-800
+  static const Color glassTextoMuted = Color(0xFF64748B); // slate-500
+  static const Color glassIcone = Color(0xFF64748B); // slate-500
   static const Color glassAcento = _accent; // taupe
 
   // Único acento decorativo do tema (design.md: "Taupe — Extended
@@ -52,7 +58,12 @@ class AppTheme {
   // motivo do `glassNavGradient` acima (não editar cada TabBar/indicador).
   static const Color glassPillClaro = Colors.white;
   static const Color glassPillEscuro = Colors.white;
-  static const Color glassTextoAtivo = _menu; // texto quase-preto sobre o branco
+  // Fase Paleta-Clara: era `_menu` (que fazia dupla função de "fundo do
+  // menu" e "tinta escura pro texto da aba ativa"). Com `_menu` agora
+  // claro, o texto da aba ativa passa a usar `_primary` diretamente
+  // (mesmo off-black de sempre, só que sem depender mais do valor do
+  // fundo do menu).
+  static const Color glassTextoAtivo = _primary; // texto quase-preto sobre o branco
 
   static const LinearGradient glassPillGradient = LinearGradient(
     colors: [glassPillClaro, glassPillEscuro],
@@ -65,7 +76,7 @@ class AppTheme {
             ColorScheme.fromSeed(seedColor: _primary, secondary: _accent),
         appBarTheme: const AppBarTheme(
             backgroundColor: _menu,
-            foregroundColor: Colors.white,
+            foregroundColor: _primary,
             elevation: 0),
         // Fase Design-System-Swiss-Minimalism (29/08/2026) — Card é usado em
         // dezenas de telas (dashboard, indicadores, listas) sem estilo
@@ -77,15 +88,20 @@ class AppTheme {
           elevation: 0,
           color: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shadowColor: _menu.withOpacity(0.06),
+          shadowColor: _primary.withOpacity(0.06),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
             side: const BorderSide(color: Color(0xFFE2E8F0)), // slate-200
           ),
         ),
+        // Fase Paleta-Clara (04/09/2026) — espelha o .btn-primary do
+        // globals.css web: sai do off-black `_primary` (achado "pesado")
+        // e passa a usar o acento taupe do tema (`_accent`), que até
+        // então só aparecia em detalhes (item ativo do menu, indicador
+        // de tab).
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: _primary,
+            backgroundColor: _accent,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(

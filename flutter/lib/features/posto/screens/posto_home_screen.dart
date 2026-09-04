@@ -136,7 +136,7 @@ class PostoHomeScreen extends ConsumerWidget {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           gradient: AppTheme.glassNavGradient,
-          border: Border(top: BorderSide(color: Colors.white24)),
+          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
         ),
         child: Theme(
           data: Theme.of(context).copyWith(
@@ -272,7 +272,7 @@ class PostoHomeScreen extends ConsumerWidget {
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.white24)),
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
               ),
               child: SafeArea(
                 bottom: false,
@@ -288,11 +288,10 @@ class PostoHomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.1)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF111111).withOpacity(0.3),
+                              color: const Color(0xFF171717).withOpacity(0.06),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -368,13 +367,13 @@ class PostoHomeScreen extends ConsumerWidget {
               _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
             if (pode('/posto/rede-postos'))
               _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Cadastros'),
             if (pode('/posto/usuarios'))
               _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
             if (pode('/posto/clientes'))
               _item(context, Icons.business, 'Clientes', '/posto/clientes'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Operação'),
             if (pode('/posto/negociacoes'))
               _item(
@@ -394,7 +393,7 @@ class PostoHomeScreen extends ConsumerWidget {
             if (pode('/posto/pre-pedidos'))
               _item(context, Icons.checklist, 'Pré-Pedidos',
                   '/posto/pre-pedidos'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Financeiro'),
             if (pode('/posto/financeiro'))
               _item(context, Icons.attach_money, 'Financeiro',
@@ -402,7 +401,7 @@ class PostoHomeScreen extends ConsumerWidget {
             if (pode('/posto/meus-dados'))
               _item(context, Icons.account_balance, 'Meus Dados / PIX',
                   '/posto/meus-dados'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Conta e Ajuda'),
             if (pode('/posto/assistente'))
               _item(context, Icons.smart_toy, 'Assistente FNI',
@@ -417,18 +416,18 @@ class PostoHomeScreen extends ConsumerWidget {
               _item(context, Icons.confirmation_number, 'Chamados',
                   '/posto/chamados',
                   badge: badges.chamados),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             _grp('Sistema'),
             if (pode('/posto/documentos'))
               _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
             if (pode('/posto/lgpd'))
               _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             if (pode('/posto/avisos'))
               _item(context, Icons.notifications_outlined, 'Avisos',
                   '/posto/avisos',
                   badge: avisosNaoLidos),
-            const Divider(color: Colors.white24, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair', style: TextStyle(color: Colors.red)),
