@@ -9,6 +9,7 @@ import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/services/permissoes_acesso.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
@@ -130,56 +131,66 @@ class PostoHomeScreen extends ConsumerWidget {
       body: Column(
         children: [
           BarraAtalhosFavoritos(mapaItens: mapaItensFavoritos),
-          Expanded(child: child),
+          Expanded(
+            child: Responsive.conteudoCentralizado(context, child),
+          ),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.glassNavGradient,
-          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            navigationBarTheme: NavigationBarThemeData(
-              backgroundColor: Colors.transparent,
-              indicatorColor: AppTheme.glassPillClaro,
-              iconTheme: MaterialStateProperty.resolveWith(
-                (states) => IconThemeData(
-                  color: states.contains(MaterialState.selected)
-                      ? AppTheme.glassTextoAtivo
-                      : AppTheme.glassIcone,
-                ),
+      // Fase Auditoria-UX-Responsividade (08/09/2026) — mesmo raciocínio do
+      // shell cliente (ver home_screen.dart): some em tablet/desktop, sem
+      // perder navegação (Drawer completo sempre acessível pelo hambúrguer
+      // que o Scaffold já desenha na AppBar em qualquer largura).
+      bottomNavigationBar: Responsive.isDesktop(context)
+          ? null
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: AppTheme.glassNavGradient,
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
               ),
-              labelTextStyle: MaterialStateProperty.resolveWith(
-                (states) => TextStyle(
-                  fontSize: 11,
-                  fontWeight: states.contains(MaterialState.selected)
-                      ? FontWeight.w700
-                      : FontWeight.w500,
-                  color: states.contains(MaterialState.selected)
-                      ? AppTheme.glassTextoAtivo
-                      : AppTheme.glassTextoMuted,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  navigationBarTheme: NavigationBarThemeData(
+                    backgroundColor: Colors.transparent,
+                    indicatorColor: AppTheme.glassPillClaro,
+                    iconTheme: MaterialStateProperty.resolveWith(
+                      (states) => IconThemeData(
+                        color: states.contains(MaterialState.selected)
+                            ? AppTheme.glassTextoAtivo
+                            : AppTheme.glassIcone,
+                      ),
+                    ),
+                    labelTextStyle: MaterialStateProperty.resolveWith(
+                      (states) => TextStyle(
+                        fontSize: 11,
+                        fontWeight: states.contains(MaterialState.selected)
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: states.contains(MaterialState.selected)
+                            ? AppTheme.glassTextoAtivo
+                            : AppTheme.glassTextoMuted,
+                      ),
+                    ),
+                  ),
+                ),
+                child: NavigationBar(
+                  selectedIndex: _idx(loc),
+                  onDestinationSelected: (i) => _nav(context, i),
+                  destinations: const [
+                    NavigationDestination(
+                        icon: Icon(Icons.dashboard), label: 'Painel'),
+                    NavigationDestination(
+                        icon: Icon(Icons.handshake), label: 'Negoc.'),
+                    NavigationDestination(
+                        icon: Icon(Icons.local_gas_station),
+                        label: 'Abastec.'),
+                    NavigationDestination(
+                        icon: Icon(Icons.attach_money), label: 'Financ.'),
+                    NavigationDestination(
+                        icon: Icon(Icons.menu), label: 'Mais'),
+                  ],
                 ),
               ),
             ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _idx(loc),
-            onDestinationSelected: (i) => _nav(context, i),
-            destinations: const [
-              NavigationDestination(
-                  icon: Icon(Icons.dashboard), label: 'Painel'),
-              NavigationDestination(
-                  icon: Icon(Icons.handshake), label: 'Negoc.'),
-              NavigationDestination(
-                  icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
-              NavigationDestination(
-                  icon: Icon(Icons.attach_money), label: 'Financ.'),
-              NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

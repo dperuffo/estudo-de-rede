@@ -9,6 +9,7 @@ import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/services/permissoes_acesso.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../insights_ia/providers/insights_ia_provider.dart';
@@ -299,56 +300,69 @@ class HomeScreen extends ConsumerWidget {
       body: Column(
         children: [
           BarraAtalhosFavoritos(mapaItens: mapaItensFavoritos),
-          Expanded(child: child),
+          Expanded(
+            child: Responsive.conteudoCentralizado(context, child),
+          ),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.glassNavGradient,
-          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            navigationBarTheme: NavigationBarThemeData(
-              backgroundColor: Colors.transparent,
-              indicatorColor: AppTheme.glassPillClaro,
-              iconTheme: MaterialStateProperty.resolveWith(
-                (states) => IconThemeData(
-                  color: states.contains(MaterialState.selected)
-                      ? AppTheme.glassTextoAtivo
-                      : AppTheme.glassIcone,
-                ),
+      // Fase Auditoria-UX-Responsividade (08/09/2026) — a barra de abas
+      // inferior faz sentido no celular (alcance do polegar), mas numa tela
+      // de tablet/desktop ela fica sobrando embaixo de um monitor inteiro,
+      // sem nenhum ganho de navegação (o Drawer completo já está sempre a 1
+      // toque de distância pelo ícone de hambúrguer que o Scaffold desenha
+      // sozinho na AppBar, em qualquer largura, só por existir `drawer:`
+      // acima). Some só nesse tamanho — todo o resto do shell é idêntico.
+      bottomNavigationBar: Responsive.isDesktop(context)
+          ? null
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: AppTheme.glassNavGradient,
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
               ),
-              labelTextStyle: MaterialStateProperty.resolveWith(
-                (states) => TextStyle(
-                  fontSize: 11,
-                  fontWeight: states.contains(MaterialState.selected)
-                      ? FontWeight.w700
-                      : FontWeight.w500,
-                  color: states.contains(MaterialState.selected)
-                      ? AppTheme.glassTextoAtivo
-                      : AppTheme.glassTextoMuted,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  navigationBarTheme: NavigationBarThemeData(
+                    backgroundColor: Colors.transparent,
+                    indicatorColor: AppTheme.glassPillClaro,
+                    iconTheme: MaterialStateProperty.resolveWith(
+                      (states) => IconThemeData(
+                        color: states.contains(MaterialState.selected)
+                            ? AppTheme.glassTextoAtivo
+                            : AppTheme.glassIcone,
+                      ),
+                    ),
+                    labelTextStyle: MaterialStateProperty.resolveWith(
+                      (states) => TextStyle(
+                        fontSize: 11,
+                        fontWeight: states.contains(MaterialState.selected)
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: states.contains(MaterialState.selected)
+                            ? AppTheme.glassTextoAtivo
+                            : AppTheme.glassTextoMuted,
+                      ),
+                    ),
+                  ),
+                ),
+                child: NavigationBar(
+                  selectedIndex: _idx(loc),
+                  onDestinationSelected: (i) => _nav(context, i),
+                  destinations: const [
+                    NavigationDestination(
+                        icon: Icon(Icons.dashboard), label: 'Painel'),
+                    NavigationDestination(
+                        icon: Icon(Icons.local_gas_station),
+                        label: 'Abastec.'),
+                    NavigationDestination(
+                        icon: Icon(Icons.directions_car), label: 'Veículos'),
+                    NavigationDestination(
+                        icon: Icon(Icons.attach_money), label: 'Financ.'),
+                    NavigationDestination(
+                        icon: Icon(Icons.menu), label: 'Mais'),
+                  ],
                 ),
               ),
             ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _idx(loc),
-            onDestinationSelected: (i) => _nav(context, i),
-            destinations: const [
-              NavigationDestination(
-                  icon: Icon(Icons.dashboard), label: 'Painel'),
-              NavigationDestination(
-                  icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
-              NavigationDestination(
-                  icon: Icon(Icons.directions_car), label: 'Veículos'),
-              NavigationDestination(
-                  icon: Icon(Icons.attach_money), label: 'Financ.'),
-              NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
