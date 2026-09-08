@@ -8,6 +8,7 @@ import '../../posto/services/assinatura_service.dart';
 import '../providers/assinatura_cliente_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 const _statusLabel = <String, String>{
   'trial': 'Em teste (trial)',
@@ -128,7 +129,7 @@ class _AssinaturaClienteScreenState
                 style: TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 16),
             GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               childAspectRatio: 2.2,

@@ -6,6 +6,7 @@ import '../services/rotograma_service.dart';
 import 'linha_do_tempo_rotograma.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 // Fase FLT-3 — Rotograma de Segurança (cliente): detalhe, porta de
 // [id]/page.tsx + VisualizacaoRotograma.tsx + LinhaDoTempoRotograma.tsx.
@@ -100,7 +101,7 @@ class RotogramaDetalheScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 2.4,

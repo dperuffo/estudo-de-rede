@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/negociacoes_provider.dart';
+import '../../../core/utils/responsive.dart';
 
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
@@ -97,7 +98,7 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
               ),
               const SizedBox(height: 16),
               GridView.count(
-                crossAxisCount: 2,
+                crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 childAspectRatio: 2.4,

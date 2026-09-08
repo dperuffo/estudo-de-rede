@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../posto/providers/chamados_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _data = DateFormat('dd/MM/yyyy HH:mm');
 
@@ -84,7 +85,7 @@ class _ChamadosClienteScreenState extends ConsumerState<ChamadosClienteScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
               children: [
                 GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 8,
@@ -127,67 +128,70 @@ class _ChamadosClienteScreenState extends ConsumerState<ChamadosClienteScreen> {
                     ),
                   )
                 else
-                  ...filtrados.map((c) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        color: c.naoVisto ? const Color(0xFFFEF2F2) : null,
-                        child: InkWell(
-                          onTap: () => context.push('/chamados/${c.id}'),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                if (c.naoVisto)
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle),
-                                  ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('#${c.numero} · ${c.titulo}',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13)),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                          '${tiposTicket[c.tipo] ?? c.tipo} · ${_fmtData(c.criadoEm)}',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade600)),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: (_corStatus[c.status] ?? Colors.grey)
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    statusTicket[c.status] ?? c.status,
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: _corStatus[c.status],
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )),
+                  Responsive.grade(
+                    context,
+                    itens: filtrados
+                        .map((c) => _cardChamado(context, c))
+                        .toList(),
+                  ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _cardChamado(BuildContext context, Ticket c) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: c.naoVisto ? const Color(0xFFFEF2F2) : null,
+      child: InkWell(
+        onTap: () => context.push('/chamados/${c.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              if (c.naoVisto)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('#${c.numero} · ${c.titulo}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    Text(
+                        '${tiposTicket[c.tipo] ?? c.tipo} · ${_fmtData(c.criadoEm)}',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (_corStatus[c.status] ?? Colors.grey).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  statusTicket[c.status] ?? c.status,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: _corStatus[c.status],
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

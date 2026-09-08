@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../../veiculos/providers/veiculos_provider.dart'
     show Veiculo, veiculosClienteProvider;
 import '../../planos_viagem/providers/planos_viagem_provider.dart'
@@ -863,7 +864,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       ),
       GridView.count(
-        crossAxisCount: 2,
+        crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 8,

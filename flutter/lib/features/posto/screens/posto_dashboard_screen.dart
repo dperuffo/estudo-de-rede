@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../providers/dashboard_posto_provider.dart';
 
 // Paleta fixa por combustível — mesma família de cores usada nos gráficos
@@ -77,7 +78,7 @@ class PostoDashboardScreen extends ConsumerWidget {
                 style: TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 20),
             _tituloSecao('Vendas — últimos 30 dias'),
-            _gradeIndicadores([
+            _gradeIndicadores(context, [
               _Indicador(
                   'Abastecimentos', _numero.format(dados.totalAbastecimentos)),
               _Indicador(
@@ -139,7 +140,7 @@ class PostoDashboardScreen extends ConsumerWidget {
             ],
             const SizedBox(height: 20),
             _tituloSecao('Negociações'),
-            _gradeIndicadores([
+            _gradeIndicadores(context, [
               _Indicador('Aguardando resposta', '${dados.pendentes}'),
               _Indicador('Vigentes', '${dados.vigentes}'),
               _Indicador('Clientes ativos', '${dados.clientesAtivos}'),
@@ -377,8 +378,8 @@ class PostoDashboardScreen extends ConsumerWidget {
         ),
       );
 
-  Widget _gradeIndicadores(List<_Indicador> itens) => GridView.count(
-        crossAxisCount: 2,
+  Widget _gradeIndicadores(BuildContext context, List<_Indicador> itens) => GridView.count(
+        crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         childAspectRatio: 2.4,

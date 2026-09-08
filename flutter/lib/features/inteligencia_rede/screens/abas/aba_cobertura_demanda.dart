@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../providers/constantes_anp.dart';
 import '../../providers/inteligencia_rede_provider.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
 
@@ -137,7 +138,7 @@ class AbaCoberturaDemanda extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               GridView.count(
-                crossAxisCount: 2,
+                crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 8,

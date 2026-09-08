@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 import '../providers/inteligencia_rede_provider.dart';
 import '../widgets/inteligencia_shared.dart';
 import 'abas/aba_alertas.dart';
@@ -102,7 +103,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
               return const Center(child: Text('Nenhuma empresa selecionada.'));
             return Column(
               children: [
-                _cabecalhoKpis(dados),
+                _cabecalhoKpis(context, dados),
                 Expanded(
                   child: TabBarView(
                     children: [
@@ -128,7 +129,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _cabecalhoKpis(InteligenciaRedeCompleta d) {
+  Widget _cabecalhoKpis(BuildContext context, InteligenciaRedeCompleta d) {
     final k = d.kpis;
     return Container(
       color: Colors.grey.shade50,
@@ -138,7 +139,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
         // rótulos como "Diesel Médio GF" — trocado pra 2 colunas (mais
         // largura por cartão) com um aspect ratio mais baixo (cartão mais
         // baixo/largo em vez de quase quadrado).
-        crossAxisCount: 2,
+        crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 6,

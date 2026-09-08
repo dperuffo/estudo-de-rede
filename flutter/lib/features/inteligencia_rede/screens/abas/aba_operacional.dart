@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../providers/constantes_anp.dart';
 import '../../providers/inteligencia_rede_provider.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
 
@@ -195,7 +196,7 @@ class _MapaPrecosState extends State<_MapaPrecos> {
         _seletorCombustivel(
             combustiveis, atual, (v) => setState(() => _sel = v)),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 8,
@@ -370,7 +371,7 @@ class _ScorePorRegiaoState extends State<_ScorePorRegiao> {
         ]),
         const SizedBox(height: 12),
         GridView.count(
-          crossAxisCount: 3,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 3, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 8,
@@ -489,7 +490,7 @@ class _DistribuicaoGrade extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 8,

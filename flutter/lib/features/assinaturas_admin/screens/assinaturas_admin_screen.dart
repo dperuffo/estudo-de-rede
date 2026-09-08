@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../providers/assinaturas_admin_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -43,7 +44,7 @@ class AssinaturasAdminScreen extends ConsumerWidget {
           foregroundColor: AppTheme.glassTexto,
           iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Assinaturas')),
-      body: !ehAdmin ? _acessoRestrito() : _conteudo(ref),
+      body: !ehAdmin ? _acessoRestrito() : _conteudo(context, ref),
     );
   }
 
@@ -71,16 +72,16 @@ class AssinaturasAdminScreen extends ConsumerWidget {
     );
   }
 
-  Widget _conteudo(WidgetRef ref) {
+  Widget _conteudo(BuildContext context, WidgetRef ref) {
     final dadosAsync = ref.watch(assinaturasAdminProvider);
     return dadosAsync.when(
-      data: (d) => _lista(d),
+      data: (d) => _lista(context, d),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
     );
   }
 
-  Widget _lista(IndicadoresFinanceirosFni d) {
+  Widget _lista(BuildContext context, IndicadoresFinanceirosFni d) {
     final agora = DateTime.now();
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -92,7 +93,7 @@ class AssinaturasAdminScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 2.0,
@@ -117,7 +118,7 @@ class AssinaturasAdminScreen extends ConsumerWidget {
                 letterSpacing: 0.5)),
         const SizedBox(height: 10),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 2.0,

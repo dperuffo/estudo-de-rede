@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/usuarios_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 // Fase FLT-2 — Usuários (lista), porta de usuarios/page.tsx (ver escopo
 // reduzido no comentário de usuarios_provider.dart/usuarios_service.dart).
@@ -58,47 +59,50 @@ class UsuariosScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              ...usuarios.map((u) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      onTap: () => context.push(
-                          '/posto/usuarios/${Uri.encodeComponent(u.email)}'),
-                      title: Text(
-                          u.nome?.isNotEmpty == true ? u.nome! : u.email,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(u.email,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey)),
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 6,
-                            children: [
-                              if (!u.ativo)
-                                _chip('Inativo', const Color(0xFF64748B))
-                              else
-                                _chip('Ativo', const Color(0xFF16A34A)),
-                              _chip(
-                                  u.mfaHabilitado
-                                      ? 'MFA ativado'
-                                      : 'MFA pendente',
-                                  u.mfaHabilitado
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFFB45309)),
-                            ],
-                          ),
-                        ],
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      isThreeLine: true,
-                    ),
-                  )),
+              Responsive.grade(
+                context,
+                itens:
+                    usuarios.map((u) => _cardUsuario(context, u)).toList(),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _cardUsuario(BuildContext context, UsuarioDoPosto u) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () =>
+            context.push('/posto/usuarios/${Uri.encodeComponent(u.email)}'),
+        title: Text(u.nome?.isNotEmpty == true ? u.nome! : u.email,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(u.email,
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              children: [
+                if (!u.ativo)
+                  _chip('Inativo', const Color(0xFF64748B))
+                else
+                  _chip('Ativo', const Color(0xFF16A34A)),
+                _chip(
+                    u.mfaHabilitado ? 'MFA ativado' : 'MFA pendente',
+                    u.mfaHabilitado
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFFB45309)),
+              ],
+            ),
+          ],
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        isThreeLine: true,
       ),
     );
   }

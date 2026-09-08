@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../posto/services/abastecimentos_posto_service.dart'
     show coresProvedor, nomeProvedor;
@@ -166,7 +167,7 @@ class _ConferenciaPrecosScreenState
                 ],
                 const SizedBox(height: 16),
                 GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 2.2,

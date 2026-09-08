@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/conciliacao_bancaria_service.dart';
 
@@ -256,7 +257,7 @@ class _ConciliacaoBancariaScreenState
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
                 const SizedBox(height: 16),
                 GridView.count(
-                  crossAxisCount: 3,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 3, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 1.3,

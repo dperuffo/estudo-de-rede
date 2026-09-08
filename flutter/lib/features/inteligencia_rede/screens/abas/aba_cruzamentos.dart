@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../providers/inteligencia_rede_provider.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
 
@@ -516,7 +517,7 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
                     style: TextStyle(color: Colors.grey)))
           else ...[
             GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 8,
@@ -759,7 +760,7 @@ class _FrotaReal extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 8,

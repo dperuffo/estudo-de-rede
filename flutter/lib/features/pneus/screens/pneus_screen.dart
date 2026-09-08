@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../veiculos/providers/veiculos_provider.dart';
 import '../services/pneus_service.dart';
@@ -309,7 +310,7 @@ class _PneusScreenState extends ConsumerState<PneusScreen> {
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
-                  crossAxisCount: 3,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 3, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 1.3,

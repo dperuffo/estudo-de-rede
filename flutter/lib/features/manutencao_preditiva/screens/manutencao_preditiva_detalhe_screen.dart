@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../../aprovacoes/providers/aprovacoes_provider.dart';
 import '../providers/manutencao_preditiva_provider.dart';
 import '../services/manutencao_preditiva_service.dart';
@@ -279,7 +280,7 @@ class _ManutencaoPreditivaDetalheScreenState
         ),
         const SizedBox(height: 16),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 2.4,
@@ -334,7 +335,7 @@ class _ManutencaoPreditivaDetalheScreenState
                         TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 1.5,

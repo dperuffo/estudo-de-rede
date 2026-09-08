@@ -7,6 +7,7 @@ import '../../posto/providers/negociacoes_provider.dart'
 import '../providers/negociacoes_cliente_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
@@ -103,7 +104,7 @@ class _NegociacoesClienteScreenState
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 2.4,

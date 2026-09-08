@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../providers/inteligencia_rede_provider.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 
 // Aba 3/10 — "👔 Macrorregião & Expansão". Porta
@@ -61,7 +62,7 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     GridView.count(
-                      crossAxisCount: 2,
+                      crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       mainAxisSpacing: 8,

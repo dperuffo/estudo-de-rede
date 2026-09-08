@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../providers/inteligencia_rede_provider.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 
 // Aba 11/11 — "💳 Meios de Pagamento". Pedido do Daniel: "Criar um painel
@@ -145,7 +146,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 6,

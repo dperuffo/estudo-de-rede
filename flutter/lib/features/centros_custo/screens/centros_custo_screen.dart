@@ -6,6 +6,7 @@ import '../../replicacao_grupo/widgets/replicar_para_grupo_button.dart';
 import '../providers/centros_custo_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 // Fase FLT-3 — Centros de Custo (cliente). Ver escopo completo (sem
 // alocação de veículos/importação por planilha) no comentário de
@@ -78,49 +79,49 @@ class CentrosCustoScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                ...centros.map((c) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        onTap: () => context.push('/centros-custo/${c.id}'),
-                        title: Text(c.nome,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 14)),
-                        subtitle: Text(
-                          [
-                            if (c.codigo != null && c.codigo!.isNotEmpty)
-                              'Código ${c.codigo}',
-                            if (c.responsavel != null &&
-                                c.responsavel!.isNotEmpty)
-                              c.responsavel!,
-                            '${c.veiculosAlocados} veículo(s) alocado(s)',
-                          ].join(' · '),
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: (c.ativo
-                                    ? const Color(0xFF16A34A)
-                                    : const Color(0xFF64748B))
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(c.ativo ? 'Ativo' : 'Inativo',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: c.ativo
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFF64748B),
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                    )),
+                Responsive.grade(
+                  context,
+                  itens: centros.map((c) => _cardCentro(context, c)).toList(),
+                ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _cardCentro(BuildContext context, CentroCusto c) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => context.push('/centros-custo/${c.id}'),
+        title: Text(c.nome,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Text(
+          [
+            if (c.codigo != null && c.codigo!.isNotEmpty) 'Código ${c.codigo}',
+            if (c.responsavel != null && c.responsavel!.isNotEmpty)
+              c.responsavel!,
+            '${c.veiculosAlocados} veículo(s) alocado(s)',
+          ].join(' · '),
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: (c.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B))
+                .withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(c.ativo ? 'Ativo' : 'Inativo',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: c.ativo
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600)),
+        ),
       ),
     );
   }

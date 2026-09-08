@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/postos_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 // Fase FLT-3 — Postos Revendedores (cliente): aba "Rede do cliente" da
 // web. Ver escopo completo (sem universo ANP na mesma tela — vira busca
@@ -129,49 +130,51 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                     ),
                   )
                 else
-                  ...filtrados.map((p) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          onTap: () => context.push('/postos/${p.cnpj}'),
-                          title: Text(p.razaoSocial ?? p.cnpj,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                          subtitle: Text(
-                            [
-                              p.cnpj,
-                              [p.municipio, p.uf]
-                                  .where((v) => v != null && v.isNotEmpty)
-                                  .join('/'),
-                              if (p.bandeira != null && p.bandeira!.isNotEmpty)
-                                p.bandeira!,
-                            ].where((v) => v.isNotEmpty).join(' · '),
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey),
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (p.ativo
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFFD97706))
-                                  .withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(p.ativo ? 'Ativo' : 'Bloqueado',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: p.ativo
-                                        ? const Color(0xFF16A34A)
-                                        : const Color(0xFFD97706),
-                                    fontWeight: FontWeight.w600)),
-                          ),
-                        ),
-                      )),
+                  Responsive.grade(
+                    context,
+                    itens:
+                        filtrados.map((p) => _cardPosto(context, p)).toList(),
+                  ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _cardPosto(BuildContext context, PostoRede p) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => context.push('/postos/${p.cnpj}'),
+        title: Text(p.razaoSocial ?? p.cnpj,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Text(
+          [
+            p.cnpj,
+            [p.municipio, p.uf]
+                .where((v) => v != null && v.isNotEmpty)
+                .join('/'),
+            if (p.bandeira != null && p.bandeira!.isNotEmpty) p.bandeira!,
+          ].where((v) => v.isNotEmpty).join(' · '),
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: (p.ativo ? const Color(0xFF16A34A) : const Color(0xFFD97706))
+                .withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(p.ativo ? 'Ativo' : 'Bloqueado',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: p.ativo
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFD97706),
+                  fontWeight: FontWeight.w600)),
+        ),
       ),
     );
   }

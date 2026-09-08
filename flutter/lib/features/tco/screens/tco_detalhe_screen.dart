@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/tco_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataIso = DateFormat('yyyy-MM-dd');
@@ -166,7 +167,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                         TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 10),
                 GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 1.9,

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/jornada_motoristas_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataIso = DateFormat('yyyy-MM-dd');
@@ -280,7 +281,7 @@ class _JornadaMotoristasScreenState
       children: [
         _tituloSecao('Agora'),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 1.9,
@@ -364,7 +365,7 @@ class _JornadaMotoristasScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 1.9,
