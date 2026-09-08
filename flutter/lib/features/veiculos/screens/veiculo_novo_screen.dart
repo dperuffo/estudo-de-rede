@@ -8,6 +8,7 @@ import '../providers/veiculos_provider.dart';
 import '../services/veiculos_service.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 class VeiculoNovoScreen extends ConsumerStatefulWidget {
   const VeiculoNovoScreen({super.key});
@@ -149,11 +150,13 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
           foregroundColor: AppTheme.glassTexto,
           iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Novo Veículo')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: Responsive.formularioCentralizado(
+        context,
+        Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
             if (_erro != null) ...[
               Container(
                 width: double.infinity,
@@ -432,6 +435,7 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

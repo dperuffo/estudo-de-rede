@@ -6,6 +6,7 @@ import '../providers/motoristas_provider.dart';
 import '../services/motoristas_service.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _dataIso = DateFormat('yyyy-MM-dd');
 
@@ -130,7 +131,7 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
           if (m == null)
             return const Center(child: Text('Motorista não encontrado.'));
           _inicializar(m);
-          return ListView(
+          final formulario = ListView(
             padding: const EdgeInsets.all(16),
             children: [
               TextField(
@@ -249,6 +250,7 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
               ),
             ],
           );
+          return Responsive.formularioCentralizado(context, formulario);
         },
       ),
     );

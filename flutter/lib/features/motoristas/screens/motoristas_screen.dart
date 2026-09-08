@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/motoristas_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _data = DateFormat('dd/MM/yyyy');
 
@@ -162,51 +163,57 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                     ),
                   )
                 else
-                  ...filtrados.map((m) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          onTap: () => context.push('/motoristas/${m.id}'),
-                          title: Text(m.nomeCompleto,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('CPF ${m.cpf} · ${m.classificacao}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey)),
-                              if (m.cnhVencimento != null)
-                                Text(
-                                    'CNH vence em ${_fmtData(m.cnhVencimento)}',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey)),
-                            ],
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (m.ativo
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFF64748B))
-                                  .withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(m.status,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: m.ativo
-                                        ? const Color(0xFF16A34A)
-                                        : const Color(0xFF64748B),
-                                    fontWeight: FontWeight.w600)),
-                          ),
-                          isThreeLine: m.cnhVencimento != null,
-                        ),
-                      )),
+                  // Fase Auditoria-UX-Responsividade (08/09/2026) — mesma
+                  // ideia da tela de Veículos: em celular continua a lista
+                  // vertical de sempre, a partir de tablet/desktop os cards
+                  // passam a lado a lado (Responsive.grade).
+                  Responsive.grade(
+                    context,
+                    itens: filtrados
+                        .map((m) => _cardMotorista(context, m))
+                        .toList(),
+                  ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _cardMotorista(BuildContext context, Motorista m) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => context.push('/motoristas/${m.id}'),
+        title: Text(m.nomeCompleto,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('CPF ${m.cpf} · ${m.classificacao}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            if (m.cnhVencimento != null)
+              Text('CNH vence em ${_fmtData(m.cnhVencimento)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: (m.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B))
+                .withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(m.status,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: m.ativo
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600)),
+        ),
+        isThreeLine: m.cnhVencimento != null,
       ),
     );
   }

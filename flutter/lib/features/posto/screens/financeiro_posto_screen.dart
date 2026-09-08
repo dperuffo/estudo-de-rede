@@ -8,6 +8,7 @@ import '../providers/financeiro_posto_provider.dart';
 import '../services/financeiro_posto_service.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 enum _FiltroCiclo { todos, andamento, fechada, aVencer, vencida, paga }
 
@@ -180,7 +181,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ),
         GridView.count(
-          crossAxisCount: 2,
+          // Fase Auditoria-UX-Responsividade (08/09/2026) — mais colunas a
+          // partir de tablet, mesmo raciocínio das outras telas de painel.
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 3),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 1.9,

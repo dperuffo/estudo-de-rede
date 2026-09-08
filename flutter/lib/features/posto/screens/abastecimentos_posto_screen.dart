@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../services/abastecimentos_posto_service.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
@@ -142,7 +143,10 @@ class _AbastecimentosPostoScreenState
                   style: TextStyle(color: Colors.grey, fontSize: 13)),
               const SizedBox(height: 16),
               GridView.count(
-                crossAxisCount: 2,
+                // Fase Auditoria-UX-Responsividade (08/09/2026) — 4 cartões
+                // numa linha só a partir de tablet.
+                crossAxisCount:
+                    Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 childAspectRatio: 2.4,

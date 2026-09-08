@@ -9,6 +9,7 @@ import '../providers/financeiro_provider.dart';
 import 'posto_cobranca_detalhe_screen.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -91,7 +92,10 @@ class FinanceiroScreen extends ConsumerWidget {
             style: TextStyle(color: Colors.grey, fontSize: 13)),
         const SizedBox(height: 12),
         GridView.count(
-          crossAxisCount: 2,
+          // Fase Auditoria-UX-Responsividade (08/09/2026) — 6 cartões: 3
+          // colunas a partir de tablet (2 linhas parelhas) em vez de sempre
+          // 2 (3 linhas esticadas até a largura máxima do conteúdo).
+          crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 3),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 1.9,

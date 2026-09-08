@@ -8,6 +8,7 @@ import '../services/veiculos_service.dart';
 import '../widgets/vincular_fipe_card.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 class VeiculoEditarScreen extends ConsumerStatefulWidget {
   final String id;
@@ -191,7 +192,7 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
             return const Center(child: Text('Veículo não encontrado.'));
           if (!_preenchido) _preencher(v);
 
-          return Form(
+          final formulario = Form(
             key: _formKey,
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -502,6 +503,7 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
               ],
             ),
           );
+          return Responsive.formularioCentralizado(context, formulario);
         },
       ),
     );

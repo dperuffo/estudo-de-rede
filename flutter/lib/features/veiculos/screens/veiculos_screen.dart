@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/veiculos_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 // Fase FLT-3 — Veículos (cliente). Ver escopo (sem paginação/importação
 // por planilha) no comentário de veiculos_provider.dart.
@@ -142,65 +143,71 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
                     ),
                   )
                 else
-                  ...filtrados.map((v) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          onTap: () => context.push('/veiculos/${v.id}'),
-                          title: Text(v.placa,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                [v.marca, v.modelo]
-                                        .where((x) => x != null && x.isNotEmpty)
-                                        .join(' ')
-                                        .isEmpty
-                                    ? '—'
-                                    : [v.marca, v.modelo]
-                                        .where((x) => x != null && x.isNotEmpty)
-                                        .join(' '),
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey),
-                              ),
-                              Text(
-                                [
-                                  if (v.tipoVeiculo != null) v.tipoVeiculo!,
-                                  v.classificacao,
-                                  if (v.centroCustoNome != null)
-                                    v.centroCustoNome!,
-                                ].join(' · '),
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (v.ativo
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFF64748B))
-                                  .withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(v.ativo ? 'Ativo' : 'Inativo',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: v.ativo
-                                        ? const Color(0xFF16A34A)
-                                        : const Color(0xFF64748B),
-                                    fontWeight: FontWeight.w600)),
-                          ),
-                          isThreeLine: true,
-                        ),
-                      )),
+                  // Fase Auditoria-UX-Responsividade (08/09/2026) — em
+                  // celular continua a mesma lista vertical de sempre; a
+                  // partir de tablet/desktop os cards passam a lado a lado
+                  // (Responsive.grade), aproveitando a largura do monitor em
+                  // vez de uma coluna única e estreita de cards esticados.
+                  Responsive.grade(
+                    context,
+                    itens:
+                        filtrados.map((v) => _cardVeiculo(context, v)).toList(),
+                  ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _cardVeiculo(BuildContext context, Veiculo v) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => context.push('/veiculos/${v.id}'),
+        title: Text(v.placa,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              [v.marca, v.modelo]
+                      .where((x) => x != null && x.isNotEmpty)
+                      .join(' ')
+                      .isEmpty
+                  ? '—'
+                  : [v.marca, v.modelo]
+                      .where((x) => x != null && x.isNotEmpty)
+                      .join(' '),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            Text(
+              [
+                if (v.tipoVeiculo != null) v.tipoVeiculo!,
+                v.classificacao,
+                if (v.centroCustoNome != null) v.centroCustoNome!,
+              ].join(' · '),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: (v.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B))
+                .withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(v.ativo ? 'Ativo' : 'Inativo',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: v.ativo
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600)),
+        ),
+        isThreeLine: true,
       ),
     );
   }

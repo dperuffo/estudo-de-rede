@@ -7,6 +7,7 @@ import '../providers/motoristas_provider.dart';
 import '../services/motoristas_service.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _dataIso = DateFormat('yyyy-MM-dd');
 
@@ -105,9 +106,11 @@ class _MotoristaNovoScreenState extends ConsumerState<MotoristaNovoScreen> {
           foregroundColor: AppTheme.glassTexto,
           iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Novo motorista')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: Responsive.formularioCentralizado(
+        context,
+        ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
           TextField(
             controller: _nomeCtrl,
             decoration: const InputDecoration(
@@ -200,6 +203,7 @@ class _MotoristaNovoScreenState extends ConsumerState<MotoristaNovoScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

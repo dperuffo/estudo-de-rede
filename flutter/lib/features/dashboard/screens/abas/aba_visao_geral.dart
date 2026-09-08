@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/services/sessao_provider.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../inteligencia_rede/widgets/inteligencia_shared.dart';
 import '../../providers/dashboard_provider.dart';
 
@@ -69,7 +70,7 @@ class AbaVisaoGeral extends ConsumerWidget {
               _cardPrimeirosPassos(context, dados),
               const SizedBox(height: 20),
             ],
-            _gradeIndicadores([
+            _gradeIndicadores(context, [
               _Indicador('Clientes ativos', '${dados.clientesAtivos}',
                   'de ${dados.totalClientes}'),
               _Indicador('Motoristas ativos', '${dados.motoristasAtivos}',
@@ -159,7 +160,7 @@ class AbaVisaoGeral extends ConsumerWidget {
               ),
             if (dados.centroCusto != null) ...[
               const SizedBox(height: 20),
-              _secaoCentroCusto(dados.centroCusto!),
+              _secaoCentroCusto(context, dados.centroCusto!),
             ],
             if (dados.manutencao != null) ...[
               const SizedBox(height: 20),
@@ -360,7 +361,7 @@ class AbaVisaoGeral extends ConsumerWidget {
 
   // Centro de custo — porta a seção "Desempenho por centro de custo" (mês
   // atual — ver decisão de escopo no comentário de dashboard_provider.dart).
-  Widget _secaoCentroCusto(CentroCustoDados centro) {
+  Widget _secaoCentroCusto(BuildContext context, CentroCustoDados centro) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -370,6 +371,9 @@ class AbaVisaoGeral extends ConsumerWidget {
         else ...[
           GridView.count(
             crossAxisCount: 3,
+            // 3 cartões cabem numa linha só em qualquer largura >= tablet —
+            // sem ganho real em ter mais colunas que itens (ficaria com
+            // espaço vazio), por isso o valor fica igual nos 2 breakpoints.
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             childAspectRatio: 1.5,
@@ -591,8 +595,14 @@ class AbaVisaoGeral extends ConsumerWidget {
         ),
       );
 
-  Widget _gradeIndicadores(List<_Indicador> itens) => GridView.count(
-        crossAxisCount: 2,
+  Widget _gradeIndicadores(BuildContext context, List<_Indicador> itens) =>
+      GridView.count(
+        // Fase Auditoria-UX-Responsividade (08/09/2026) — eram sempre 2
+        // colunas, então num monitor largo os 6 cartões ficavam enormes e
+        // vazios (3 linhas de cards banner-like esticados até 1400px). A
+        // partir de tablet vira 3 colunas (2 linhas parelhas, já que 6 é
+        // múltiplo de 3) — melhor aproveitamento sem sobrar espaço vazio.
+        crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 3),
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         childAspectRatio: 2.4,

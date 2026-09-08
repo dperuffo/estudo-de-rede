@@ -9,6 +9,7 @@ import '../../posto/services/abastecimentos_posto_service.dart'
 import '../services/abastecimentos_cliente_service.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -200,7 +201,12 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                 ],
                 const SizedBox(height: 16),
                 GridView.count(
-                  crossAxisCount: 2,
+                  // Fase Auditoria-UX-Responsividade (08/09/2026) — mesmo
+                  // ajuste do Dashboard: 4 cartões cabem numa linha só a
+                  // partir de tablet, em vez de sempre 2 colunas (cartões
+                  // enormes e vazios num monitor largo).
+                  crossAxisCount:
+                      Responsive.colunasGrade(context, mobile: 2, desktop: 4),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 2.4,
