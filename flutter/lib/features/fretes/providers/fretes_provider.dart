@@ -499,10 +499,10 @@ final meusFretesProvider =
   // web (ver fretes_empresa_pagina/actions.ts). Aqui, como a tela ainda
   // consome a lista inteira de uma vez (sem abas por status como na web),
   // um cap de segurança evita que uma empresa com histórico grande de
-  // fretes baixe tudo de uma vez. Não sei se a RPC já ordena por data
-  // internamente — vale confirmar com o Daniel se os 500 cortados são
-  // mesmo os mais recentes; se não for, ajustar a RPC pra ordenar antes
-  // do LIMIT (ou portar o mesmo padrão de paginação por abas da web).
+  // fretes baixe tudo de uma vez. Confirmado direto no banco (10/09/2026):
+  // a função já faz `order by f.criado_em desc`, então os 500 cortados
+  // aqui são sempre os mais recentes — sem risco de esconder frete novo
+  // por causa do limite.
   final rows = await SupabaseService.client
       .rpc('meus_fretes_empresa', params: {'p_empresa_id': empresaId})
       .limit(500);
