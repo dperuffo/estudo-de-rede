@@ -274,8 +274,21 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       key: rootScaffoldKey,
-      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao,
-          mapaPermissoes, favoritosHrefs),
+      // Fase Pente-Fino-Performance (10/09/2026) — achado real: o Drawer
+      // inteiro (~70 ListTiles + permissões + estrelas de favorito) era
+      // reconstruído a cada rebuild desta shell, mesmo fechado. Como a shell
+      // também escuta `notificacoesBadgesProvider`/`avisosNaoLidosProvider`
+      // (que atualizam por polling), cada tick reconstruía o Drawer inteiro
+      // só pra atualizar uma bolinha de badge — mesmo sem o usuário nunca
+      // ter aberto o menu. Extraído pra `_HomeDrawer`, um ConsumerWidget
+      // próprio que escuta esses providers sozinho: agora só o Drawer
+      // reconstrói nesse caso, não a AppBar/bottomNav/conteúdo da rota atual.
+      drawer: _HomeDrawer(
+        sessao: sessao.valueOrNull,
+        bypassPermissao: bypassPermissao,
+        mapaPermissoes: mapaPermissoes,
+        favoritosHrefs: favoritosHrefs,
+      ),
       // Fase Liquid-Glass-PWA (20/08/2026) — mesma superfície bronze/champanhe
       // do menu (ver _buildDrawer), agora na barra do topo. `flexibleSpace` +
       // fundo transparente troca a cor sólida (frota-950) pelo gradiente,
@@ -366,14 +379,56 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawer(
-    BuildContext context,
-    WidgetRef ref,
-    SessaoUsuario? sessao,
-    bool bypassPermissao,
-    Map<String, bool> mapaPermissoes,
-    Set<String> favoritosHrefs,
-  ) {
+  int _idx(String loc) {
+    if (loc.startsWith('/abastecimentos')) return 1;
+    if (loc.startsWith('/veiculos')) return 2;
+    if (loc.startsWith('/financeiro')) return 3;
+    if (loc == '/dashboard' || loc == '/') return 0;
+    return 4; // qualquer outra tela do drawer conta como "Mais"
+  }
+
+  void _nav(BuildContext ctx, int i) {
+    switch (i) {
+      case 0:
+        ctx.go('/dashboard');
+        break;
+      case 1:
+        ctx.go('/abastecimentos');
+        break;
+      case 2:
+        ctx.go('/veiculos');
+        break;
+      case 3:
+        ctx.go('/financeiro');
+        break;
+      case 4:
+        rootScaffoldKey.currentState?.openDrawer();
+        break;
+    }
+  }
+}
+
+// Fase Pente-Fino-Performance (10/09/2026) — ver comentário em
+// `HomeScreen.build` sobre o porquê deste widget existir separado: isola o
+// estado de alta frequência (badges/avisos não lidos, atualizados por
+// polling) num ConsumerWidget próprio, então um `setState`/rebuild causado
+// só por essas duas mudanças não reconstrói a shell inteira (AppBar, barra
+// de favoritos, conteúdo da rota atual) — só este Drawer.
+class _HomeDrawer extends ConsumerWidget {
+  final SessaoUsuario? sessao;
+  final bool bypassPermissao;
+  final Map<String, bool> mapaPermissoes;
+  final Set<String> favoritosHrefs;
+
+  const _HomeDrawer({
+    required this.sessao,
+    required this.bypassPermissao,
+    required this.mapaPermissoes,
+    required this.favoritosHrefs,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     // Fase enforcement-permissoes (04/08/2026) — mesma checagem usada na
     // web (podeAcessarItem em layout.tsx): rota sem "aba_" mapeada
     // (resolverFuncionalidadeDaRota devolve null) fica sempre liberada.
@@ -931,32 +986,4 @@ class HomeScreen extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
                 color: AppTheme.glassTextoMuted)),
       );
-
-  int _idx(String loc) {
-    if (loc.startsWith('/abastecimentos')) return 1;
-    if (loc.startsWith('/veiculos')) return 2;
-    if (loc.startsWith('/financeiro')) return 3;
-    if (loc == '/dashboard' || loc == '/') return 0;
-    return 4; // qualquer outra tela do drawer conta como "Mais"
-  }
-
-  void _nav(BuildContext ctx, int i) {
-    switch (i) {
-      case 0:
-        ctx.go('/dashboard');
-        break;
-      case 1:
-        ctx.go('/abastecimentos');
-        break;
-      case 2:
-        ctx.go('/veiculos');
-        break;
-      case 3:
-        ctx.go('/financeiro');
-        break;
-      case 4:
-        rootScaffoldKey.currentState?.openDrawer();
-        break;
-    }
-  }
 }
