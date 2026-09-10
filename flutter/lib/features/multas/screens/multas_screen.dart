@@ -80,55 +80,80 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
               .where((m) => m.status != 'paga' && m.status != 'cancelada')
               .fold<double>(0, (s, m) => s + (m.valorParaExibir ?? 0));
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Row(
-                children: [
-                  _kpi('Pendentes', '$pendentesIndicacao'),
-                  const SizedBox(width: 8),
-                  _kpi('Vencendo (7d)', '$vencendoEmBreve',
-                      destaque: vencendoEmBreve > 0),
-                  const SizedBox(width: 8),
-                  _kpi('Em aberto', _fmtMoeda(valorEmAberto)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _buscaCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Buscar',
-                  hintText: 'Placa, AIT, descrição ou motorista...',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search),
+          // Fase Pente-Fino-Performance (10/09/2026) — a lista inteira era
+          // construída de uma vez (ListView(children: [..., ...filtradas.map(_card)]));
+          // trocado por CustomScrollView + Sliver: cabeçalho (KPIs/busca/
+          // filtro) num SliverToBoxAdapter fixo, cards num SliverList.builder
+          // lazy (só monta o que está visível na tela).
+          return CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          _kpi('Pendentes', '$pendentesIndicacao'),
+                          const SizedBox(width: 8),
+                          _kpi('Vencendo (7d)', '$vencendoEmBreve',
+                              destaque: vencendoEmBreve > 0),
+                          const SizedBox(width: 8),
+                          _kpi('Em aberto', _fmtMoeda(valorEmAberto)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _buscaCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar',
+                          hintText: 'Placa, AIT, descrição ou motorista...',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (v) => setState(() => _busca = v),
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String?>(
+                        value: _status,
+                        decoration: const InputDecoration(
+                            labelText: 'Status',
+                            border: OutlineInputBorder(),
+                            isDense: true),
+                        items: [
+                          const DropdownMenuItem(
+                              value: null, child: Text('Todos')),
+                          for (final s in statusMultaLabel.entries)
+                            DropdownMenuItem(
+                                value: s.key, child: Text(s.value)),
+                        ],
+                        onChanged: (v) => setState(() => _status = v),
+                      ),
+                      const SizedBox(height: 16),
+                      if (filtradas.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 24),
+                          child: Center(
+                              child: Text(
+                                  'Nenhuma multa encontrada para esse filtro.',
+                                  style: TextStyle(color: Colors.grey))),
+                        ),
+                    ],
+                  ),
                 ),
-                onChanged: (v) => setState(() => _busca = v),
               ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String?>(
-                value: _status,
-                decoration: const InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
-                    isDense: true),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Todos')),
-                  for (final s in statusMultaLabel.entries)
-                    DropdownMenuItem(value: s.key, child: Text(s.value)),
-                ],
-                onChanged: (v) => setState(() => _status = v),
-              ),
-              const SizedBox(height: 16),
-              if (filtradas.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                      child: Text('Nenhuma multa encontrada para esse filtro.',
-                          style: TextStyle(color: Colors.grey))),
-                )
-              else
-                ...filtradas.map(_card),
+              if (filtradas.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) => _card(filtradas[i]),
+                      childCount: filtradas.length,
+                    ),
+                  ),
+                ),
             ],
           );
         },

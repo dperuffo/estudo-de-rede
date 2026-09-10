@@ -66,46 +66,66 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
             final valorEmEstoque = ativas.fold<double>(0,
                 (s, p) => s + p.quantidadeAtual * (p.custoUnitarioMedio ?? 0));
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const Text(
-                  'Catálogo de peças da Manutenção, com saldo e custo médio calculados a partir das entradas e saídas registradas.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _kpi('Ativas', '${ativas.length}'),
-                    const SizedBox(width: 8),
-                    _kpi('Abaixo do mínimo', '$abaixoDoMinimo',
-                        destaque: abaixoDoMinimo > 0),
-                    const SizedBox(width: 8),
-                    _kpi('Em estoque', _fmtMoeda(valorEmEstoque)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _buscaCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Buscar',
-                    hintText: 'Nome ou código...',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search),
+            // Fase Pente-Fino-Performance (10/09/2026) — mesma troca de
+            // ListView(children:) por CustomScrollView + Sliver das telas de
+            // Veículos/Multas: cabeçalho fixo, cards lazy (SliverList.builder).
+            return CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Catálogo de peças da Manutenção, com saldo e custo médio calculados a partir das entradas e saídas registradas.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _kpi('Ativas', '${ativas.length}'),
+                            const SizedBox(width: 8),
+                            _kpi('Abaixo do mínimo', '$abaixoDoMinimo',
+                                destaque: abaixoDoMinimo > 0),
+                            const SizedBox(width: 8),
+                            _kpi('Em estoque', _fmtMoeda(valorEmEstoque)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _buscaCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Buscar',
+                            hintText: 'Nome ou código...',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            prefixIcon: Icon(Icons.search),
+                          ),
+                          onChanged: (v) => setState(() => _busca = v),
+                        ),
+                        const SizedBox(height: 16),
+                        if (filtradas.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 24),
+                            child: Center(
+                                child: Text('Nenhuma peça cadastrada ainda.',
+                                    style: TextStyle(color: Colors.grey))),
+                          ),
+                      ],
+                    ),
                   ),
-                  onChanged: (v) => setState(() => _busca = v),
                 ),
-                const SizedBox(height: 16),
-                if (filtradas.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                        child: Text('Nenhuma peça cadastrada ainda.',
-                            style: TextStyle(color: Colors.grey))),
-                  )
-                else
-                  ...filtradas.map(_card),
+                if (filtradas.isNotEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _card(filtradas[i]),
+                        childCount: filtradas.length,
+                      ),
+                    ),
+                  ),
               ],
             );
           },

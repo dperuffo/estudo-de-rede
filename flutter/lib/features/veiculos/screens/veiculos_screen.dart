@@ -72,86 +72,124 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
                 modelo.contains(buscaLimpa);
           }).toList();
 
+          // Fase Pente-Fino-Performance (10/09/2026, pedido do Daniel:
+          // "melhorar a performance da aplicacao como um todo") — achado
+          // real (auditoria): a lista inteira era construída de uma vez
+          // (ListView(children: [...])), então uma frota de centenas de
+          // veículos virava centenas de widgets montados mesmo com só ~8
+          // cabendo na tela. Trocado por CustomScrollView + Sliver: o
+          // cabeçalho (indicadores/busca/filtro) fica num SliverToBoxAdapter
+          // fixo, e no celular (o caso mais comum e o que a auditoria mais
+          // apontou) a lista agora é lazy de verdade (SliverList.builder).
+          // A partir de tablet mantém o Responsive.grade original (Wrap,
+          // não-lazy): os cards têm altura variável conforme o texto
+          // (marca/modelo/centro de custo), e um SliverGrid de altura fixa
+          // arriscaria cortar conteúdo sem eu poder conferir visualmente —
+          // tablet/desktop tem tela maior e é onde esse existia há só 2 dias
+          // (Fase Auditoria-UX-Responsividade), preferi não arriscar quebrar.
+          final isTablet = Responsive.isTablet(context);
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(veiculosClienteProvider),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                        child: _indicador('Total', veiculos.length.toString())),
-                    const SizedBox(width: 8),
-                    Expanded(child: _indicador('Ativos', ativos.toString())),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: _indicador(
-                            'Inativos', (veiculos.length - ativos).toString())),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _buscaCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por placa, marca ou modelo...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    suffixIcon: _busca.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _buscaCtrl.clear();
-                              setState(() => _busca = '');
-                            },
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _indicador(
+                                    'Total', veiculos.length.toString())),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: _indicador('Ativos', ativos.toString())),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: _indicador('Inativos',
+                                    (veiculos.length - ativos).toString())),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _buscaCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar por placa, marca ou modelo...',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            suffixIcon: _busca.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      _buscaCtrl.clear();
+                                      setState(() => _busca = '');
+                                    },
+                                  ),
                           ),
+                          onChanged: (v) => setState(() => _busca = v),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Todos'),
+                              selected: _filtroStatus == 'todos',
+                              onSelected: (_) =>
+                                  setState(() => _filtroStatus = 'todos'),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Ativos'),
+                              selected: _filtroStatus == 'ativos',
+                              onSelected: (_) =>
+                                  setState(() => _filtroStatus = 'ativos'),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Inativos'),
+                              selected: _filtroStatus == 'inativos',
+                              onSelected: (_) =>
+                                  setState(() => _filtroStatus = 'inativos'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (filtrados.isEmpty)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                  'Nenhum veículo encontrado com esse filtro.',
+                                  style:
+                                      TextStyle(color: Colors.grey.shade600)),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  onChanged: (v) => setState(() => _busca = v),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Todos'),
-                      selected: _filtroStatus == 'todos',
-                      onSelected: (_) =>
-                          setState(() => _filtroStatus = 'todos'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Ativos'),
-                      selected: _filtroStatus == 'ativos',
-                      onSelected: (_) =>
-                          setState(() => _filtroStatus = 'ativos'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Inativos'),
-                      selected: _filtroStatus == 'inativos',
-                      onSelected: (_) =>
-                          setState(() => _filtroStatus = 'inativos'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (filtrados.isEmpty)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text('Nenhum veículo encontrado com esse filtro.',
-                          style: TextStyle(color: Colors.grey.shade600)),
-                    ),
-                  )
-                else
-                  // Fase Auditoria-UX-Responsividade (08/09/2026) — em
-                  // celular continua a mesma lista vertical de sempre; a
-                  // partir de tablet/desktop os cards passam a lado a lado
-                  // (Responsive.grade), aproveitando a largura do monitor em
-                  // vez de uma coluna única e estreita de cards esticados.
-                  Responsive.grade(
-                    context,
-                    itens:
-                        filtrados.map((v) => _cardVeiculo(context, v)).toList(),
+                if (filtrados.isNotEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+                    sliver: isTablet
+                        ? SliverToBoxAdapter(
+                            child: Responsive.grade(
+                              context,
+                              itens: filtrados
+                                  .map((v) => _cardVeiculo(context, v))
+                                  .toList(),
+                            ),
+                          )
+                        : SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) =>
+                                  _cardVeiculo(context, filtrados[i]),
+                              childCount: filtrados.length,
+                            ),
+                          ),
                   ),
               ],
             ),
