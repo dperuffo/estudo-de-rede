@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
@@ -218,8 +219,9 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
                         context: context,
                         builder: (_) => Dialog(
                             child: InteractiveViewer(
-                                child: Image.network(_anexoUrl!,
-                                    errorBuilder: (_, __, ___) => const Padding(
+                                child: CachedNetworkImage(
+                                    imageUrl: _anexoUrl!,
+                                    errorWidget: (_, __, ___) => const Padding(
                                         padding: EdgeInsets.all(20),
                                         child: Text(
                                             'Não foi possível exibir o anexo (pode ser um PDF).'))))),

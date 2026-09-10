@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/providers/avisos_provider.dart';
@@ -124,7 +125,8 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(a.urlImagem!,
+                                        child: CachedNetworkImage(
+                                            imageUrl: a.urlImagem!,
                                             fit: BoxFit.cover),
                                       ),
                                     ),

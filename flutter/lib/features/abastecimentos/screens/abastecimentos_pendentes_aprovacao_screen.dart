@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
@@ -220,12 +221,12 @@ class _AbastecimentosPendentesAprovacaoScreenState
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: p.fotoUrl != null
-                      ? Image.network(
-                          p.fotoUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: p.fotoUrl!,
                           width: 80,
                           height: 104,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _semFoto(),
+                          errorWidget: (_, __, ___) => _semFoto(),
                         )
                       : _semFoto(),
                 ),

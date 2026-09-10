@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
@@ -108,8 +109,9 @@ class _LicaoDetalheScreen extends StatelessWidget {
           if (licao.imagemPath != null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(servico.urlImagem(licao.imagemPath!),
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+              child: CachedNetworkImage(
+                  imageUrl: servico.urlImagem(licao.imagemPath!),
+                  errorWidget: (_, __, ___) => const SizedBox.shrink()),
             ),
             const SizedBox(height: 12),
           ],

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/fretes_provider.dart';
@@ -787,11 +788,13 @@ class _BlocoTimeline extends ConsumerWidget {
                               builder: (_) => Dialog(
                                   child: InteractiveViewer(
                                       child:
-                                          Image.network(e.fotoUrlAssinada!))),
+                                          CachedNetworkImage(
+                                              imageUrl: e.fotoUrlAssinada!))),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: Image.network(e.fotoUrlAssinada!,
+                              child: CachedNetworkImage(
+                                  imageUrl: e.fotoUrlAssinada!,
                                   width: 44, height: 44, fit: BoxFit.cover),
                             ),
                           ),
