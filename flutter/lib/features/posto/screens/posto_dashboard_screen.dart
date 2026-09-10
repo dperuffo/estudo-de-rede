@@ -6,12 +6,13 @@ import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/utils/responsive.dart';
 import '../providers/dashboard_posto_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Paleta fixa por combustível — mesma família de cores usada nos gráficos
 // já existentes (precos_screen.dart, analise_cliente_screen.dart), pra
 // manter a identidade visual entre as duas visões do app.
 const _coresCombustivel = [
-  Color(0xFF171717),
+  AppTheme.glassTextoAtivo,
   Colors.red,
   Colors.green,
   Colors.orange,

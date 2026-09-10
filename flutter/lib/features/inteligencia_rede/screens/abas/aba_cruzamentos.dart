@@ -5,6 +5,7 @@ import '../../providers/inteligencia_rede_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 7/10 — "🔀 Cruzamentos Avançados". Porta CruzamentosAvancados.tsx
 // (616 linhas, o maior componente da web) — 4 sub-abas: Regiões
@@ -616,7 +617,7 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
                         border: const Border(
                             left:
                                 BorderSide(color: Color(0xFFE53935), width: 4)),
-                        borderRadius: BorderRadius.circular(4)),
+                        borderRadius: BorderRadius.circular(AppTheme.radius)),
                     child: Text(
                       '🔴 ${a.uf} — GF ${formatarMoeda(a.gfMed)} vs ANP ${formatarMoeda(a.anpMed)} (${a.deltaPct >= 0 ? "+" : ""}${a.deltaPct.toStringAsFixed(1)}%) · Custo extra: ${formatarMoeda((a.deltaAbs).abs() * 100, casas: 2)}/100L · ${a.postos} postos',
                       style: const TextStyle(fontSize: 12),
@@ -639,7 +640,7 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
                         border: const Border(
                             left:
                                 BorderSide(color: Color(0xFF43A047), width: 4)),
-                        borderRadius: BorderRadius.circular(4)),
+                        borderRadius: BorderRadius.circular(AppTheme.radius)),
                     child: Text(
                       '💚 ${o.uf} — GF ${formatarMoeda(o.gfMed)} vs ANP ${formatarMoeda(o.anpMed)} (${o.deltaPct.toStringAsFixed(1)}%) · Saving: ${formatarMoeda((o.deltaAbs).abs() * 100, casas: 2)}/100L · ${o.postos} postos',
                       style: const TextStyle(fontSize: 12),
@@ -893,7 +894,7 @@ Widget _cardDestaque(String titulo, String valor, String linha1, String? linha2,
     decoration: BoxDecoration(
         color: bg,
         border: Border(left: BorderSide(color: borda, width: 4)),
-        borderRadius: BorderRadius.circular(4)),
+        borderRadius: BorderRadius.circular(AppTheme.radius)),
     padding: const EdgeInsets.all(10),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

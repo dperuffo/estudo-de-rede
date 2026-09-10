@@ -197,7 +197,7 @@ class _AbastecimentoNovoScreenState
                     '${_dataHora!.hour.toString().padLeft(2, '0')}:${_dataHora!.minute.toString().padLeft(2, '0')}'),
             trailing: const Icon(Icons.calendar_today, size: 18),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 side: BorderSide(color: Colors.grey.shade400)),
             onTap: _selecionarDataHora,
           ),

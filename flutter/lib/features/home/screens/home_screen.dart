@@ -484,11 +484,11 @@ class HomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(AppTheme.radius),
                           border: Border.all(color: const Color(0xFFE2E8F0)),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF171717).withOpacity(0.06),
+                              color: AppTheme.glassTextoAtivo.withOpacity(0.06),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),

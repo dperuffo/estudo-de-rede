@@ -267,7 +267,7 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: proprio
-                            ? const Color(0xFF171717)
+                            ? AppTheme.glassTextoAtivo
                             : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(16),
                       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 10/10 — "📅 Tendência & Sazonalidade". Porta
 // TendenciaSazonalidade.tsx (376 linhas) — regressão linear de preço por
@@ -28,7 +29,7 @@ const _coresUfTend = [
   Color(0xFF4E342E)
 ];
 const _coresCombustivelTend = [
-  Color(0xFF171717),
+  AppTheme.glassTextoAtivo,
   Color(0xFFC62828),
   Color(0xFF2E7D32),
   Color(0xFFEF6C00),

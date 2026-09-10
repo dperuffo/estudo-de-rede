@@ -201,7 +201,7 @@ class _AssinaturaClienteScreenState
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Color(0xFF171717))),
+                              color: AppTheme.glassTextoAtivo)),
                       const SizedBox(height: 4),
                       Text(
                         '${limitesPlanoCard.maxUsuarios < 0 ? 'Usuários ilimitados' : '${limitesPlanoCard.maxUsuarios} usuário(s)'} · '

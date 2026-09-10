@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 9/10 — "📈 Evolução Temporal". Porta EvolucaoTemporal.tsx (497
 // linhas) — tendência de preço por UF (com preço real pago sobreposto),
@@ -19,7 +20,7 @@ class AbaEvolucaoTemporal extends StatefulWidget {
 
 const _coresUf = [
   Color(0xFF1040A0),
-  Color(0xFF171717),
+  AppTheme.glassTextoAtivo,
   Color(0xFF1976D2),
   Color(0xFF42A5F5),
   Color(0xFF90CAF9),

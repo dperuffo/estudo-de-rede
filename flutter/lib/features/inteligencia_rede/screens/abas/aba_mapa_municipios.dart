@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 4/10 — "🗺️ Mapa & Municípios". Porta MapaDensidade.tsx +
 // GraficoTopMunicipios.tsx + tabela de cobertura por estado.
@@ -39,7 +40,7 @@ class AbaMapaMunicipios extends StatelessWidget {
                         .map((p) => PontoCirculo(
                               lat: p.lat,
                               lon: p.lon,
-                              cor: const Color(0xFF171717),
+                              cor: AppTheme.glassTextoAtivo,
                               raio: 4,
                               tooltip: '${p.razaoSocial ?? "Posto GF"}\n${[
                                 p.municipio,
@@ -72,7 +73,7 @@ class AbaMapaMunicipios extends StatelessWidget {
                           .map((m) => BarraHorizontalItem(
                               label: '${m.municipio}/${m.uf}',
                               valor: m.total.toDouble(),
-                              cor: const Color(0xFF171717),
+                              cor: AppTheme.glassTextoAtivo,
                               texto: '${m.total}'))
                           .toList(),
                       eixoX: 'Postos GF',

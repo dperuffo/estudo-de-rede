@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 1/10 — "⛽ Preços vs ANP". Porta GraficoCustoAnp.tsx + tabela +
 // GraficoSavingMensal.tsx.
@@ -178,7 +179,7 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                     formatarY: (v) => formatarMoeda(v, casas: 3)),
                 barGroups: serie.asMap().entries.map((e) {
                   final cor = referenciaAtual == null
-                      ? const Color(0xFF171717)
+                      ? AppTheme.glassTextoAtivo
                       : (e.value.precoMedio < referenciaAtual
                           ? const Color(0xFF2E7D32)
                           : const Color(0xFFB71C1C));
@@ -337,7 +338,7 @@ class _GraficoCustoAnp extends StatelessWidget {
         Row(children: [
           _legendaItem(const Color(0xFFE65100), 'Preço médio GF'),
           const SizedBox(width: 12),
-          _legendaItem(const Color(0xFF171717), 'Referência ANP'),
+          _legendaItem(AppTheme.glassTextoAtivo, 'Referência ANP'),
         ]),
         const SizedBox(height: 10),
         ...dados.map((d) => Padding(
@@ -353,7 +354,7 @@ class _GraficoCustoAnp extends StatelessWidget {
                       style:
                           TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                   if (d.referencia != null) ...[
-                    barra(d.referencia!, const Color(0xFF171717)),
+                    barra(d.referencia!, AppTheme.glassTextoAtivo),
                     Text(formatarMoeda(d.referencia!, casas: 2),
                         style: TextStyle(
                             fontSize: 10, color: Colors.grey.shade500)),

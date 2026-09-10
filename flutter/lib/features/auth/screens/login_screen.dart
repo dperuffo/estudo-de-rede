@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-1 — mesmas duas opções de entrada da web (src/app/login):
 // e-mail/senha (entrarComSenha) e "Continuar com Google" (entrarComGoogle),
@@ -100,7 +101,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                         boxShadow: [
                           BoxShadow(
-                              color: const Color(0xFF171717).withOpacity(0.06),
+                              color: AppTheme.glassTextoAtivo.withOpacity(0.06),
                               blurRadius: 12,
                               offset: const Offset(0, 4)),
                         ],
@@ -111,7 +112,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 32),
                     const Text('Gestao de Frotas',
                         style: TextStyle(
-                            color: Color(0xFF171717),
+                            color: AppTheme.glassTextoAtivo,
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
@@ -161,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _loadingSenha ? null : _entrarComSenha,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB38B6D),
+                          backgroundColor: AppTheme.accento,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
@@ -198,7 +199,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: _loadingGoogle ? null : _entrarComGoogle,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF171717),
+                          foregroundColor: AppTheme.glassTextoAtivo,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                           elevation: 4,
@@ -208,7 +209,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Color(0xFF171717)))
+                                    strokeWidth: 2, color: AppTheme.glassTextoAtivo))
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -253,7 +254,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFB38B6D), width: 2),
+          borderSide: const BorderSide(color: AppTheme.accento, width: 2),
         ),
       );
 }

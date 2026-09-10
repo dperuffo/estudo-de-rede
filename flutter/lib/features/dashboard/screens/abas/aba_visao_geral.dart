@@ -7,6 +7,7 @@ import '../../../../core/services/sessao_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../inteligencia_rede/widgets/inteligencia_shared.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -515,7 +516,7 @@ class AbaVisaoGeral extends ConsumerWidget {
               BarChartRodData(
                 toY: e.value.litros,
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF171717), Color(0xFF42A5F5)],
+                  colors: [AppTheme.glassTextoAtivo, Color(0xFF42A5F5)],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),

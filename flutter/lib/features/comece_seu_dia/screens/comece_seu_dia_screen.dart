@@ -104,7 +104,7 @@ class _State extends State<ComeceSeuDiaScreen> {
         actions: [
           DropdownButton<String>(
             value: _selecao,
-            dropdownColor: const Color(0xFF171717),
+            dropdownColor: AppTheme.glassTextoAtivo,
             style: const TextStyle(color: Colors.white),
             items: const [
               DropdownMenuItem(value: 'hoje', child: Text('Hoje')),
@@ -145,7 +145,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF171717), Color(0xFF171717)],
+                        colors: [AppTheme.glassTextoAtivo, AppTheme.glassTextoAtivo],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -265,7 +265,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                         'Total Geral',
                         fmt.format(kpis['total_geral'] ?? 0),
                         Icons.account_balance_wallet,
-                        const Color(0xFF171717)),
+                        AppTheme.glassTextoAtivo),
                   ]),
                   const SizedBox(height: 24),
 
@@ -360,7 +360,7 @@ class _State extends State<ComeceSeuDiaScreen> {
             style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF171717))),
+                color: AppTheme.glassTextoAtivo)),
       );
 
   Widget _kpiCard(String label, String value, IconData icon, Color color) =>
@@ -412,7 +412,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                 barRods: [
                   BarChartRodData(
                     toY: (e.value['gasto'] as num? ?? 0).toDouble(),
-                    color: const Color(0xFF171717),
+                    color: AppTheme.glassTextoAtivo,
                     width: 12,
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(4)),
@@ -467,15 +467,15 @@ class _State extends State<ComeceSeuDiaScreen> {
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF171717))),
+                  color: AppTheme.glassTextoAtivo)),
         ]),
         const SizedBox(height: 4),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppTheme.radius),
           child: LinearProgressIndicator(
             value: pct.toDouble(),
             backgroundColor: Colors.grey[200],
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF171717)),
+            valueColor: const AlwaysStoppedAnimation(AppTheme.glassTextoAtivo),
             minHeight: 8,
           ),
         ),

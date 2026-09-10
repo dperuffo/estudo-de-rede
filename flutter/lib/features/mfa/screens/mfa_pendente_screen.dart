@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-1b — completa o gate de MFA. Antes esta tela só explicava a
 // exigência e mandava configurar pela web, mas isso resolvia só metade do
@@ -97,7 +98,7 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.shield_outlined,
-                    size: 56, color: Color(0xFF171717)),
+                    size: 56, color: AppTheme.glassTextoAtivo),
                 const SizedBox(height: 20),
                 Text(
                   precisaCadastrar

@@ -451,7 +451,7 @@ class _ManutencaoPreditivaDetalheScreenState
           ),
           const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(AppTheme.radius),
             child: LinearProgressIndicator(
               value: (c.score.clamp(0, 100)) / 100,
               minHeight: 6,

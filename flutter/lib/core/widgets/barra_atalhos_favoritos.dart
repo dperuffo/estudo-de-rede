@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/menu_favoritos_provider.dart';
+import '../theme/app_theme.dart';
 
 // Item já resolvido (href -> label/ícone), pronto pra desenhar. Resolução
 // fica a cargo de quem monta a barra (HomeScreen/PostoHomeScreen), porque
@@ -97,7 +98,7 @@ class _Chip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(item.icon, size: 15, color: const Color(0xFF171717)),
+              Icon(item.icon, size: 15, color: AppTheme.glassTextoAtivo),
               const SizedBox(width: 6),
               Text(item.label,
                   style:

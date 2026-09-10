@@ -226,7 +226,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: selecionado
           ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppTheme.radius),
               side: const BorderSide(color: Color(0xFF0EA5E9), width: 2))
           : null,
       child: InkWell(

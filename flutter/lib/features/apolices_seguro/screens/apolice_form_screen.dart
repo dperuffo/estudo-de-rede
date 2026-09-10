@@ -228,7 +228,7 @@ class _ApoliceFormScreenState extends ConsumerState<ApoliceFormScreen> {
                       : '${_vigenciaInicio!.day.toString().padLeft(2, '0')}/${_vigenciaInicio!.month.toString().padLeft(2, '0')}/${_vigenciaInicio!.year}'),
                   trailing: const Icon(Icons.calendar_today, size: 18),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                       side: BorderSide(color: Colors.grey.shade400)),
                   onTap: () => _selecionarData(inicio: true),
                 ),
@@ -242,7 +242,7 @@ class _ApoliceFormScreenState extends ConsumerState<ApoliceFormScreen> {
                       : '${_vigenciaFim!.day.toString().padLeft(2, '0')}/${_vigenciaFim!.month.toString().padLeft(2, '0')}/${_vigenciaFim!.year}'),
                   trailing: const Icon(Icons.calendar_today, size: 18),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                       side: BorderSide(color: Colors.grey.shade400)),
                   onTap: () => _selecionarData(inicio: false),
                 ),

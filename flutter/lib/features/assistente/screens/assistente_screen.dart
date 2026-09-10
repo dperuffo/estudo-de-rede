@@ -167,7 +167,7 @@ class _AssistenteClienteScreenState extends State<AssistenteClienteScreen> {
   Widget _buildBalao(_MensagemExibida m) {
     final ehUsuario = m.role == 'user';
     final cor = ehUsuario
-        ? const Color(0xFF171717)
+        ? AppTheme.glassTextoAtivo
         : (m.erro ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
     final corTexto = ehUsuario
         ? Colors.white
@@ -204,7 +204,7 @@ class _AssistenteClienteScreenState extends State<AssistenteClienteScreen> {
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(AppTheme.radius),
                             ),
                             child: Text(
                               '${c.erro != null ? "Erro: ${c.erro}" : "${c.linhas} linha(s)"} — ${c.sql}',

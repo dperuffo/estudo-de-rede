@@ -222,7 +222,7 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Color(0xFF171717))),
+                              color: AppTheme.glassTextoAtivo)),
                       const SizedBox(height: 10),
                       if (ehAtual)
                         Container(

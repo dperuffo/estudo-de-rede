@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 3/10 — "👔 Macrorregião & Expansão". Porta
 // GraficoCoberturaMacrorregiao.tsx + GraficoOportunidadesExpansao.tsx.
@@ -21,7 +22,7 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
     if (score >= 80) return const Color(0xFFB71C1C);
     if (score >= 60) return const Color(0xFFE65100);
     if (score >= 40) return const Color(0xFFF57F17);
-    return const Color(0xFF171717);
+    return AppTheme.glassTextoAtivo;
   }
 
   @override

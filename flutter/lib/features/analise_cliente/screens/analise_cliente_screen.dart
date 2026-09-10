@@ -71,7 +71,7 @@ class _State extends State<AnaliseClienteScreen>
         actions: [
           DropdownButton<int>(
             value: _dias,
-            dropdownColor: const Color(0xFF171717),
+            dropdownColor: AppTheme.glassTextoAtivo,
             style: const TextStyle(color: Colors.white),
             items: [7, 15, 30, 60, 90, 180]
                 .map((d) => DropdownMenuItem(value: d, child: Text('$d dias')))
@@ -123,7 +123,7 @@ class _State extends State<AnaliseClienteScreen>
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF171717), Color(0xFF171717)],
+              colors: [AppTheme.glassTextoAtivo, AppTheme.glassTextoAtivo],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -199,7 +199,7 @@ class _State extends State<AnaliseClienteScreen>
                 (kpis['total_gasto'] as num? ?? 1).toDouble(),
                 fmt,
                 '${(c["litros"] ?? 0).toStringAsFixed(0)} L · ${c["n"]} abast. · ${fmt.format(c["preco_medio"] ?? 0)}/L',
-                const Color(0xFF171717),
+                AppTheme.glassTextoAtivo,
               )),
         ],
       ]),
@@ -235,13 +235,13 @@ class _State extends State<AnaliseClienteScreen>
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF171717).withOpacity(0.1),
+                  color: AppTheme.glassTextoAtivo.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
                     child: Text('${e.key + 1}',
                         style: const TextStyle(
-                            color: Color(0xFF171717),
+                            color: AppTheme.glassTextoAtivo,
                             fontWeight: FontWeight.bold,
                             fontSize: 12))),
               ),
@@ -253,16 +253,16 @@ class _State extends State<AnaliseClienteScreen>
               Text(fmt.format(gasto),
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF171717),
+                      color: AppTheme.glassTextoAtivo,
                       fontSize: 14)),
             ]),
             const SizedBox(height: 8),
             ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 child: LinearProgressIndicator(
                   value: total > 0 ? gasto / total : 0,
                   backgroundColor: Colors.grey[200],
-                  valueColor: const AlwaysStoppedAnimation(Color(0xFF171717)),
+                  valueColor: const AlwaysStoppedAnimation(AppTheme.glassTextoAtivo),
                   minHeight: 6,
                 )),
             const SizedBox(height: 6),
@@ -327,7 +327,7 @@ class _State extends State<AnaliseClienteScreen>
             ]),
             const SizedBox(height: 8),
             ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 child: LinearProgressIndicator(
                   value: total > 0 ? gasto / total : 0,
                   backgroundColor: Colors.grey[200],
@@ -398,7 +398,7 @@ class _State extends State<AnaliseClienteScreen>
             ]),
             const SizedBox(height: 8),
             ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 child: LinearProgressIndicator(
                   value: total > 0 ? gasto / total : 0,
                   backgroundColor: Colors.grey[200],
@@ -434,7 +434,7 @@ class _State extends State<AnaliseClienteScreen>
                   child: PieChart(PieChartData(
                 sections: dados.take(6).toList().asMap().entries.map((e) {
                   final cores = [
-                    const Color(0xFF171717),
+                    AppTheme.glassTextoAtivo,
                     Colors.teal,
                     Colors.green,
                     Colors.orange,
@@ -461,7 +461,7 @@ class _State extends State<AnaliseClienteScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: dados.take(6).toList().asMap().entries.map((e) {
                     final cores = [
-                      const Color(0xFF171717),
+                      AppTheme.glassTextoAtivo,
                       Colors.teal,
                       Colors.green,
                       Colors.orange,
@@ -503,19 +503,19 @@ class _State extends State<AnaliseClienteScreen>
               const SizedBox(width: 8),
               Expanded(
                   child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                       child: LinearProgressIndicator(
                         value: total > 0 ? gasto / total : 0,
                         backgroundColor: Colors.grey[200],
                         valueColor:
-                            const AlwaysStoppedAnimation(Color(0xFF171717)),
+                            const AlwaysStoppedAnimation(AppTheme.glassTextoAtivo),
                         minHeight: 20,
                       ))),
               const SizedBox(width: 8),
               Text(fmt.format(gasto),
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF171717),
+                      color: AppTheme.glassTextoAtivo,
                       fontSize: 12)),
             ]),
             Padding(
@@ -537,7 +537,7 @@ class _State extends State<AnaliseClienteScreen>
             style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF171717))),
+                color: AppTheme.glassTextoAtivo)),
       );
 
   Widget _metrica(String valor, String label) => Column(children: [
@@ -574,7 +574,7 @@ class _State extends State<AnaliseClienteScreen>
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
             color: cor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(4)),
+            borderRadius: BorderRadius.circular(AppTheme.radius)),
         child: Text(texto,
             style: TextStyle(
                 fontSize: 10, color: cor, fontWeight: FontWeight.w500)),
@@ -595,7 +595,7 @@ class _State extends State<AnaliseClienteScreen>
                   BarChartRodData(
                     toY: (e.value['gasto'] as num? ?? 0).toDouble(),
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF171717), Color(0xFF42A5F5)],
+                      colors: [AppTheme.glassTextoAtivo, Color(0xFF42A5F5)],
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
                     ),
@@ -653,7 +653,7 @@ class _State extends State<AnaliseClienteScreen>
         ]),
         const SizedBox(height: 4),
         ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(AppTheme.radius),
             child: LinearProgressIndicator(
               value: total > 0 ? valor / total : 0,
               backgroundColor: Colors.grey[200],

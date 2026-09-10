@@ -288,7 +288,7 @@ class _PneuFormScreenState extends ConsumerState<PneuFormScreen> {
                 : '${_dataInstalacao!.day.toString().padLeft(2, '0')}/${_dataInstalacao!.month.toString().padLeft(2, '0')}/${_dataInstalacao!.year}'),
             trailing: const Icon(Icons.calendar_today, size: 18),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 side: BorderSide(color: Colors.grey.shade400)),
             onTap: _selecionarData,
           ),

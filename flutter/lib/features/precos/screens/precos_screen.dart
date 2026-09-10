@@ -57,7 +57,7 @@ class _State extends State<PrecosScreen> {
         actions: [
           DropdownButton<int>(
             value: _dias,
-            dropdownColor: const Color(0xFF171717),
+            dropdownColor: AppTheme.glassTextoAtivo,
             style: const TextStyle(color: Colors.white),
             items: [30, 60, 90, 180]
                 .map((d) => DropdownMenuItem(value: d, child: Text('$d dias')))
@@ -102,7 +102,7 @@ class _State extends State<PrecosScreen> {
             style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF171717))),
+                color: AppTheme.glassTextoAtivo)),
       );
 
   Widget _cardCombustivel(Map c, NumberFormat fmt) {
@@ -132,13 +132,13 @@ class _State extends State<PrecosScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF171717).withOpacity(0.1),
+              color: AppTheme.glassTextoAtivo.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(nome,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF171717),
+                    color: AppTheme.glassTextoAtivo,
                     fontSize: 13)),
           ),
           const Spacer(),
@@ -217,7 +217,7 @@ class _State extends State<PrecosScreen> {
     final combustiveis =
         porComb.map((c) => c['item_nome']?.toString() ?? '').toSet().toList();
     final cores = [
-      const Color(0xFF171717),
+      AppTheme.glassTextoAtivo,
       Colors.red,
       Colors.green,
       Colors.orange,
@@ -327,7 +327,7 @@ class _State extends State<PrecosScreen> {
       },
       children: [
         TableRow(
-            decoration: const BoxDecoration(color: Color(0xFF171717)),
+            decoration: const BoxDecoration(color: AppTheme.glassTextoAtivo),
             children: [
               _celTabHeader('Combustivel'),
               _celTabHeader('Medio'),

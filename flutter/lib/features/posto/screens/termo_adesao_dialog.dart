@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/termo_adesao.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-2 — porta de ModalTermoAdesao.tsx. Mesmo texto canônico
 // (termo_adesao.dart), mesma exigência de marcar "li e aceito" antes de
@@ -72,7 +73,7 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: Color(0xFF171717))),
+                              color: AppTheme.glassTextoAtivo)),
                     );
                   }
                   return Padding(
