@@ -494,8 +494,18 @@ final meusFretesProvider =
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
+  // Fase Pente-Fino-Performance (10/09/2026, item 2.4) — mesmo achado do
+  // `meus_fretes_empresa` sem limite que motivou a paginação real no app
+  // web (ver fretes_empresa_pagina/actions.ts). Aqui, como a tela ainda
+  // consome a lista inteira de uma vez (sem abas por status como na web),
+  // um cap de segurança evita que uma empresa com histórico grande de
+  // fretes baixe tudo de uma vez. Não sei se a RPC já ordena por data
+  // internamente — vale confirmar com o Daniel se os 500 cortados são
+  // mesmo os mais recentes; se não for, ajustar a RPC pra ordenar antes
+  // do LIMIT (ou portar o mesmo padrão de paginação por abas da web).
   final rows = await SupabaseService.client
-      .rpc('meus_fretes_empresa', params: {'p_empresa_id': empresaId});
+      .rpc('meus_fretes_empresa', params: {'p_empresa_id': empresaId})
+      .limit(500);
   return (rows as List)
       .map((r) => FreteRow.fromMap(r as Map<String, dynamic>))
       .toList();

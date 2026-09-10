@@ -64,12 +64,18 @@ final pecasEstoqueListProvider =
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
+  // Fase Pente-Fino-Performance (10/09/2026, item 2.4) — achado real:
+  // consulta sem `.limit()` nenhum, trazia o catálogo de peças inteiro da
+  // empresa de uma vez. Cap de segurança — não afeta empresas com catálogo
+  // normal (dezenas/centenas de peças), só evita o pior caso (catálogo
+  // enorme) de virar uma consulta/payload sem limite.
   final rows = await SupabaseService.client
       .from('pecas_estoque')
       .select(
           'id, empresa_id, nome, codigo, unidade_medida, quantidade_atual, quantidade_minima, custo_unitario_medio, ativa')
       .eq('empresa_id', empresaId)
-      .order('nome') as List;
+      .order('nome')
+      .limit(500) as List;
   return rows
       .map((r) => PecaEstoque.fromMap(r as Map<String, dynamic>))
       .toList();

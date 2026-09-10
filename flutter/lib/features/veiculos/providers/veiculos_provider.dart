@@ -155,13 +155,20 @@ final veiculosClienteProvider =
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
+  // Fase Pente-Fino-Performance (10/09/2026, item 2.4) — achado real: a RPC
+  // não tinha limite nenhum, então o `.take(1000)` abaixo só descartava em
+  // memória DEPOIS de já ter baixado a frota inteira pela rede. Movendo o
+  // limite pra dentro da própria consulta (`.limit(1000)`), o banco já para
+  // de devolver linhas além disso — o comportamento pro usuário é idêntico
+  // (mesmo corte em 1000), só que sem gastar rede/memória à toa antes.
   final rows = await SupabaseService.client
-      .rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
+      .rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId})
+      .limit(1000) as List;
   final veiculos = rows
       .map((m) => Veiculo.fromMap(m as Map<String, dynamic>))
       .toList()
     ..sort((a, b) => a.placa.compareTo(b.placa));
-  return veiculos.take(1000).toList();
+  return veiculos;
 });
 
 final veiculoDetalheProvider =
