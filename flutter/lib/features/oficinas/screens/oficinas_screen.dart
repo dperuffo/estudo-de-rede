@@ -388,9 +388,14 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(o.nome,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 14)),
+                    Tooltip(
+                      message: o.nome,
+                      child: Text(o.nome,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 14)),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       '${[

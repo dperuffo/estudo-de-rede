@@ -175,10 +175,15 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
         title: Row(
           children: [
             Expanded(
-              child: Text(
-                p.nome + (!p.ativa ? ' (inativa)' : ''),
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              child: Tooltip(
+                message: p.nome + (!p.ativa ? ' (inativa)' : ''),
+                child: Text(
+                  p.nome + (!p.ativa ? ' (inativa)' : ''),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 14),
+                ),
               ),
             ),
             if (p.codigo != null)

@@ -186,8 +186,13 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/motoristas/${m.id}'),
-        title: Text(m.nomeCompleto,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        title: Tooltip(
+          message: m.nomeCompleto,
+          child: Text(m.nomeCompleto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

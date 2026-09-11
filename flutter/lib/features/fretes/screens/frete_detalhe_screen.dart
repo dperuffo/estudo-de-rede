@@ -119,6 +119,8 @@ class _CartaoFrete extends StatelessWidget {
               children: [
                 Expanded(
                     child: Text(frete.titulo,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 17))),
                 Text(labelStatusFrete[frete.status] ?? frete.status,
@@ -425,8 +427,14 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.nomeMotorista,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Tooltip(
+                        message: p.nomeMotorista,
+                        child: Text(p.nomeMotorista,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                       Text(p.telefoneMotorista ?? '—',
                           style: const TextStyle(
                               fontSize: 12, color: Colors.black54)),
@@ -580,6 +588,8 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(p.nomePosto,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 13)),

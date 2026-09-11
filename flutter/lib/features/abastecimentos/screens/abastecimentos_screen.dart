@@ -376,6 +376,8 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               Text(
                 '${r.placa ?? '—'} · ${r.motoristaNome ?? '—'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 6),

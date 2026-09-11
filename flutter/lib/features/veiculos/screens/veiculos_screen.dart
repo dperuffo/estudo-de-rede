@@ -209,23 +209,29 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              [v.marca, v.modelo]
-                      .where((x) => x != null && x.isNotEmpty)
-                      .join(' ')
-                      .isEmpty
-                  ? '—'
-                  : [v.marca, v.modelo]
-                      .where((x) => x != null && x.isNotEmpty)
-                      .join(' '),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            Builder(builder: (context) {
+              final marcaModelo = [v.marca, v.modelo]
+                  .where((x) => x != null && x.isNotEmpty)
+                  .join(' ');
+              final texto = marcaModelo.isEmpty ? '—' : marcaModelo;
+              return Tooltip(
+                message: texto,
+                child: Text(
+                  texto,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              );
+            }),
             Text(
               [
                 if (v.tipoVeiculo != null) v.tipoVeiculo!,
                 v.classificacao,
                 if (v.centroCustoNome != null) v.centroCustoNome!,
               ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],

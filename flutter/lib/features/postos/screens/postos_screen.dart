@@ -148,8 +148,14 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/postos/${p.cnpj}'),
-        title: Text(p.razaoSocial ?? p.cnpj,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        title: Tooltip(
+          message: p.razaoSocial ?? p.cnpj,
+          child: Text(p.razaoSocial ?? p.cnpj,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        ),
         subtitle: Text(
           [
             p.cnpj,
@@ -158,6 +164,8 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                 .join('/'),
             if (p.bandeira != null && p.bandeira!.isNotEmpty) p.bandeira!,
           ].where((v) => v.isNotEmpty).join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
         trailing: Container(

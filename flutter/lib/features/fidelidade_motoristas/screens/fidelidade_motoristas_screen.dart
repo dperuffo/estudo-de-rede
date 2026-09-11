@@ -322,8 +322,13 @@ class _FidelidadeMotoristasScreenState
             Row(
               children: [
                 Expanded(
-                  child: Text(m.nomeCompleto,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  child: Tooltip(
+                    message: m.nomeCompleto,
+                    child: Text(m.nomeCompleto,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
                 ),
                 Container(
                   padding:

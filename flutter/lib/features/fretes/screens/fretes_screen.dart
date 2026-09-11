@@ -174,6 +174,8 @@ class _CardFrete extends ConsumerWidget {
               children: [
                 Expanded(
                     child: Text(frete.titulo,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.bold))),
                 _ChipStatusFrete(status: frete.status),
               ],
@@ -194,8 +196,14 @@ class _CardFrete extends ConsumerWidget {
             ),
             if (frete.nomeMotorista != null) ...[
               const SizedBox(height: 4),
-              Text('Motorista: ${frete.nomeMotorista}',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              Tooltip(
+                message: 'Motorista: ${frete.nomeMotorista}',
+                child: Text('Motorista: ${frete.nomeMotorista}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.black54)),
+              ),
             ],
             const Divider(height: 20),
             Row(
