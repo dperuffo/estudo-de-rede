@@ -15,6 +15,8 @@ const ROUTES = {
   "/privacidade.html":    "privacidade.html",
   "/privacidade-en":      "privacidade-en.html",
   "/privacidade-en.html": "privacidade-en.html",
+  "/demo":                "demo.html",
+  "/demo.html":           "demo.html",
 };
 
 export default {

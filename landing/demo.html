@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Demo interativa | FNI Gestão de Frotas</title>
+<meta name="description" content="Explore a FNI com dados fictícios: preços ANP, rede de postos, consulta por rota, consumo da frota e simulador de economia.">
+<meta name="robots" content="index,follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Identidade da landing: navy + ciano, Outfit + Inter. Tema escuro único, por escolha. */
+:root{
+  color-scheme:dark;
+  --navy:#04112e; --bg:#04112e; --surface:#0a1a3d; --surface-2:#0f2350; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  --ink:#ffffff; --ink-2:#b7c3d6; --ink-3:#8a9bb5;
+  --cyan:#00b4d8; --cyan-2:#00c2ff; --cyan-soft:rgba(0,180,216,.12); --electric:#1a56f0; --gold:#f5a623; --gold-soft:rgba(245,166,35,.14);
+  --ok:#34d399; --ok-soft:rgba(52,211,153,.13); --warn:#f5a623; --warn-soft:rgba(245,166,35,.14); --bad:#f87171; --bad-soft:rgba(248,113,113,.14);
+  --plate-blue:#0a3a8c;
+  --display:"Outfit",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.55;padding-top:env(safe-area-inset-top,0px)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--cyan-2);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--display);font-weight:700;letter-spacing:-.01em;text-wrap:balance;margin:0;line-height:1.15}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--cyan-2)}
+
+/* ---------- barra superior (marketing) ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 24px;background:rgba(4,17,46,.94);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backdrop-filter:blur(16px)}
+.bar-left{display:flex;align-items:center;gap:14px;min-width:0}
+.bar-left img{height:34px;width:auto}
+.bar-back{color:var(--ink-3);text-decoration:none;font-size:13px}
+.bar-back:hover{color:var(--ink)}
+.bar-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line-2);background:rgba(255,255,255,.04);padding:8px 14px;border-radius:8px;font-weight:500;font-size:13.5px;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn:hover{background:rgba(255,255,255,.09)}
+.btn-p{background:var(--cyan);border-color:var(--cyan);color:var(--navy);font-weight:600}
+.btn-p:hover{background:var(--cyan-2)}
+.btn-gold{background:var(--gold);border-color:var(--gold);color:var(--navy);font-weight:600}
+.btn-gold:hover{filter:brightness(1.07);background:var(--gold)}
+.btn-sm{padding:5px 10px;font-size:12.5px}
+
+/* ---------- app simulado ---------- */
+.shell{display:grid;grid-template-columns:220px 1fr;max-width:1360px;margin:0 auto}
+.side{padding:20px 12px;border-right:1px solid var(--line);position:sticky;top:59px;height:calc(100vh - 59px);display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.side-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 10px}
+nav{display:flex;flex-direction:column;gap:2px}
+.nav-btn{display:flex;align-items:center;gap:10px;background:none;border:0;color:var(--ink-2);padding:9px 10px;border-radius:8px;text-align:left;font-size:14px}
+.nav-btn svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+.nav-btn[aria-current="true"]{background:var(--cyan-soft);color:var(--cyan-2)}
+.side-card{margin-top:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--ink-2)}
+.side-card b{color:var(--ink);font-family:var(--display);font-size:16px}
+
+.main{min-width:0;padding:22px 28px 140px;display:flex;flex-direction:column;gap:18px}
+.lead-strip{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.lead-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.lead-name{font-family:var(--display);font-size:24px;font-weight:700}
+.tag-demo{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--gold-soft);color:var(--gold);padding:4px 10px;border-radius:99px}
+
+.page-head h2{font-size:30px}
+.page-head p{margin:4px 0 0;color:var(--ink-2);max-width:66ch}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.panel-head h3{font-size:18px}
+.muted{color:var(--ink-3);font-size:12.5px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.kpi-label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.kpi-value{font-family:var(--display);font-size:30px;font-weight:700;line-height:1.05}
+.kpi-sub{font-size:12.5px;color:var(--ink-2)}
+.good{color:var(--ok)} .bad{color:var(--bad)} .warnc{color:var(--warn)}
+
+.g-2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px}
+.g-2e{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.chart-wrap{overflow-x:auto}
+.chart-wrap svg{display:block;width:100%;min-width:480px;height:auto}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:3px}
+
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.c-ok{background:var(--ok-soft);color:var(--ok)} .c-warn{background:var(--warn-soft);color:var(--warn)} .c-bad{background:var(--bad-soft);color:var(--bad)} .c-info{background:var(--cyan-soft);color:var(--cyan-2)}
+
+.plate{display:inline-flex;flex-direction:column;border:1.5px solid #cfd6e0;border-radius:4px;overflow:hidden;background:#fff;min-width:82px;line-height:1;vertical-align:middle}
+.plate-top{background:var(--plate-blue);color:#fff;font-size:7px;letter-spacing:.16em;text-align:center;padding:2px 0;font-weight:600}
+.plate-num{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:13px;color:#111;text-align:center;padding:3px 6px;letter-spacing:.06em}
+
+.events{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.events li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.events li:last-child{border-bottom:0}
+.dot{width:8px;height:8px;border-radius:50%}
+.ev-new{animation:flash 1.8s ease}
+@keyframes flash{from{background:var(--cyan-soft)}to{background:transparent}}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok)}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.input,.select{border:1px solid var(--line-2);background:var(--surface-2);border-radius:8px;padding:8px 11px;min-width:0}
+.input{flex:1 1 220px}
+.select option{background:var(--surface)}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;padding:7px 12px;font-size:13px;border-right:1px solid var(--line-2);color:var(--ink-2)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--cyan-soft);color:var(--cyan-2);font-weight:600}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;text-align:left;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:rgba(255,255,255,.025)}
+.r{text-align:right}
+.score{display:inline-flex;gap:2px}
+.score i{width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,.12)}
+.score i.on{background:var(--cyan)}
+.brand-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:0}
+
+/* rota */
+.route-svg{display:block;width:100%;min-width:640px;height:auto}
+.stop-list{display:flex;flex-direction:column;gap:8px}
+.stop{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.stop.best{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+.stop-km{font-family:var(--display);font-weight:700;font-size:18px;color:var(--ink-2)}
+.stop-name{font-weight:600}
+.stop-price{font-family:var(--display);font-weight:700;font-size:18px;text-align:right}
+
+/* consumo */
+.bar-cmp{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.08);width:120px}
+.bar-cmp span{position:absolute;left:0;top:0;height:100%;border-radius:4px}
+.bar-cmp em{position:absolute;top:-3px;width:2px;height:14px;background:var(--ink)}
+
+/* acordos */
+.agreements{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.agr{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.agr-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.agr-price{font-family:var(--display);font-size:24px;font-weight:700}
+
+/* assistente */
+.chat{display:flex;flex-direction:column;gap:12px;min-height:340px;max-height:520px;overflow-y:auto;padding:4px 2px 8px}
+.msg{max-width:78%;padding:10px 14px;border-radius:12px;font-size:14px}
+.msg.u{align-self:flex-end;background:var(--cyan);color:var(--navy);border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.a ul{margin:6px 0 0;padding-left:18px}
+.suggest{display:flex;gap:8px;flex-wrap:wrap}
+.suggest button{border:1px solid var(--line-2);background:transparent;border-radius:99px;padding:6px 12px;font-size:13px;color:var(--ink-2)}
+.suggest button:hover{border-color:var(--cyan);color:var(--cyan-2)}
+.chat-form{display:flex;gap:8px}
+
+/* simulador */
+.roi{display:grid;grid-template-columns:1fr 1.1fr;gap:14px}
+.slider{display:flex;flex-direction:column;gap:6px;padding:11px 0;border-bottom:1px solid var(--line)}
+.slider:last-child{border-bottom:0}
+.slider-top{display:flex;justify-content:space-between;gap:10px;font-size:13.5px}
+.slider-top b{font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--cyan)}
+.big{font-family:var(--display);font-size:50px;font-weight:800;line-height:1;background:linear-gradient(135deg,var(--cyan-2),#4d7bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line-2);font-size:14px}
+.row:last-child{border-bottom:0}
+.note{font-size:12px;color:var(--ink-3);margin:10px 0 0}
+
+/* resumo diretoria (documento claro, para parecer papel) */
+.doc{background:#f7f9fc;color:#0b1a33;border-radius:14px;padding:34px clamp(18px,4vw,46px);display:flex;flex-direction:column;gap:22px}
+.doc .muted{color:#5b6b82}
+.doc h2{font-size:34px;color:#04112e}
+.doc h3{font-size:19px;color:#04112e}
+.doc p{max-width:68ch;margin:0;color:#334560}
+.doc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:2px solid #04112e}
+.doc-grid div{padding:14px 16px 2px 0}
+.doc-grid .kpi-label{color:#5b6b82}
+.doc-grid .kpi-value{color:#04112e}
+.pillars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px;margin:0;padding:0;list-style:none}
+.pillars li{display:flex;flex-direction:column;gap:2px}
+.pillars span{color:#334560;font-size:13.5px}
+.plan{list-style:none;margin:0;padding:0;counter-reset:s}
+.plan li{display:grid;grid-template-columns:30px 1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid #dbe2ec;counter-increment:s;align-items:baseline}
+.plan li::before{content:counter(s);font-family:var(--display);font-weight:800;font-size:19px;color:#0092b3}
+.doc-cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* CTA final */
+.cta-band{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(0,180,216,.14),rgba(26,86,240,.12));border:1px solid rgba(0,180,216,.35);border-radius:14px;padding:18px 22px}
+.cta-band h3{font-size:20px}
+.cta-band p{margin:2px 0 0;color:var(--ink-2)}
+
+/* tour */
+.tour{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(560px,calc(100% - 32px));background:#020a1d;border:1px solid rgba(0,180,216,.4);border-radius:16px;padding:16px 18px;z-index:40;box-shadow:0 18px 50px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:10px}
+.tour-step{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan-2);font-weight:600}
+.tour h4{font-size:21px}
+.tour p{margin:0;color:var(--ink-2)}
+.tour-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tour-dots{display:flex;gap:5px}
+.tour-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2)}
+.tour-dots i.on{background:var(--cyan)}
+.hl{outline:2px solid var(--cyan);outline-offset:5px;border-radius:14px}
+
+.toasts{position:fixed;top:calc(74px + env(safe-area-inset-top,0px));right:18px;display:flex;flex-direction:column;gap:8px;z-index:30;width:min(340px,calc(100% - 36px))}
+.toast{background:var(--surface-2);border:1px solid var(--line-2);border-left:3px solid var(--cyan);border-radius:10px;padding:10px 14px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:slide .35s ease}
+.toast b{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+@keyframes slide{from{transform:translateX(20px);opacity:.3}to{transform:none;opacity:1}}
+
+.modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(2,8,20,.7);padding:16px}
+.modal-card{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:22px;width:min(460px,100%);display:flex;flex-direction:column;gap:14px;max-height:calc(100% - 32px);overflow-y:auto}
+.modal-card h3{font-size:23px}
+.field{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2)}
+.field .input,.field .select{flex:none;width:100%}
+.linkbox{display:flex;gap:8px}
+.linkbox input{flex:1;font-size:12.5px}
+.divider{border-top:1px solid var(--line);margin:4px 0}
+
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+
+@media (max-width:1080px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g-2,.g-2e,.roi{grid-template-columns:1fr}
+  .agreements{grid-template-columns:1fr}
+}
+@media (max-width:780px){
+  .shell{grid-template-columns:1fr}
+  .side{position:sticky;top:0;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px 16px;background:var(--bg);z-index:15;flex-direction:row;overflow-x:auto}
+  .side-label,.side-card{display:none}
+  nav{flex-direction:row;gap:4px}
+  .nav-btn{white-space:nowrap;padding:8px 10px}
+  .nav-btn svg{display:none}
+  .bar{position:static;padding:10px 16px}
+  .bar-back{display:none}
+  .main{padding:18px 16px 180px}
+  .doc-grid,.pillars{grid-template-columns:1fr}
+  .msg{max-width:92%}
+  .toasts{top:auto;bottom:calc(210px + env(safe-area-inset-bottom,0px))}
+  .kpi-value{font-size:26px}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-left">
+    <a href="/" aria-label="Voltar para a página inicial"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgNjQiIHdpZHRoPSIyMjAiIGhlaWdodD0iNDQiPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQsNCkiPjxsaW5lIHgxPSIyNCIgeTE9IjI0IiB4Mj0iOCIgeTI9IjEyIiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjQiIHkxPSIyNCIgeDI9IjUiIHkyPSIzMCIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSIxMCIgeTI9IjQ0IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjQiIHkxPSIyNCIgeDI9IjM2IiB5Mj0iOCIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSI0MCIgeTI9IjM4IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMjQgNSBDMTYgNSAxMCAxMSAxMCAxOCBDMTAgMjcgMjQgNDIgMjQgNDIgQzI0IDQyIDM4IDI3IDM4IDE4IEMzOCAxMSAzMiA1IDI0IDVaIiBmaWxsPSIjMDBiNGQ4Ii8+PGNpcmNsZSBjeD0iMjQiIGN5PSIxOCIgcj0iNiIgZmlsbD0iIzA0MTEyZSIvPjxjaXJjbGUgY3g9IjgiIGN5PSIxMiIgcj0iNCIgZmlsbD0iIzAwYjRkOCIvPjxjaXJjbGUgY3g9IjUiIGN5PSIzMCIgcj0iNCIgZmlsbD0iIzAwYjRkOCIvPjxjaXJjbGUgY3g9IjEwIiBjeT0iNDQiIHI9IjQiIGZpbGw9IiMwMGI0ZDgiLz48Y2lyY2xlIGN4PSIzNiIgY3k9IjgiIHI9IjQiIGZpbGw9IiMwMGI0ZDgiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjM4IiByPSI0IiBmaWxsPSIjMDBiNGQ4Ii8+PC9nPjx0ZXh0IHg9IjYyIiB5PSIyNiIgZm9udC1mYW1pbHk9Ik91dGZpdCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iNzAwIiBmb250LXNpemU9IjE1IiBmaWxsPSIjZmZmZmZmIiBsZXR0ZXItc3BhY2luZz0iMC4zIj5GbGVldCBOZXR3b3JrIEludGVsbGlnZW5jZTwvdGV4dD48dGV4dCB4PSI2MiIgeT0iNDQiIGZvbnQtZmFtaWx5PSJPdXRmaXQsc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjUwMCIgZm9udC1zaXplPSIxMC41IiBmaWxsPSIjMDBiNGQ4IiBsZXR0ZXItc3BhY2luZz0iMiI+R0VTVMODTyBERSBGUk9UQVM8L3RleHQ+PC9zdmc+" alt="FNI Gestão de Frotas"></a>
+    <a class="bar-back" href="/">← Voltar ao site</a>
+  </div>
+  <div class="bar-actions">
+    <button class="btn" type="button" id="btnPersonalize">Personalizar</button>
+    <button class="btn btn-gold" type="button" id="btnTour">Tour guiado</button>
+    <a class="btn btn-p" href="https://app.fxgestaodefrotasonline.com" id="barTrial">Teste grátis por 14 dias</a>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="side">
+    <div class="side-label">Módulos</div>
+    <nav id="nav" aria-label="Módulos da demonstração"></nav>
+    <div class="side-card">
+      <span>Gostou do que viu?</span>
+      <b>14 dias grátis, sem cartão</b>
+      <a class="btn btn-p btn-sm" href="https://app.fxgestaodefrotasonline.com">Criar conta</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="lead-strip">
+      <div>
+        <div class="lead-label" id="leadLabel">Demonstração da plataforma</div>
+        <div class="lead-name" id="leadName">Transportadora Horizonte</div>
+      </div>
+      <span class="tag-demo">Dados fictícios</span>
+    </div>
+
+    <!-- PAINEL -->
+    <section id="v-painel" data-view>
+      <div class="page-head"><h2>Painel de combustível</h2><p>Quanto a frota gastou, quanto economizou e onde está pagando acima do preço de referência da ANP.</p></div>
+      <div class="kpis" id="kpis" style="margin-top:16px"></div>
+      <div class="g-2" style="margin-top:14px">
+        <div class="panel" id="chartPanel">
+          <div class="panel-head"><h3>Preço médio pago x média ANP</h3><span class="muted">Diesel S10, R$/litro</span></div>
+          <div class="chart-wrap" id="chart"></div>
+          <div class="legend"><span><i style="background:var(--cyan)"></i>Preço pago pela frota</span><span><i style="background:var(--gold)"></i>Média ANP nos municípios abastecidos</span></div>
+        </div>
+        <div class="panel" id="eventsPanel">
+          <div class="panel-head"><h3>Abastecimentos agora</h3><span class="live">Ao vivo</span></div>
+          <ul class="events" id="events"></ul>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-head"><h3>Alertas que pedem ação</h3><span class="muted">Priorizados pela plataforma</span></div>
+        <ul class="events" id="alerts"></ul>
+      </div>
+    </section>
+
+    <!-- POSTOS -->
+    <section id="v-postos" data-view hidden>
+      <div class="page-head"><h2>Rede de postos x ANP</h2><p>Cada posto credenciado comparado com a média oficial da ANP no município. Verde é abaixo da média; vermelho é acima.</p></div>
+      <div class="panel" style="margin-top:16px">
+        <div class="toolbar">
+          <input class="input" id="qPosto" type="search" placeholder="Buscar posto ou cidade" aria-label="Buscar posto ou cidade">
+          <div class="seg" id="segUF" role="group" aria-label="Filtrar por estado"></div>
+          <select class="select" id="sortPosto" aria-label="Ordenar">
+            <option value="diff">Menor preço vs ANP</option><option value="price">Menor preço</option><option value="score">Melhor qualidade</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Posto</th><th>Cidade</th><th>Bandeira</th><th class="r">Diesel S10</th><th class="r">Média ANP</th><th class="r">Diferença</th><th>Acordo</th><th>Qualidade</th></tr></thead>
+          <tbody id="tPostos"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ROTA -->
+    <section id="v-rota" data-view hidden>
+      <div class="page-head"><h2>Consulta por rota</h2><p>Escolha a rota e o veículo. A plataforma mostra os postos da rede no caminho e onde abastecer para gastar menos.</p></div>
+      <div class="panel" style="margin-top:16px" id="routePanel">
+        <div class="toolbar">
+          <select class="select" id="selRota" aria-label="Rota"></select>
+          <select class="select" id="selVeic" aria-label="Veículo">
+            <option value="400">Cavalo mecânico · tanque 400 L</option>
+            <option value="275">Caminhão toco · tanque 275 L</option>
+            <option value="80">Pickup diesel · tanque 80 L</option>
+          </select>
+        </div>
+        <div class="chart-wrap" id="routeMap"></div>
+      </div>
+      <div class="g-2e" style="margin-top:14px">
+        <div class="panel">
+          <div class="panel-head"><h3>Postos no caminho</h3><span class="muted" id="routeCount"></span></div>
+          <div class="stop-list" id="stops"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Recomendação</h3></div>
+          <div id="routeReco"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONSUMO -->
+    <section id="v-consumo" data-view hidden>
+      <div class="page-head"><h2>Consumo da frota</h2><p>Consumo real por veículo, calculado a partir dos abastecimentos e da quilometragem. Desvios geram alerta automático.</p></div>
+      <div class="panel" style="margin-top:16px">
+        <div class="toolbar">
+          <div class="seg" id="segCons" role="group" aria-label="Filtrar consumo"></div>
+          <span class="muted">A linha branca marca o consumo esperado para o modelo.</span>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Placa</th><th>Veículo</th><th>Motorista</th><th class="r">Km no mês</th><th class="r">Litros</th><th>Consumo real x esperado</th><th class="r">km/L</th><th>Situação</th></tr></thead>
+          <tbody id="tCons"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ACORDOS -->
+    <section id="v-acordos" data-view hidden>
+      <div class="page-head"><h2>Acordos de preço</h2><p>Os preços negociados com cada posto ficam registrados. Todo abastecimento é conferido automaticamente contra o acordo.</p></div>
+      <div class="agreements" id="agreements" style="margin-top:16px"></div>
+      <div class="panel" style="margin-top:14px" id="validPanel">
+        <div class="panel-head"><h3>Abastecimentos conferidos</h3><span class="muted" id="validSummary"></span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Data</th><th>Placa</th><th>Posto</th><th class="r">Litros</th><th class="r">Cobrado</th><th class="r">Acordo</th><th class="r">Diferença</th><th>Situação</th></tr></thead>
+          <tbody id="tValid"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ASSISTENTE -->
+    <section id="v-assistente" data-view hidden>
+      <div class="page-head"><h2>Assistente IA</h2><p>Pergunte em português sobre preços, postos e consumo. O assistente consulta os dados da frota e responde na hora.</p></div>
+      <div class="panel" style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <div class="suggest" id="suggest"></div>
+        <form class="chat-form" id="chatForm">
+          <input class="input" id="chatInput" placeholder="Ex.: onde abastecer mais barato na Dutra?" aria-label="Pergunta ao assistente" autocomplete="off">
+          <button class="btn btn-p" type="submit">Perguntar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- SIMULADOR -->
+    <section id="v-economia" data-view hidden>
+      <div class="page-head"><h2>Simulador de economia</h2><p>Coloque os números da sua operação e veja a economia estimada em 12 meses, já descontado o plano indicado.</p></div>
+      <div class="roi" style="margin-top:16px">
+        <div class="panel"><h3 style="font-size:18px;margin-bottom:4px">Sua operação</h3><div id="sliders"></div></div>
+        <div class="panel" id="roiOut">
+          <div class="lead-label">Economia líquida estimada em 12 meses</div>
+          <div class="big num" id="saveBig">R$ 0</div>
+          <div class="muted" id="payback" style="margin:8px 0 14px;font-size:13.5px"></div>
+          <div class="rows" id="roiRows"></div>
+          <p class="note">Estimativa com base nas premissas acima. Valores ilustrativos, sem compromisso comercial.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIRETORIA -->
+    <section id="v-diretoria" data-view hidden>
+      <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap">
+        <div><h2>Resumo para a diretoria</h2><p>Uma página para levar ao board. Os números vêm do simulador.</p></div>
+        <button class="btn btn-p" id="btnCopy" type="button">Copiar resumo em texto</button>
+      </div>
+      <article class="doc" id="doc" style="margin-top:16px"></article>
+    </section>
+
+    <div class="cta-band">
+      <div><h3>Veja isso com os dados da sua frota</h3><p>Crie a conta e teste o plano Profissional por 14 dias. Sem cartão de crédito.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-p" href="https://app.fxgestaodefrotasonline.com">Começar teste grátis</a>
+        <button class="btn" type="button" id="btnContact">Falar com especialista</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<div class="modal" id="modal" hidden>
+  <form class="modal-card" id="pForm">
+    <h3>Personalizar a demonstração</h3>
+    <p class="muted" style="margin:0">Informe sua empresa e o tamanho da frota. Os números da demo e do resumo para a diretoria passam a usar esses dados.</p>
+    <label class="field">Nome da empresa<input class="input" id="pName" maxlength="48" autocomplete="organization"></label>
+    <label class="field">Veículos na frota<input class="input" id="pSize" type="number" min="5" max="5000" inputmode="numeric"></label>
+    <label class="field">Consultor responsável (opcional)<input class="input" id="pSeller" maxlength="40"></label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn" type="button" id="pCancel">Cancelar</button>
+      <button class="btn btn-p" type="submit">Aplicar</button>
+    </div>
+    <div class="divider"></div>
+    <div class="field">Link personalizado para enviar
+      <div class="linkbox"><input class="input" id="pLink" readonly aria-label="Link personalizado"><button class="btn btn-sm" type="button" id="pCopy">Copiar</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="modal" id="contact" hidden>
+  <div class="modal-card">
+    <h3>Falar com um especialista</h3>
+    <p style="margin:0;color:var(--ink-2)">Envie um e-mail com o nome da empresa e o tamanho da frota. Respondemos em até um dia útil.</p>
+    <div class="linkbox"><input class="input" id="cMail" readonly value="contato@fxgestaodefrotasonline.com" aria-label="E-mail de contato"><button class="btn btn-sm" type="button" id="cCopy">Copiar</button></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn" type="button" id="cClose">Fechar</button>
+      <a class="btn btn-p" id="cMailto" href="mailto:contato@fxgestaodefrotasonline.com">Abrir meu e-mail</a>
+    </div>
+  </div>
+</div>
+
+<div class="tour" id="tour" hidden role="dialog" aria-label="Tour guiado">
+  <div class="tour-step" id="tourStep"></div>
+  <h4 id="tourTitle"></h4>
+  <p id="tourText"></p>
+  <div class="tour-actions">
+    <div class="tour-dots" id="tourDots"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" id="tourPrev" type="button">Voltar</button>
+      <button class="btn btn-sm" id="tourClose" type="button">Explorar sozinho</button>
+      <button class="btn btn-sm btn-gold" id="tourNext" type="button">Próximo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const brl=(v,d=2)=>"R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const R0=v=>brl(Math.round(v),0);
+const N0=v=>Math.round(v).toLocaleString("pt-BR");
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const APP="https://app.fxgestaodefrotasonline.com";
+
+/* ================= Estado e personalização =================
+   Links personalizados: /demo?empresa=Nome&frota=120&consultor=Ana
+   A personalização também fica salva no navegador do visitante. */
+const S={lead:"",size:60,seller:"",roi:{size:60,litros:0,preco:6.29,melhor:4.5,consumo:3,acordo:1.5,horas:40}};
+S.roi.litros=S.size*1250;
+try{const sv=JSON.parse(localStorage.getItem("fni-demo")||"null");if(sv&&sv.v===2){Object.assign(S,sv.s);}}catch(e){}
+const qp=new URLSearchParams(location.search);
+if(qp.get("empresa")){S.lead=qp.get("empresa").slice(0,48);}
+if(qp.get("frota")){const n=parseInt(qp.get("frota"),10);if(n>=5){S.size=Math.min(5000,n);S.roi.size=Math.min(1000,S.size);S.roi.litros=S.size*1250;}}
+if(qp.get("consultor")){S.seller=qp.get("consultor").slice(0,40);}
+function persist(){try{localStorage.setItem("fni-demo",JSON.stringify({v:2,s:S}));}catch(e){}}
+function leadName(){return S.lead||"Transportadora Horizonte";}
+
+/* ================= Dados fictícios (gerados com semente) ================= */
+function rng(seed){let s=seed>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+const BRANDS={Ipiranga:"#f5c518",Shell:"#e8433a",Petrobras:"#2fa35b","Bandeira branca":"#c7d0dc",Ale:"#3a7bd5"};
+const CITIES=[["Rio de Janeiro","RJ",6.31],["Duque de Caxias","RJ",6.27],["Barra Mansa","RJ",6.22],["Resende","RJ",6.19],["Volta Redonda","RJ",6.24],
+  ["São José dos Campos","SP",6.14],["Taubaté","SP",6.11],["Guarulhos","SP",6.17],["São Paulo","SP",6.21],["Campinas","SP",6.09],["Registro","SP",6.18],
+  ["Juiz de Fora","MG",6.28],["Belo Horizonte","MG",6.33],["Contagem","MG",6.26],["Governador Valadares","MG",6.41],
+  ["Curitiba","PR",6.12],["Ponta Grossa","PR",6.05]];
+const PNAMES=["Estrela da Serra","Rodovia Sul","Parada Certa","Via Expressa","Trevo Azul","Caminhoneiro Feliz","Ponto Final","Bom Jesus","Serra Verde","Graal da Estrada","Km 47","Rota Livre","Três Irmãos","Horizonte","Carreteiro","Guará","Sete Lagoas","Vale do Paraíba","Nova Era","Mirante"];
+let POSTOS=[],VEIC=[],VALID=[];
+function buildData(){
+  const r=rng(S.size*7919+23);
+  POSTOS=[];
+  CITIES.forEach(([c,uf,anp],i)=>{
+    const n=1+Math.floor(r()*2.2);
+    for(let k=0;k<n;k++){
+      const bn=Object.keys(BRANDS)[Math.floor(r()*5)];
+      const price=+(anp+(r()-.55)*.34).toFixed(2);
+      const hasAcordo=r()<.45;
+      POSTOS.push({id:POSTOS.length,name:"Posto "+PNAMES[(i*3+k*7)%PNAMES.length],city:c,uf,anp,brand:bn,price,
+        acordo:hasAcordo?+(Math.min(price,anp)-.06-r()*.08).toFixed(2):null,score:2+Math.floor(r()*4)});
+    }
+  });
+  const MODELS=[["Volvo FH 540",2.35],["Scania R 450",2.45],["Mercedes Actros 2651",2.4],["VW Constellation 24.280",3.1],["Mercedes Atego 1719",3.9],["VW Delivery 11.180",5.6],["Toyota Hilux 2.8 D",9.8]];
+  const NAMES=["Carlos Menezes","Juliana Rocha","Rafael Souza","Marcos Lima","Patrícia Alves","Anderson Costa","Fernanda Dias","Luiz Pereira","Bruno Martins","Aline Ferreira","Diego Ramos","Tiago Barbosa","Renata Gomes","Eduardo Nunes"];
+  const L="ABCDEFGHJKLMNPRSTUVWXYZ";
+  VEIC=[];
+  const nv=Math.min(S.size,36);
+  for(let i=0;i<nv;i++){
+    const [m,exp]=MODELS[Math.floor(r()*MODELS.length)];
+    const plate=L[Math.floor(r()*23)]+L[Math.floor(r()*23)]+L[Math.floor(r()*23)]+Math.floor(r()*10)+L[Math.floor(r()*23)]+Math.floor(r()*10)+Math.floor(r()*10);
+    const p=r(); const dev=p<.7?(r()-.4)*.06:p<.88?-(.07+r()*.06):-(.14+r()*.1);
+    const kml=+(exp*(1+dev)).toFixed(2);
+    const km=Math.round((exp<4?9000:4200)*(.7+r()*.6));
+    VEIC.push({plate,model:m,exp,kml,km,litros:Math.round(km/kml),driver:NAMES[Math.floor(r()*NAMES.length)],dev});
+  }
+  VALID=[];
+  const withA=POSTOS.filter(p=>p.acordo);
+  for(let i=0;i<14;i++){
+    const p=withA[Math.floor(r()*withA.length)],v=VEIC[Math.floor(r()*VEIC.length)];
+    const over=r()<.22;const charged=+(p.acordo+(over?.09+r()*.14:0)).toFixed(2);
+    const lt=Math.round(v.exp<4?180+r()*220:40+r()*50);
+    VALID.push({day:String(26-Math.floor(i*1.7)).padStart(2,"0")+"/09",plate:v.plate,posto:p.name,city:p.city,lt,charged,acordo:p.acordo,status:over?"over":"ok"});
+  }
+}
+const plateHTML=p=>`<span class="plate"><span class="plate-top">BRASIL</span><span class="plate-num">${p}</span></span>`;
+
+/* ================= Navegação ================= */
+const ICON={
+  painel:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 9h8V3h-8z"/>',
+  postos:'<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M6 8h6M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9l-3-3"/>',
+  rota:'<path d="M6 19a2 2 0 1 0 0-.01M18 5a2 2 0 1 0 0-.01M6 17V9a4 4 0 0 1 4-4h2M18 7v8a4 4 0 0 1-4 4h-2"/>',
+  consumo:'<path d="M12 21a8 8 0 1 1 8-8M12 13l4-4M3 13h2M12 4v2"/>',
+  acordos:'<path d="M9 12l2 2 4-4M7 3h10l4 4v14H3V7z"/>',
+  assistente:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  economia:'<path d="M3 3v18h18M7 15l4-4 3 3 6-6"/>',
+  diretoria:'<path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h6"/>'
+};
+const VIEWS=[["painel","Painel"],["postos","Postos x ANP"],["rota","Consulta por rota"],["consumo","Consumo"],["acordos","Acordos de preço"],["assistente","Assistente IA"],["economia","Simulador de economia"],["diretoria","Resumo p/ diretoria"]];
+$("#nav").innerHTML=VIEWS.map(([k,t])=>`<button class="nav-btn" type="button" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>${t}</button>`).join("");
+function go(k,noScroll){
+  document.querySelectorAll("[data-view]").forEach(s=>s.hidden=s.id!=="v-"+k);
+  document.querySelectorAll(".nav-btn").forEach(b=>b.setAttribute("aria-current",String(b.dataset.go===k)));
+  if(k==="diretoria")renderDoc();
+  try{history.replaceState(null,"",location.pathname+location.search+"#"+k);}catch(e){}
+  if(!noScroll)window.scrollTo({top:0});
+  track("view_"+k);
+}
+$("#nav").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)go(b.dataset.go);});
+
+/* Medição simples: se a landing tiver Google Analytics/Tag Manager, os eventos entram lá. */
+function track(name){try{if(window.gtag)window.gtag("event",name,{event_category:"demo"});if(window.dataLayer)window.dataLayer.push({event:"demo_"+name});}catch(e){}}
+
+/* ================= Painel ================= */
+function monthly(){
+  const r=rng(S.size*31+7);const out=[];let paid=6.34,anp=6.30;
+  ["Abr","Mai","Jun","Jul","Ago","Set"].forEach((m,i)=>{
+    anp=+(anp+(r()-.45)*.07).toFixed(3);
+    const gap=i<2?.03-i*.01:-(.05+i*.022);
+    paid=+(anp+gap+(r()-.5)*.02).toFixed(3);
+    out.push({m,anp,paid});
+  });return out;
+}
+function renderChart(){
+  const d=monthly(),W=580,H=250,pl=48,pr=16,pt=16,pb=30;
+  const all=d.flatMap(x=>[x.anp,x.paid]);const lo=Math.floor((Math.min(...all)-.05)*10)/10,hi=Math.ceil((Math.max(...all)+.05)*10)/10;
+  const x=i=>pl+i*(W-pl-pr)/(d.length-1),y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
+  let g="";
+  for(let t=lo;t<=hi+1e-9;t+=.1){g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(t)}" y2="${y(t)}" stroke="rgba(255,255,255,.07)"/><text x="${pl-8}" y="${y(t)+4}" text-anchor="end" font-size="11" fill="#8a9bb5" font-family="Inter,sans-serif">${t.toFixed(2).replace(".",",")}</text>`;}
+  d.forEach((p,i)=>{g+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="12" fill="#b7c3d6" font-family="Inter,sans-serif">${p.m}</text>`;});
+  const path=k=>d.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+","+y(p[k]).toFixed(1)).join("");
+  const area=d.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+","+y(p.anp).toFixed(1)).join("")+d.slice().reverse().map((p,j)=>"L"+x(d.length-1-j).toFixed(1)+","+y(p.paid).toFixed(1)).join("")+"Z";
+  g+=`<path d="${area}" fill="rgba(52,211,153,.10)"/>`;
+  g+=`<path d="${path("anp")}" fill="none" stroke="#f5a623" stroke-width="2.2" stroke-dasharray="5 4"/>`;
+  g+=`<path d="${path("paid")}" fill="none" stroke="#00c2ff" stroke-width="2.6"/>`;
+  d.forEach((p,i)=>{g+=`<circle cx="${x(i)}" cy="${y(p.paid)}" r="${i===5?5:3}" fill="#00c2ff"><title>${p.m}: pago ${brl(p.paid,3)} · ANP ${brl(p.anp,3)}</title></circle>`;});
+  const L=d[5];g+=`<text x="${x(5)-8}" y="${y(L.paid)+18}" text-anchor="end" font-size="12" font-weight="600" fill="#34d399" font-family="Inter,sans-serif">${brl(L.anp-L.paid,3)}/L abaixo da ANP</text>`;
+  $("#chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Preço médio pago pela frota comparado com a média ANP, abril a setembro">${g}</svg>`;
+}
+function fleetLitros(){return S.size*1250;}
+function renderPainel(){
+  const d=monthly(),L=d[5],lit=fleetLitros();
+  const eco=(L.anp-L.paid)*lit;
+  const over=VALID.filter(v=>v.status==="over").length;
+  const desv=VEIC.filter(v=>v.dev<-.07).length;
+  $("#kpis").innerHTML=[
+    ["Economia em setembro",R0(eco),"comparado a pagar a média ANP","good"],
+    ["Preço médio pago",brl(L.paid,3),`Média ANP: ${brl(L.anp,3)}`,""],
+    ["Litros abastecidos",N0(lit)+" L",`${N0(S.size)} veículos ativos`,""],
+    ["Cobranças fora do acordo",String(over),`${desv} veículos com consumo fora do padrão`,"bad"]
+  ].map(([l,v,s,c])=>`<div class="kpi"><span class="kpi-label">${l}</span><span class="kpi-value num">${v}</span><span class="kpi-sub ${c}">${s}</span></div>`).join("");
+  renderChart();
+  const worst=POSTOS.slice().sort((a,b)=>(b.price-b.anp)-(a.price-a.anp))[0];
+  const v1=VEIC.slice().sort((a,b)=>a.dev-b.dev)[0];
+  const o1=VALID.find(v=>v.status==="over");
+  const al=[
+    ["var(--bad)",`<b>${o1?o1.posto:"Posto"}</b> cobrou ${brl(o1?o1.charged-o1.acordo:.1)}/L acima do acordo`,"Ver acordo","acordos"],
+    ["var(--warn)",`<b>${v1.plate}</b> está com consumo ${Math.round(-v1.dev*100)}% abaixo do esperado`,"Analisar","consumo"],
+    ["var(--warn)",`<b>${worst.name}</b> (${worst.city}) está ${brl(worst.price-worst.anp)}/L acima da média ANP`,"Ver postos","postos"],
+    (()=>{const st=routeStops(ROTAS[0]);const b=st.reduce((a,c)=>c.pay<a.pay?c:a),w=st.reduce((a,c)=>c.pay>a.pay?c:a);
+      return ["var(--cyan)",`Rota Rio de Janeiro → São Paulo: abastecer em ${b.city} economiza até ${R0((w.pay-b.pay)*400)} por tanque`,"Ver rota","rota"];})()
+  ];
+  $("#alerts").innerHTML=al.map(([c,t,a,v])=>`<li><span class="dot" style="background:${c}"></span><span>${t}</span><button class="btn btn-sm" type="button" data-to="${v}">${a}</button></li>`).join("");
+  seedEvents();
+}
+$("#alerts").addEventListener("click",e=>{const b=e.target.closest("[data-to]");if(b)go(b.dataset.to);});
+
+/* Abastecimentos em tempo real (simulado) */
+let EV=[];
+function genEvent(){
+  const p=POSTOS[Math.floor(Math.random()*POSTOS.length)],v=VEIC[Math.floor(Math.random()*VEIC.length)];
+  const lt=Math.round(v.exp<4?150+Math.random()*250:35+Math.random()*50);
+  const good=p.price<=p.anp;
+  return {c:good?"var(--ok)":"var(--warn)",t:`<b>${v.plate}</b> abasteceu ${lt} L em ${esc(p.city)} a ${brl(p.price)}/L`,tag:good?"abaixo da ANP":"acima da ANP"};
+}
+function nowStr(min){return new Date(Date.now()-min*60000).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});}
+function seedEvents(){EV=[2,9,17,31,48].map(m=>Object.assign(genEvent(),{h:nowStr(m)}));renderEvents();}
+function renderEvents(fresh){
+  $("#events").innerHTML=EV.slice(0,6).map((e,i)=>`<li class="${fresh&&i===0?"ev-new":""}"><span class="dot" style="background:${e.c}"></span><span>${e.t}<br><span class="muted">${e.tag}</span></span><span class="muted num">${e.h}</span></li>`).join("");
+}
+function pushEvent(){const e=genEvent();EV.unshift(Object.assign(e,{h:nowStr(0)}));EV.length=Math.min(EV.length,10);renderEvents(true);toast("Abastecimento registrado",e.t.replace(/<[^>]+>/g,""));}
+setInterval(()=>{if(!document.hidden&&!$("#v-painel").hidden)pushEvent();},25000);
+
+function toast(t,x){const el=document.createElement("div");el.className="toast";el.innerHTML=`<b>${esc(t)}</b>${esc(x)}`;$("#toasts").prepend(el);setTimeout(()=>el.remove(),5200);while($("#toasts").children.length>3)$("#toasts").lastChild.remove();}
+
+/* ================= Postos x ANP ================= */
+let uf="Todos";
+$("#segUF").innerHTML=["Todos","RJ","SP","MG","PR"].map(u=>`<button type="button" data-uf="${u}" aria-pressed="${u==="Todos"}">${u}</button>`).join("");
+$("#segUF").addEventListener("click",e=>{const b=e.target.closest("[data-uf]");if(!b)return;uf=b.dataset.uf;$("#segUF").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));renderPostos();});
+$("#qPosto").addEventListener("input",renderPostos);
+$("#sortPosto").addEventListener("change",renderPostos);
+function renderPostos(){
+  const q=$("#qPosto").value.trim().toLowerCase(),s=$("#sortPosto").value;
+  let rows=POSTOS.filter(p=>(uf==="Todos"||p.uf===uf)&&(!q||(p.name+" "+p.city).toLowerCase().includes(q)));
+  rows.sort((a,b)=>s==="price"?a.price-b.price:s==="score"?b.score-a.score:(a.price-a.anp)-(b.price-b.anp));
+  $("#tPostos").innerHTML=rows.map(p=>{const df=p.price-p.anp;
+    return `<tr><td style="font-weight:600">${p.name}</td><td>${p.city}/${p.uf}</td><td><span class="brand-dot" style="background:${BRANDS[p.brand]}"></span>${p.brand}</td>
+    <td class="r num">${brl(p.price)}</td><td class="r num muted">${brl(p.anp)}</td>
+    <td class="r num"><span class="chip ${df<=-.02?"c-ok":df<.03?"c-info":"c-bad"}">${df>0?"+":""}${df.toFixed(2).replace(".",",")}</span></td>
+    <td>${p.acordo?`<span class="num">${brl(p.acordo)}</span>`:'<span class="muted">Sem acordo</span>'}</td>
+    <td><span class="score" aria-label="Qualidade ${p.score} de 5">${[1,2,3,4,5].map(i=>`<i class="${i<=p.score?"on":""}"></i>`).join("")}</span></td></tr>`;}).join("")||`<tr><td colspan="8" class="muted">Nenhum posto encontrado.</td></tr>`;
+}
+
+/* ================= Consulta por rota ================= */
+const ROTAS=[
+  {id:"dutra",name:"Rio de Janeiro → São Paulo · BR-116 (Dutra)",km:435,stops:[["Duque de Caxias","RJ",18],["Volta Redonda","RJ",112],["Barra Mansa","RJ",128],["Resende","RJ",152],["Taubaté","SP",298],["São José dos Campos","SP",335],["Guarulhos","SP",410]]},
+  {id:"br040",name:"Rio de Janeiro → Belo Horizonte · BR-040",km:440,stops:[["Duque de Caxias","RJ",20],["Juiz de Fora","MG",184],["Contagem","MG",428]]},
+  {id:"regis",name:"São Paulo → Curitiba · BR-116 (Régis Bittencourt)",km:408,stops:[["Registro","SP",185],["Curitiba","PR",400]]}
+];
+$("#selRota").innerHTML=ROTAS.map(r=>`<option value="${r.id}">${r.name}</option>`).join("");
+$("#selRota").addEventListener("change",renderRota);$("#selVeic").addEventListener("change",renderRota);
+function routeStops(r){
+  const out=[];r.stops.forEach(([c,u,k])=>POSTOS.filter(p=>p.city===c).forEach(p=>out.push(Object.assign({km:k},p))));
+  return out.map(p=>Object.assign(p,{pay:p.acordo||p.price}));
+}
+function renderRota(){
+  const r=ROTAS.find(x=>x.id===$("#selRota").value),tank=+$("#selVeic").value;
+  const st=routeStops(r);const best=st.reduce((a,b)=>b.pay<a.pay?b:a,st[0]),worst=st.reduce((a,b)=>b.pay>a.pay?b:a,st[0]);
+  const W=760,H=124,pl=30,pr=30,y=70;const x=k=>pl+(W-pl-pr)*k/r.km;
+  const [o,dst]=r.name.split(" · ")[0].split(" → ");
+  let g=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.18)" stroke-width="6" stroke-linecap="round"/>
+  <line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#04112e" stroke-width="1.5" stroke-dasharray="10 10"/>
+  <circle cx="${pl}" cy="${y}" r="7" fill="#fff"/><circle cx="${W-pr}" cy="${y}" r="7" fill="#fff"/>
+  <text x="${pl}" y="${y+30}" font-size="12" fill="#b7c3d6" font-family="Inter,sans-serif">${o}</text>
+  <text x="${W-pr}" y="${y+30}" text-anchor="end" font-size="12" fill="#b7c3d6" font-family="Inter,sans-serif">${dst} · ${r.km} km</text>`;
+  const groups={};st.forEach(p=>{(groups[p.km]=groups[p.km]||[]).push(p);});
+  let lastX=-99,lift=0;
+  Object.keys(groups).map(Number).sort((a,b)=>a-b).forEach(k=>{
+    const ps=groups[k],cx=x(k),min=ps.reduce((a,b)=>b.pay<a.pay?b:a),isB=ps.includes(best);
+    lift=(cx-lastX<56)?(lift?0:20):0;lastX=cx;
+    g+=`<g><title>${ps.map(p=>p.name+" · "+brl(p.pay)+"/L").join("\n")}</title><circle cx="${cx}" cy="${y}" r="${isB?9:6}" fill="${isB?"#00c2ff":"#f5a623"}" stroke="#04112e" stroke-width="2"/>
+    <text x="${cx}" y="${y-18-lift}" text-anchor="middle" font-size="12" font-weight="${isB?700:500}" fill="${isB?"#00c2ff":"#b7c3d6"}" font-family="Inter,sans-serif">${ps.length>1?"a partir de ":""}${brl(min.pay).replace("R$ ","")}</text></g>`;});
+  $("#routeMap").innerHTML=`<svg class="route-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Postos da rede ao longo da rota">${g}</svg>`;
+  $("#routeCount").textContent=`${st.length} postos da rede`;
+  $("#stops").innerHTML=st.slice().sort((a,b)=>a.km-b.km).map(p=>`<div class="stop ${p===best?"best":""}"><span class="stop-km num">km ${p.km}</span>
+    <span><span class="stop-name">${p.name}</span><br><span class="muted">${p.city}/${p.uf} · ${p.brand}${p.acordo?" · preço de acordo":""}</span></span>
+    <span class="stop-price num">${brl(p.pay)}</span></div>`).join("");
+  const sv=(worst.pay-best.pay)*tank,trips=S.size*6;
+  $("#routeReco").innerHTML=`<div class="lead-label">Melhor parada</div>
+    <div style="font-family:var(--display);font-size:26px;font-weight:700;margin:4px 0 2px">${best.name}</div>
+    <div class="muted" style="font-size:13.5px">${best.city}/${best.uf}, km ${best.km} · ${brl(best.pay)}/L${best.acordo?" (preço de acordo)":""}</div>
+    <div class="rows" style="margin-top:14px">
+      <div class="row"><span>Economia por tanque cheio</span><b class="num good">${brl(sv)}</b></div>
+      <div class="row"><span>Comparado ao posto mais caro da rota</span><b class="num">${worst.name.replace("Posto ","")}, ${brl(worst.pay)}</b></div>
+      <div class="row"><span>Em ${N0(trips)} viagens por mês</span><b class="num good">${R0(sv*trips*.35)}</b></div>
+    </div>
+    <p class="note">A estimativa mensal considera que um terço das viagens abastece nesta rota.</p>
+    <button class="btn btn-p" type="button" id="btnSendRoute" style="margin-top:12px">Enviar rota ao motorista</button>`;
+  $("#btnSendRoute").onclick=()=>toast("Rota enviada","O motorista recebeu a parada recomendada no aplicativo.");
+}
+
+/* ================= Consumo ================= */
+let cf="all";
+$("#segCons").innerHTML=[["all","Todos"],["alert","Com desvio"],["ok","Dentro do padrão"]].map(([k,t])=>`<button type="button" data-c="${k}" aria-pressed="${k==="all"}">${t}</button>`).join("");
+$("#segCons").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;cf=b.dataset.c;$("#segCons").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));renderCons();});
+function renderCons(){
+  const rows=VEIC.filter(v=>cf==="all"||(cf==="alert"?v.dev<-.07:v.dev>=-.07)).sort((a,b)=>a.dev-b.dev);
+  $("#tCons").innerHTML=rows.map(v=>{const pct=Math.min(100,v.kml/(v.exp*1.25)*100),ep=v.exp/(v.exp*1.25)*100;
+    const st=v.dev<-.13?["Desvio alto","c-bad","var(--bad)"]:v.dev<-.07?["Atenção","c-warn","var(--warn)"]:["Normal","c-ok","var(--ok)"];
+    return `<tr><td>${plateHTML(v.plate)}</td><td>${v.model}</td><td>${v.driver}</td><td class="r num">${N0(v.km)}</td><td class="r num">${N0(v.litros)}</td>
+    <td><div class="bar-cmp" title="Esperado: ${v.exp.toFixed(2).replace(".",",")} km/L"><span style="width:${pct}%;background:${st[2]}"></span><em style="left:${ep}%"></em></div></td>
+    <td class="r num">${v.kml.toFixed(2).replace(".",",")}</td><td><span class="chip ${st[1]}">${st[0]}</span></td></tr>`;}).join("")||`<tr><td colspan="8" class="muted">Nenhum veículo nesse filtro.</td></tr>`;
+}
+
+/* ================= Acordos ================= */
+function renderAcordos(){
+  const top=POSTOS.filter(p=>p.acordo).slice(0,3);
+  $("#agreements").innerHTML=top.map(p=>{const n=VALID.filter(v=>v.posto===p.name);const bad=n.filter(v=>v.status==="over").length;
+    return `<div class="agr"><div class="agr-top"><b>${p.name}</b><span class="chip ${bad?"c-bad":"c-ok"}">${bad?bad+" divergência"+(bad>1?"s":""):"Em dia"}</span></div>
+    <span class="muted">${p.city}/${p.uf} · ${p.brand} · Diesel S10</span>
+    <span class="agr-price num">${brl(p.acordo)}<span class="muted" style="font-size:13px;font-family:var(--body);font-weight:400"> /L acordado</span></span>
+    <span class="muted">Média ANP no município: ${brl(p.anp)} · vigência até 31/12/2026</span></div>`;}).join("");
+  const over=VALID.filter(v=>v.status==="over");const tot=over.reduce((s,v)=>s+(v.charged-v.acordo)*v.lt,0);
+  $("#validSummary").textContent=`${VALID.length} conferidos · ${over.length} acima do acordo · ${brl(tot)} a recuperar`;
+  $("#tValid").innerHTML=VALID.map((v,i)=>{const df=(v.charged-v.acordo)*v.lt;
+    return `<tr><td class="num">${v.day}</td><td>${plateHTML(v.plate)}</td><td>${v.posto}<br><span class="muted">${v.city}</span></td><td class="r num">${v.lt}</td><td class="r num">${brl(v.charged)}</td><td class="r num muted">${brl(v.acordo)}</td>
+    <td class="r num ${v.status==="over"?"bad":""}">${v.status==="over"?"+ "+brl(df):"—"}</td>
+    <td>${v.status==="over"?(v.contested?'<span class="chip c-info">Contestado</span>':`<button class="btn btn-sm" type="button" data-contest="${i}">Contestar</button>`):'<span class="chip c-ok">Conforme</span>'}</td></tr>`;}).join("");
+}
+$("#tValid").addEventListener("click",e=>{const b=e.target.closest("[data-contest]");if(!b)return;const v=VALID[+b.dataset.contest];v.contested=true;renderAcordos();
+  toast("Cobrança contestada",`${v.posto} recebeu a solicitação de estorno de ${brl((v.charged-v.acordo)*v.lt)}.`);});
+
+/* ================= Assistente ================= */
+const SUG=["Onde abastecer mais barato na Dutra?","Quais postos estão acima da média ANP?","Quais veículos estão consumindo demais?","Quanto economizamos em setembro?"];
+$("#suggest").innerHTML=SUG.map(s=>`<button type="button">${s}</button>`).join("");
+$("#suggest").addEventListener("click",e=>{const b=e.target.closest("button");if(b)ask(b.textContent);});
+$("#chatForm").addEventListener("submit",e=>{e.preventDefault();const q=$("#chatInput").value.trim();if(q){ask(q);$("#chatInput").value="";}});
+function addMsg(w,h){const d=document.createElement("div");d.className="msg "+w;d.innerHTML=h;$("#chat").appendChild(d);$("#chat").scrollTop=$("#chat").scrollHeight;return d;}
+function answer(q){
+  q=q.toLowerCase();
+  if(/dutra|rota|barato|onde abastecer/.test(q)){const st=routeStops(ROTAS[0]).sort((a,b)=>a.pay-b.pay).slice(0,3);
+    return `Na Dutra, os postos da rede com menor preço hoje são:<ul>${st.map(p=>`<li>${p.name} (${p.city}, km ${p.km}): ${brl(p.pay)}/L</li>`).join("")}</ul>Quer que eu envie essa parada para os motoristas escalados na rota?`;}
+  if(/anp|acima|caro/.test(q)){const a=POSTOS.filter(p=>p.price-p.anp>.03).sort((a,b)=>(b.price-b.anp)-(a.price-a.anp)).slice(0,4);
+    return `${a.length?`Estes postos estão cobrando acima da média ANP do município:<ul>${a.map(p=>`<li>${p.name} (${p.city}): +${brl(p.price-p.anp)}/L</li>`).join("")}</ul>Sugiro direcionar os abastecimentos para postos com acordo na mesma cidade.`:"Nenhum posto da rede está acima da média ANP neste momento."}`;}
+  if(/consum|km\/l|gastando|desvio/.test(q)){const a=VEIC.filter(v=>v.dev<-.07).sort((a,b)=>a.dev-b.dev).slice(0,4);
+    return `${a.length} veículos estão com consumo abaixo do esperado:<ul>${a.map(v=>`<li>${v.plate} · ${v.model}: ${v.kml.toFixed(2).replace(".",",")} km/L (esperado ${v.exp.toFixed(2).replace(".",",")})</li>`).join("")}</ul>Os casos mais fortes costumam indicar problema mecânico, rota diferente da planejada ou abastecimento fora do veículo.`;}
+  if(/econom|setembro|mês|mes/.test(q)){const L=monthly()[5];
+    return `Em setembro a frota pagou em média <b>${brl(L.paid,3)}/L</b>, contra ${brl(L.anp,3)} da média ANP. Nos ${N0(fleetLitros())} litros do mês, isso representa <b>${R0((L.anp-L.paid)*fleetLitros())}</b> de economia.`;}
+  if(/acordo|contest|estorno/.test(q)){const o=VALID.filter(v=>v.status==="over");return `Há ${o.length} abastecimentos cobrados acima do acordo neste mês, somando ${brl(o.reduce((s,v)=>s+(v.charged-v.acordo)*v.lt,0))}. Você pode contestar cada um na tela de acordos de preço.`;}
+  return "Nesta demonstração eu respondo sobre postos mais baratos, preços acima da ANP, consumo dos veículos, acordos e economia do mês. Na plataforma, o assistente consulta todos os dados da sua frota.";
+}
+function ask(q){addMsg("u",esc(q));const t=addMsg("a",'<span class="muted">Consultando os dados da frota…</span>');setTimeout(()=>{t.innerHTML=answer(q);$("#chat").scrollTop=$("#chat").scrollHeight;},650);track("assistente_pergunta");}
+function seedChat(){$("#chat").innerHTML="";addMsg("a",`Olá! Sou o assistente da frota da <b>${esc(leadName())}</b>. Pergunte sobre preços, postos ou consumo. Experimente uma das sugestões abaixo.`);}
+
+/* ================= Simulador ================= */
+const PLANS=[["Básico",149,50],["Profissional",349,200],["Enterprise",1490,Infinity]];
+function plan(n){return PLANS.find(p=>n<=p[2]);}
+const SL=[
+  ["size","Veículos na frota",5,1000,5,v=>N0(v)],
+  ["litros","Litros de diesel por mês",1000,1500000,1000,v=>N0(v)+" L"],
+  ["preco","Preço médio pago hoje (R$/L)",5,8,.01,v=>brl(v)],
+  ["melhor","Redução no preço escolhendo o melhor posto",0,10,.5,v=>v.toLocaleString("pt-BR")+"%"],
+  ["consumo","Redução de consumo com alertas de desvio",0,8,.5,v=>v.toLocaleString("pt-BR")+"%"],
+  ["acordo","Cobranças acima do acordo recuperadas",0,4,.5,v=>v.toLocaleString("pt-BR")+"% do gasto"],
+  ["horas","Horas de conferência manual por mês",0,200,5,v=>v+" h"]
+];
+$("#sliders").innerHTML=SL.map(([k,l,mi,ma,st])=>`<div class="slider"><div class="slider-top"><label for="r-${k}">${l}</label><b id="o-${k}"></b></div><input type="range" id="r-${k}" min="${mi}" max="${ma}" step="${st}"></div>`).join("");
+SL.forEach(([k])=>{const i=$("#r-"+k);i.value=S.roi[k];i.addEventListener("input",()=>{S.roi[k]=+i.value;calcROI();persist();});i.addEventListener("change",()=>track("simulador_ajuste"));});
+function roi(){
+  const r=S.roi,gasto=r.litros*r.preco*12;
+  const a=gasto*r.melhor/100,b=(gasto-a)*r.consumo/100,c=gasto*r.acordo/100*.25,h=r.horas*12*55;
+  const p=plan(r.size),inv=p[1]*12,bruto=a+b+c+h,liq=bruto-inv;
+  return {gasto,a,b,c,h,p,inv,bruto,liq,mult:liq/inv,days:bruto>0?inv/(bruto/365):0};
+}
+function calcROI(){
+  SL.forEach(([k,,,,,f])=>$("#o-"+k).textContent=f(S.roi[k]));
+  const c=roi();
+  $("#saveBig").textContent=R0(c.liq);
+  $("#payback").textContent=c.liq>0?`O plano ${c.p[0]} (${c.p[1]===1490?"valor de referência":"R$ "+c.p[1]+"/mês"}) se paga em ${Math.max(1,Math.ceil(c.days))} ${Math.ceil(c.days)<=1?"dia":"dias"}. Retorno de ${Math.round(c.mult).toLocaleString("pt-BR")}x o investimento.`:"Com esses parâmetros, a economia não cobre o plano.";
+  $("#roiRows").innerHTML=[["Gasto anual com diesel hoje",null,c.gasto],["Melhor posto na rota",c.a],["Consumo corrigido por alertas",c.b],["Cobranças indevidas recuperadas",c.c],["Horas da equipe liberadas",c.h],[`Plano ${c.p[0]} (12 meses)`,-c.inv]]
+    .map(([l,v,base])=>base!=null?`<div class="row"><span class="muted" style="font-size:14px">${l}</span><b class="num">${R0(base)}</b></div>`:`<div class="row"><span>${l}</span><b class="num ${v<0?"":"good"}">${v<0?"− "+R0(-v):"+ "+R0(v)}</b></div>`).join("");
+}
+
+/* ================= Resumo para a diretoria ================= */
+function renderDoc(){
+  const c=roi(),today=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
+  $("#doc").innerHTML=`
+    <div class="lead-label" style="color:#5b6b82">Proposta de valor · ${today}</div>
+    <h2>Inteligência de combustível para a ${esc(leadName())}</h2>
+    <p>A FNI compara em tempo real os preços pagos pela frota com a tabela oficial da ANP, indica os melhores postos credenciados em cada rota, confere todo abastecimento contra os acordos de preço e alerta quando o consumo de um veículo sai do padrão. Para uma frota de ${N0(S.roi.size)} veículos e ${N0(S.roi.litros)} litros por mês, o impacto estimado no primeiro ano é este:</p>
+    <div class="doc-grid">
+      <div><div class="kpi-label">Economia líquida em 12 meses</div><div class="kpi-value num" style="color:#0092b3">${R0(c.liq)}</div></div>
+      <div><div class="kpi-label">Redução sobre o gasto com diesel</div><div class="kpi-value num">${(c.bruto/c.gasto*100).toFixed(1).replace(".",",")}%</div></div>
+      <div><div class="kpi-label">Prazo para o plano se pagar</div><div class="kpi-value num">${Math.max(1,Math.ceil(c.days))} ${Math.ceil(c.days)<=1?"dia":"dias"}</div></div>
+    </div>
+    <div><h3 style="margin-bottom:12px">De onde vem a economia</h3>
+    <ul class="pillars">
+      <li><b>Preço ANP em tempo real</b><span>O gestor vê, por município e bandeira, onde está pagando acima da referência oficial.</span></li>
+      <li><b>Melhor posto em cada rota</b><span>A parada recomendada vai direto para o motorista.</span></li>
+      <li><b>Acordos conferidos automaticamente</b><span>Cobranças acima do combinado são identificadas e contestadas.</span></li>
+      <li><b>Consumo sob controle</b><span>Alertas de desvio de km/L por veículo e motorista.</span></li>
+      <li><b>Integrações</b><span>TOTVS, SAP, rastreadores e validação de NF-e pela SEFAZ.</span></li>
+      <li><b>Assistente IA</b><span>Respostas em português, sem montar planilhas.</span></li>
+    </ul></div>
+    <div><h3 style="margin-bottom:6px">Próximos passos sugeridos</h3>
+    <ol class="plan">
+      <li><span>Teste grátis de 14 dias no plano Profissional com a frota real</span><span class="muted">Semanas 1 e 2</span></li>
+      <li><span>Cadastro dos acordos de preço e dos postos preferenciais</span><span class="muted">Semana 2</span></li>
+      <li><span>Revisão dos resultados com a área financeira e decisão</span><span class="muted">Semana 3</span></li>
+    </ol></div>
+    <div class="doc-cta"><a class="btn btn-p" href="${APP}">Começar teste grátis</a><span class="muted">${S.seller?"Consultor: "+esc(S.seller)+" · ":""}contato@fxgestaodefrotasonline.com</span></div>
+    <p class="muted" style="margin:0;font-size:12px">Valores estimados a partir das premissas do simulador. Demonstração com dados fictícios.</p>`;
+}
+function copyText(txt,ok){
+  const fb=()=>{const t=document.createElement("textarea");t.value=txt;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();
+    try{document.execCommand("copy");ok();}catch(e){toast("Não foi possível copiar","Selecione o texto e copie manualmente.");}t.remove();};
+  try{navigator.clipboard.writeText(txt).then(ok,fb);}catch(e){fb();}
+}
+$("#btnCopy").addEventListener("click",()=>{
+  const c=roi();
+  const txt=`Inteligência de combustível para a ${leadName()} com a FNI\n\nFrota considerada: ${N0(S.roi.size)} veículos, ${N0(S.roi.litros)} litros de diesel por mês\nEconomia líquida estimada em 12 meses: ${R0(c.liq)}\nRedução sobre o gasto com diesel: ${(c.bruto/c.gasto*100).toFixed(1).replace(".",",")}%\nPrazo para o plano se pagar: ${Math.max(1,Math.ceil(c.days))} dias\n\nComposição:\n- Melhor posto na rota: ${R0(c.a)}\n- Consumo corrigido por alertas: ${R0(c.b)}\n- Cobranças indevidas recuperadas: ${R0(c.c)}\n- Horas da equipe liberadas: ${R0(c.h)}\n- Plano ${c.p[0]} (12 meses): ${R0(c.inv)}\n\nPróximo passo: teste grátis de 14 dias com a frota real (${APP})\nDemonstração: ${location.origin}${location.pathname}\n${S.seller?"Consultor: "+S.seller+"\n":""}(Valores estimados; demonstração com dados fictícios.)`;
+  copyText(txt,()=>toast("Resumo copiado","Cole no e-mail para a diretoria."));track("resumo_copiado");
+});
+
+/* ================= Personalização e contato ================= */
+function linkFor(){const u=new URL(location.origin+location.pathname);if(S.lead)u.searchParams.set("empresa",S.lead);u.searchParams.set("frota",S.size);if(S.seller)u.searchParams.set("consultor",S.seller);return u.toString();}
+function openP(){$("#pName").value=S.lead;$("#pSize").value=S.size;$("#pSeller").value=S.seller;$("#pLink").value=linkFor();$("#modal").hidden=false;$("#pName").focus();}
+$("#btnPersonalize").onclick=openP;
+$("#pCancel").onclick=()=>$("#modal").hidden=true;
+["pName","pSize","pSeller"].forEach(id=>$("#"+id).addEventListener("input",()=>{const u=new URL(location.origin+location.pathname);const n=$("#pName").value.trim(),f=$("#pSize").value,s=$("#pSeller").value.trim();if(n)u.searchParams.set("empresa",n);if(f)u.searchParams.set("frota",f);if(s)u.searchParams.set("consultor",s);$("#pLink").value=u.toString();}));
+$("#pCopy").onclick=()=>copyText($("#pLink").value,()=>toast("Link copiado","Envie para o lead. A demo abre já personalizada."));
+$("#pForm").addEventListener("submit",e=>{e.preventDefault();
+  S.lead=$("#pName").value.trim();const n=parseInt($("#pSize").value,10);if(n>=5){S.size=Math.min(5000,n);S.roi.size=Math.min(1000,S.size);S.roi.litros=Math.min(1500000,S.size*1250);}
+  S.seller=$("#pSeller").value.trim();persist();$("#modal").hidden=true;boot();toast("Demonstração personalizada",`Números ajustados para ${leadName()}.`);track("personalizou");});
+$("#btnContact").onclick=()=>{$("#contact").hidden=false;track("contato_aberto");};
+$("#cClose").onclick=()=>$("#contact").hidden=true;
+$("#cCopy").onclick=()=>copyText($("#cMail").value,()=>toast("E-mail copiado","Cole no seu programa de e-mail."));
+["modal","contact"].forEach(id=>$("#"+id).addEventListener("click",e=>{if(e.target.id===id)$("#"+id).hidden=true;}));
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("#modal").hidden=true;$("#contact").hidden=true;}});
+document.querySelectorAll('a[href^="https://app."]').forEach(a=>a.addEventListener("click",()=>track("clicou_teste_gratis")));
+
+/* ================= Tour guiado ================= */
+const TOUR=[
+  ["painel","#kpis","Quanto a frota economiza","O painel mostra o gasto do mês e quanto a frota pagou abaixo da média ANP."],
+  ["painel","#eventsPanel","Abastecimentos em tempo real","Cada abastecimento chega na hora, já comparado com a ANP. Veja o aviso aparecendo no canto da tela."],
+  ["postos","#tPostos","Rede de postos x ANP","Todos os postos credenciados comparados com a média oficial do município. Use os filtros e a ordenação."],
+  ["rota","#routePanel","Melhor parada em cada rota","Troque a rota ou o veículo. A plataforma calcula onde abastecer e quanto isso economiza por tanque."],
+  ["consumo","#tCons","Consumo fora do padrão","Veículos que rodam menos km por litro que o esperado aparecem primeiro, com alerta automático."],
+  ["acordos","#validPanel","Acordos conferidos","Cada abastecimento é conferido contra o preço negociado. Clique em Contestar para ver o fluxo."],
+  ["assistente","#suggest","Pergunte em português","O assistente consulta os dados e responde. Toque em uma sugestão."],
+  ["economia","#roiOut","A economia da sua empresa","Ajuste os controles com os números reais da operação. O resultado se atualiza na hora."],
+  ["diretoria","#doc","Pronto para a diretoria","Um resumo de uma página. Copie o texto e envie para o board."]
+];
+let ti=0;
+function showTour(){
+  const [v,sel,h,p]=TOUR[ti];go(v,true);$("#tour").hidden=false;
+  document.querySelectorAll(".hl").forEach(x=>x.classList.remove("hl"));
+  const el=$(sel);if(el){el.classList.add("hl");setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"center"}),60);}
+  $("#tourStep").textContent=`Passo ${ti+1} de ${TOUR.length}`;$("#tourTitle").textContent=h;$("#tourText").textContent=p;
+  $("#tourDots").innerHTML=TOUR.map((_,i)=>`<i class="${i===ti?"on":""}"></i>`).join("");
+  $("#tourPrev").disabled=ti===0;$("#tourPrev").style.opacity=ti===0?.4:1;
+  $("#tourNext").textContent=ti===TOUR.length-1?"Concluir":"Próximo";
+  if(ti===1)setTimeout(pushEvent,900);
+}
+function endTour(){$("#tour").hidden=true;document.querySelectorAll(".hl").forEach(x=>x.classList.remove("hl"));}
+$("#btnTour").onclick=()=>{ti=0;showTour();track("tour_iniciado");};
+$("#tourNext").onclick=()=>{if(ti<TOUR.length-1){ti++;showTour();}else{endTour();track("tour_concluido");toast("Tour concluído","Explore à vontade. Todos os módulos são interativos.");}};
+$("#tourPrev").onclick=()=>{if(ti>0){ti--;showTour();}};
+$("#tourClose").onclick=endTour;
+
+/* ================= Inicialização ================= */
+function boot(){
+  $("#leadName").textContent=leadName();
+  $("#leadLabel").textContent=S.lead?"Demonstração preparada para":"Demonstração da plataforma";
+  if(S.lead)document.title=`Demo para ${S.lead} | FNI Gestão de Frotas`;
+  $("#cMailto").href="mailto:contato@fxgestaodefrotasonline.com?subject="+encodeURIComponent("Demonstração FNI"+(S.lead?" · "+S.lead:""));
+  buildData();renderPainel();renderPostos();renderRota();renderCons();renderAcordos();seedChat();
+  SL.forEach(([k])=>{$("#r-"+k).value=S.roi[k];});calcROI();
+}
+boot();
+const h=location.hash.slice(1);
+go(VIEWS.some(v=>v[0]===h)?h:"painel",true);
+if(qp.get("tour")==="1"){ti=0;setTimeout(showTour,400);}
+})();
+</script>
+</body>
+</html>
