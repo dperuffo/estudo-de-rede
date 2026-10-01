@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/supabase_service.dart';
 import '../providers/veiculos_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -20,8 +23,58 @@ class _VeiculosScreenState extends ConsumerState<VeiculosScreen> {
   String _busca = '';
   String _filtroStatus = 'todos';
 
+  // Fase Desligar-API-Legada (01/10/2026) — a tela antiga
+  // (features/frota/screens/veiculos_screen.dart, removida) atualizava a
+  // lista ao vivo por um WebSocket da API Python legada. Esta versão
+  // (Supabase, Fase FLT-3) tinha perdido isso. Agora escuta o Supabase
+  // Realtime em `cadastro_veiculos` (tabela já publicada; o RLS garante
+  // que só chegam eventos de veículos que o usuário pode ver). O evento
+  // é só uma "cutucada": a lista vem sempre da mesma RPC do provider.
+  // Só INSERT/UPDATE: exclusão de veículo é lógica (ativo = false).
+  RealtimeChannel? _canal;
+  Timer? _agrupar;
+
+  @override
+  void initState() {
+    super.initState();
+    _escutarMudancas();
+  }
+
+  void _escutarMudancas() {
+    final client = SupabaseService.client;
+    void aoMudar(PostgresChangePayload _) {
+      // Várias linhas gravadas juntas (importação, sync) = 1 atualização.
+      _agrupar?.cancel();
+      _agrupar = Timer(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        ref.invalidate(veiculosClienteProvider);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Lista de veículos atualizada'),
+          duration: Duration(seconds: 2),
+        ));
+      });
+    }
+
+    _canal = client
+        .channel('veiculos-lista-${DateTime.now().millisecondsSinceEpoch}')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'cadastro_veiculos',
+            callback: aoMudar)
+        .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'cadastro_veiculos',
+            callback: aoMudar)
+        .subscribe();
+  }
+
   @override
   void dispose() {
+    _agrupar?.cancel();
+    final canal = _canal;
+    if (canal != null) SupabaseService.client.removeChannel(canal);
     _buscaCtrl.dispose();
     super.dispose();
   }
