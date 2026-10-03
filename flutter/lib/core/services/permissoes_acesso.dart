@@ -79,6 +79,7 @@ const rotaFuncionalidade = <String, String>{
   '/checklist-veiculos': 'aba_checklist_veiculos',
   '/sinistros': 'aba_sinistros',
   '/multas': 'aba_multas',
+  '/abastecimentos-negados': 'aba_abastecimentos',
   '/oficinas': 'aba_oficinas',
   '/parametros-uso': 'aba_parametros_uso',
   '/parametros-nf': 'aba_parametros_nf',

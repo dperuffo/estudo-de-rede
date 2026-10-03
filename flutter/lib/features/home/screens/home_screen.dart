@@ -1,3 +1,5 @@
+import '../../abastecimentos_negados/providers/negados_pdv_provider.dart';
+import '../../abastecimentos_negados/screens/banner_negados_pdv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -158,6 +160,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
   ),
   (href: '/multas', label: 'Multas', icon: Icons.gavel),
   (
+    href: '/abastecimentos-negados',
+    label: 'Abastecimentos Negados (PDV)',
+    icon: Icons.gpp_maybe_outlined
+  ),
+  (
     href: '/oficinas',
     label: 'Rede de Oficinas',
     icon: Icons.build_circle_outlined
@@ -312,6 +319,7 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          const BannerNegadosPdv(),
           BarraAtalhosFavoritos(mapaItens: mapaItensFavoritos),
           Expanded(
             child: Responsive.conteudoCentralizado(context, child),
@@ -687,6 +695,12 @@ class _HomeDrawer extends ConsumerWidget {
               _item(context, Icons.local_gas_station, 'Abastecimentos',
                   '/abastecimentos',
                   badge: badges.ajustesAbastecimento),
+            // Fase 5 PDV (03/10/2026) — abastecimentos do PDV negados por
+            // regras do cliente, aguardando liberação do gestor.
+            if (pode('/abastecimentos-negados'))
+              _item(context, Icons.gpp_maybe_outlined,
+                  'Abastecimentos Negados (PDV)', '/abastecimentos-negados',
+                  badge: ref.watch(negadosPdvPendentesProvider).valueOrNull ?? 0),
             // Fase FLT-Aprovação-Manual (02/09/2026) — lançamentos manuais
             // do PWA Motorista (foto do cupom + OCR) esperando aprovação.
             if (pode('/abastecimentos/aprovacao'))

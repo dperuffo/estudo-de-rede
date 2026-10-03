@@ -82,6 +82,7 @@ import '../../features/torre_de_controle/screens/torre_de_controle_screen.dart';
 import '../../features/programacao_frota/screens/programacao_frota_screen.dart';
 import '../../features/agendamentos_patio/screens/agendamentos_patio_screen.dart';
 import '../../features/multas/screens/multas_screen.dart';
+import '../../features/abastecimentos_negados/screens/abastecimentos_negados_screen.dart';
 import '../../features/multas/screens/nova_multa_screen.dart';
 import '../../features/multas/screens/multa_detalhe_screen.dart';
 import '../../features/checklist_veiculos/screens/checklist_veiculos_screen.dart';
@@ -647,6 +648,9 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
                 builder: (_, __) => const JornadaMotoristasScreen()),
             // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas.
             GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
+            GoRoute(
+                path: '/abastecimentos-negados',
+                builder: (_, __) => const AbastecimentosNegadosScreen()),
             GoRoute(
                 path: '/multas/nova',
                 builder: (_, __) => const NovaMultaScreen()),
