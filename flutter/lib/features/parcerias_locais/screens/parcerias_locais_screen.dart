@@ -30,9 +30,9 @@ class _ParceriasLocaisScreenState extends ConsumerState<ParceriasLocaisScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('🎟️ Parcerias Locais')),
       floatingActionButton: sessao?.empresaId == null
           ? null
@@ -48,11 +48,11 @@ class _ParceriasLocaisScreenState extends ConsumerState<ParceriasLocaisScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Crie benefícios próprios pro catálogo de fidelidade "Estrada que Cuida" — vale-refeição, lavagem, '
               'treinamentos, telemedicina, o que fizer sentido pro seu negócio. Motoristas de toda a rede enxergam '
               'e resgatam com os pontos que acumulam.',
-              style: TextStyle(fontSize: 12.5, color: Colors.black54),
+              style: TextStyle(fontSize: 12.5, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 16),
             itensAsync.when(
@@ -97,12 +97,12 @@ class _ParceriasLocaisScreenState extends ConsumerState<ParceriasLocaisScreen> {
 
   Widget _blocoItens(List<ItemParceria> itens) {
     if (itens.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
           child: Text(
               'Nenhum benefício criado ainda. Toque em "Novo Benefício" pra começar.',
-              style: TextStyle(color: Colors.black45)),
+              style: TextStyle(color: AppTheme.glassTextoMuted)),
         ),
       );
     }
@@ -144,10 +144,10 @@ class _ParceriasLocaisScreenState extends ConsumerState<ParceriasLocaisScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
         if (pendentes.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhum voucher pendente de atendimento.',
-                style: TextStyle(color: Colors.black45)),
+                style: TextStyle(color: AppTheme.glassTextoMuted)),
           )
         else
           ...pendentes
@@ -157,10 +157,10 @@ class _ParceriasLocaisScreenState extends ConsumerState<ParceriasLocaisScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
         if (queimados.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhum voucher queimado ainda.',
-                style: TextStyle(color: Colors.black45)),
+                style: TextStyle(color: AppTheme.glassTextoMuted)),
           )
         else
           ...queimados
@@ -176,7 +176,7 @@ class _ParceriasLocaisScreenState extends ConsumerState<ParceriasLocaisScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label.toUpperCase(),
-                  style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                  style: TextStyle(fontSize: 10, color: AppTheme.glassTextoMuted)),
               const SizedBox(height: 4),
               Text(valor,
                   style: const TextStyle(
@@ -213,7 +213,7 @@ class _CardItemParceria extends ConsumerWidget {
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             Text(labelCategoriaFidelidade[item.categoria] ?? item.categoria,
-                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
             if (item.descricao != null) ...[
               const SizedBox(height: 4),
               Text(item.descricao!, style: const TextStyle(fontSize: 12.5)),
@@ -230,15 +230,15 @@ class _CardItemParceria extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: item.ativo
                         ? Colors.green.shade50
-                        : Colors.grey.shade200,
+                        : AppTheme.grey200,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(item.ativo ? 'Ativo' : 'Inativo',
                       style: TextStyle(
                           fontSize: 11,
                           color: item.ativo
-                              ? Colors.green.shade700
-                              : Colors.black54)),
+                              ? AppTheme.fgOk
+                              : AppTheme.glassTextoMuted)),
                 ),
               ],
             ),
@@ -246,7 +246,7 @@ class _CardItemParceria extends ConsumerWidget {
               item.validadeDias != null
                   ? 'Válido por ${item.validadeDias} dias'
                   : 'Sem validade',
-              style: const TextStyle(fontSize: 11, color: Colors.black45),
+              style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted),
             ),
             const Divider(height: 20),
             Row(
@@ -332,17 +332,17 @@ class _CardResgate extends StatelessWidget {
                 ),
                 Text('${resgate.pontosGastos} pts',
                     style:
-                        const TextStyle(fontSize: 12, color: Colors.black54)),
+                        TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
               ],
             ),
             Text('Motorista: ${resgate.nomeMotorista}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
             if (resgate.numeroVoucher != null)
               Text('Voucher: ${resgate.numeroVoucher}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 11.5,
                       fontFamily: 'monospace',
-                      color: Colors.black45)),
+                      color: AppTheme.glassTextoMuted)),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -435,9 +435,9 @@ class _QueimarVoucherCardState extends State<_QueimarVoucherCard> {
             const Text('Queimar voucher',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
                 'Digite o código exibido no app do motorista pra dar baixa no voucher.',
-                style: TextStyle(fontSize: 11.5, color: Colors.black54)),
+                style: TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted)),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -466,7 +466,7 @@ class _QueimarVoucherCardState extends State<_QueimarVoucherCard> {
             if (_sucesso != null) ...[
               const SizedBox(height: 6),
               Text(_sucesso!,
-                  style: TextStyle(color: Colors.green.shade700, fontSize: 12)),
+                  style: TextStyle(color: AppTheme.fgOk, fontSize: 12)),
             ],
           ],
         ),

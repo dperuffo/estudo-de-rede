@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Helpers e widgets pequenos reaproveitados pelas 10 abas de Inteligência
 // de Rede — mesmo papel que os vários `formatarMoeda`/`MiniKpi`/
@@ -124,7 +125,7 @@ class CartaoIndicador extends StatelessWidget {
               label,
               style: TextStyle(
                   fontSize: 11,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -140,7 +141,7 @@ class CartaoIndicador extends StatelessWidget {
             if (sub != null) ...[
               const SizedBox(height: 2),
               Text(sub!,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
             ],
@@ -193,7 +194,7 @@ class BarraHorizontal extends StatelessWidget {
                     child: Container(
                       height: 14,
                       decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: AppTheme.grey100,
                           borderRadius: BorderRadius.circular(3)),
                       child: FractionallySizedBox(
                         alignment: Alignment.centerLeft,
@@ -211,7 +212,7 @@ class BarraHorizontal extends StatelessWidget {
                     child: Text(d.texto,
                         textAlign: TextAlign.right,
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600)),
+                            fontSize: 11, color: AppTheme.grey600)),
                   ),
                 ],
               ),
@@ -221,7 +222,7 @@ class BarraHorizontal extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: Text(eixoX!.toUpperCase(),
                 textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 9, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 9, color: AppTheme.grey400)),
           ),
       ],
     );
@@ -287,7 +288,7 @@ class TabelaSimples extends StatelessWidget {
                     ? TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade500)
+                        color: AppTheme.grey500)
                     : const TextStyle(fontSize: 12),
               ),
             );
@@ -302,7 +303,7 @@ class TabelaSimples extends StatelessWidget {
         linha(colunas, cabecalho: true),
         const Divider(height: 1),
         ...linhas.expand((l) =>
-            [linha(l), const Divider(height: 1, color: Color(0xFFF1F5F9))]),
+            [linha(l), Divider(height: 1, color: AppTheme.superficieAlt)]),
       ],
     );
 

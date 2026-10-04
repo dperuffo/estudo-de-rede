@@ -132,9 +132,9 @@ class _PostosInternosScreenState extends ConsumerState<PostosInternosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Postos Internos')),
       body: FutureBuilder<PostoInterno?>(
         future: _futuro,
@@ -167,7 +167,7 @@ class _PostosInternosScreenState extends ConsumerState<PostosInternosScreen> {
               Text(
                 'Abastecimento feito na garagem própria (matriz ou filial), antes do veículo sair pra rota — '
                 'entra no custo total da Roteirização junto com os postos externos.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                style: TextStyle(color: AppTheme.grey600, fontSize: 12),
               ),
               const SizedBox(height: 16),
               Card(
@@ -184,7 +184,7 @@ class _PostosInternosScreenState extends ConsumerState<PostosInternosScreen> {
                         'como opção de empresa no app do motorista (aba Abastecimento Interno) e entra no cálculo '
                         'de custo da Roteirização.',
                         style:
-                            TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            TextStyle(fontSize: 12, color: AppTheme.grey600),
                       ),
                       if (_msgDadosErro != null) ...[
                         const SizedBox(height: 10),
@@ -239,7 +239,7 @@ class _PostosInternosScreenState extends ConsumerState<PostosInternosScreen> {
                         'que vale no abastecimento manual e no que o motorista confirma pelo app — ele nunca '
                         'digita o preço.',
                         style:
-                            TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            TextStyle(fontSize: 12, color: AppTheme.grey600),
                       ),
                       if (_msgPrecosErro != null) ...[
                         const SizedBox(height: 10),
@@ -288,7 +288,7 @@ class _PostosInternosScreenState extends ConsumerState<PostosInternosScreen> {
                     TextSpan(
                         text: sufixo,
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500)),
+                            fontSize: 11, color: AppTheme.grey500)),
                 ]),
                 style: const TextStyle(fontSize: 13),
               ),
@@ -316,14 +316,14 @@ class _PostosInternosScreenState extends ConsumerState<PostosInternosScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: erro ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
+          color: erro ? AppTheme.tintErro : AppTheme.tintOk,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           texto,
           style: TextStyle(
               fontSize: 12,
-              color: erro ? const Color(0xFFB91C1C) : const Color(0xFF15803D)),
+              color: erro ? AppTheme.fgErro : AppTheme.fgOk),
         ),
       );
 }

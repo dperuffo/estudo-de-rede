@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../providers/rotograma_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-3 — porta fiel de LinhaDoTempoRotograma.tsx (SVG na web) usando
 // CustomPainter — mesmo cálculo geométrico (origem à esquerda, destino à
@@ -40,7 +41,7 @@ class LinhaDoTempoRotograma extends StatelessWidget {
             child: Text(
               'Pontos com linha tracejada tiveram o Km estimado (não informado nem encontrado no texto do local) — edite '
               'o Rotograma e preencha o campo Km de cada ponto para uma posição exata.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
             ),
           ),
         const SizedBox(height: 8),
@@ -68,7 +69,7 @@ class LinhaDoTempoRotograma extends StatelessWidget {
             decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
         const SizedBox(width: 5),
         Text(label,
-            style: const TextStyle(fontSize: 11, color: Colors.black87)),
+            style: TextStyle(fontSize: 11, color: AppTheme.glassTexto)),
       ],
     );
   }
@@ -116,7 +117,7 @@ class _LinhaDoTempoPainter extends CustomPainter {
     }
 
     final linhaBase = Paint()
-      ..color = const Color(0xFFCBD5E1)
+      ..color = AppTheme.bordaForte
       ..strokeWidth = 3;
     canvas.drawLine(const Offset(margem, yLinha),
         const Offset(largura - margem, yLinha), linhaBase);
@@ -124,22 +125,22 @@ class _LinhaDoTempoPainter extends CustomPainter {
     canvas.drawCircle(const Offset(margem, yLinha), 7,
         Paint()..color = const Color(0xFF16A34A));
     _texto(canvas, 'Origem', const Offset(margem, yLinha + 34), 13,
-        const Color(0xFF166534),
+        AppTheme.fgOk,
         peso: FontWeight.w600);
     _texto(canvas, _truncar(origem, 20), const Offset(margem, yLinha + 50), 10,
-        const Color(0xFF64748B));
+        AppTheme.glassTextoMuted);
 
     canvas.drawCircle(const Offset(largura - margem, yLinha), 7,
         Paint()..color = const Color(0xFFDC2626));
     _texto(canvas, 'Destino', const Offset(largura - margem, yLinha + 34), 13,
-        const Color(0xFF991B1B),
+        AppTheme.fgErro,
         peso: FontWeight.w600);
     _texto(
         canvas,
         _truncar(destino, 20),
         const Offset(largura - margem, yLinha + 50),
         10,
-        const Color(0xFF64748B));
+        AppTheme.glassTextoMuted);
 
     final riscos = pontos.where((p) => p.tipo == 'risco').toList();
     final paradas = pontos.where((p) => p.tipo == 'parada').toList();
@@ -162,10 +163,10 @@ class _LinhaDoTempoPainter extends CustomPainter {
       canvas.drawCircle(
           Offset(cx, yLinha - stemAltura), 6, Paint()..color = cor);
       _texto(canvas, _truncar(p.local, 18),
-          Offset(cx, yLinha - stemAltura - 16), 10, const Color(0xFF334155),
+          Offset(cx, yLinha - stemAltura - 16), 10, AppTheme.glassTexto,
           peso: FontWeight.w600);
       _texto(canvas, '${p.km.round()} km', Offset(cx, yLinha - stemAltura - 28),
-          9, const Color(0xFF64748B));
+          9, AppTheme.glassTextoMuted);
     }
 
     for (var i = 0; i < paradas.length; i++) {
@@ -185,10 +186,10 @@ class _LinhaDoTempoPainter extends CustomPainter {
       canvas.drawCircle(
           Offset(cx, yLinha + stemAltura), 6, Paint()..color = corParadaHex);
       _texto(canvas, _truncar(p.local, 18),
-          Offset(cx, yLinha + stemAltura + 16), 10, const Color(0xFF334155),
+          Offset(cx, yLinha + stemAltura + 16), 10, AppTheme.glassTexto,
           peso: FontWeight.w600);
       _texto(canvas, '${p.km.round()} km', Offset(cx, yLinha + stemAltura + 28),
-          9, const Color(0xFF64748B));
+          9, AppTheme.glassTextoMuted);
     }
 
     canvas.restore();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../postos/providers/postos_provider.dart' show ufsBrasil;
 import '../providers/parametros_nf_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-Parametros-NF-Estado — porta de ModalDestinoEstado.tsx (mockup
 // do Daniel "Configuração de Envio de Nota Personalizado por Estado"):
@@ -109,7 +110,7 @@ class _ConteudoModalDestinoEstadoState
           const SizedBox(height: 4),
           Text(
               'Selecione o CNPJ/empresa que receberá as notas fiscais de abastecimentos.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
           const SizedBox(height: 12),
           if (_erro != null)
             Container(
@@ -117,11 +118,11 @@ class _ConteudoModalDestinoEstadoState
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
           Autocomplete<String>(
             optionsBuilder: (v) => v.text.isEmpty
@@ -155,7 +156,7 @@ class _ConteudoModalDestinoEstadoState
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.grey300),
                   borderRadius: BorderRadius.circular(8)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +205,7 @@ class _ConteudoModalDestinoEstadoState
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: AppTheme.grey100,
                               borderRadius: BorderRadius.circular(8)),
                           child: Row(
                             children: [

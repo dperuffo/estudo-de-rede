@@ -99,10 +99,10 @@ class _RegioesCarasBaratasState extends State<_RegioesCarasBaratas> {
           _seletorCombustivel(
               combustiveis, atual, (v) => setState(() => _sel = v)),
           if (filtrado.isEmpty)
-            const Padding(
+            Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text('Sem preços cadastrados para esse combustível.',
-                    style: TextStyle(color: Colors.grey)))
+                    style: TextStyle(color: AppTheme.grey500)))
           else
             Builder(builder: (context) {
               final precos = filtrado.map((p) => p.precoMedio).toList();
@@ -217,7 +217,7 @@ class _RegioesCarasBaratasState extends State<_RegioesCarasBaratas> {
                   Text(
                       'Linha tracejada = média geral (${formatarMoeda(mediaGeral)})',
                       style:
-                          TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                          TextStyle(fontSize: 10, color: AppTheme.grey400)),
                   const SizedBox(height: 12),
                   TabelaSimples(
                     colunas: const ['UF', 'Categoria', 'Preço médio', 'Postos'],
@@ -322,13 +322,13 @@ class _ClustersOportunidadeState extends State<_ClustersOportunidade> {
               combustiveis, atual, (v) => setState(() => _sel = v)),
           Text(
               'Municípios agrupados por faixa de preço GF. 🟢 preço abaixo da média nacional. 🔴 preço acima da média.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           const SizedBox(height: 8),
           if (linhasBase.isEmpty)
-            const Padding(
+            Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text('Sem dados de município para esse combustível.',
-                    style: TextStyle(color: Colors.grey)))
+                    style: TextStyle(color: AppTheme.grey500)))
           else
             Builder(builder: (context) {
               final mediaNac =
@@ -363,7 +363,7 @@ class _ClustersOportunidadeState extends State<_ClustersOportunidade> {
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade600)),
+                          color: AppTheme.grey600)),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 220,
@@ -374,7 +374,7 @@ class _ClustersOportunidadeState extends State<_ClustersOportunidade> {
                         return PieChartSectionData(
                           value: e.value <= 0 ? 0.001 : e.value.toDouble(),
                           title: e.key.split(' ').first,
-                          color: _coresCluster[e.key] ?? Colors.grey,
+                          color: _coresCluster[e.key] ?? AppTheme.grey500,
                           radius: 75,
                           titleStyle: const TextStyle(
                               fontSize: 14, color: Colors.white),
@@ -387,7 +387,7 @@ class _ClustersOportunidadeState extends State<_ClustersOportunidade> {
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade600)),
+                          color: AppTheme.grey600)),
                   const SizedBox(height: 8),
                   BarraHorizontal(
                     dados: top15
@@ -409,7 +409,7 @@ class _ClustersOportunidadeState extends State<_ClustersOportunidade> {
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade600)),
+                          color: AppTheme.grey600)),
                   const SizedBox(height: 8),
                   TabelaSimples(
                     colunas: const [
@@ -511,11 +511,11 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
           _seletorCombustivel(
               combustiveis, atual, (v) => setState(() => _sel = v)),
           if (comp.isEmpty)
-            const Padding(
+            Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                     'Sem referência ANP resolvida para esse combustível.',
-                    style: TextStyle(color: Colors.grey)))
+                    style: TextStyle(color: AppTheme.grey500)))
           else ...[
             GridView.count(
               crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
@@ -600,20 +600,20 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
               ),
             ),
             Text('Zona competitiva: -2% a +5% vs ANP.',
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
             const SizedBox(height: 12),
             if (alertas.isNotEmpty) ...[
               Text('⚠️ Atenção',
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade600)),
+                      color: AppTheme.grey600)),
               const SizedBox(height: 6),
               ...alertas.map((a) => Container(
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: AppTheme.tintErro,
                         border: const Border(
                             left:
                                 BorderSide(color: Color(0xFFE53935), width: 4)),
@@ -630,13 +630,13 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade600)),
+                      color: AppTheme.grey600)),
               const SizedBox(height: 6),
               ...oportunidades.map((o) => Container(
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5),
+                        color: AppTheme.tintOk,
                         border: const Border(
                             left:
                                 BorderSide(color: Color(0xFF43A047), width: 4)),
@@ -684,12 +684,12 @@ class _FrotaReal extends StatelessWidget {
   Widget build(BuildContext context) {
     final postosVisitados = dados.postosVisitados;
     if (postosVisitados.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
               'Ainda não há abastecimentos com coordenada do posto — conecte a integração PróFrotas.',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: AppTheme.grey500),
               textAlign: TextAlign.center),
         ),
       );
@@ -791,9 +791,9 @@ class _FrotaReal extends StatelessWidget {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           Text('Tamanho = frequência de visitas. Cor = preço médio pago.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+              style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
           const SizedBox(height: 8),
           MapaCirculos(pontos: pontosMapa, height: 380),
           const SizedBox(height: 16),
@@ -801,7 +801,7 @@ class _FrotaReal extends StatelessWidget {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           BarraHorizontal(
             dados: top15Ranking
@@ -818,7 +818,7 @@ class _FrotaReal extends StatelessWidget {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           ...porUf.map((u) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
@@ -862,7 +862,7 @@ class _FrotaReal extends StatelessWidget {
               child: Container(
                 height: 10,
                 decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppTheme.grey100,
                     borderRadius: BorderRadius.circular(3)),
                 child: FractionallySizedBox(
                   alignment: Alignment.centerLeft,
@@ -878,7 +878,7 @@ class _FrotaReal extends StatelessWidget {
                 width: 56,
                 child: Text(texto,
                     style:
-                        TextStyle(fontSize: 10, color: Colors.grey.shade600))),
+                        TextStyle(fontSize: 10, color: AppTheme.grey600))),
           ]),
         );
     return Column(children: [
@@ -900,13 +900,13 @@ Widget _cardDestaque(String titulo, String valor, String linha1, String? linha2,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(titulo,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+            style: TextStyle(fontSize: 10, color: AppTheme.grey600)),
         Text(valor,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         Text(linha1, style: const TextStyle(fontSize: 11)),
         if (linha2 != null)
           Text(linha2,
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+              style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
       ],
     ),
   );
@@ -917,8 +917,8 @@ Widget _seletorCombustivel(
   return Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Row(children: [
-      const Text('Combustível: ',
-          style: TextStyle(fontSize: 12, color: Colors.grey)),
+      Text('Combustível: ',
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
       const SizedBox(width: 4),
       DropdownButton<String>(
         value: opcoes.contains(atual) ? atual : null,

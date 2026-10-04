@@ -13,6 +13,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
+import '../../../core/widgets/tema_toggle_tile.dart';
 
 // Fase Acesso-Rápido-Favoritos (04/08/2026) — mesma ideia de
 // _itensMenuCliente em home_screen.dart, aqui pro subconjunto de rotas do
@@ -118,14 +119,14 @@ class PostoHomeScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
-        titleTextStyle: const TextStyle(
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
+        titleTextStyle: TextStyle(
             color: AppTheme.glassTexto,
             fontSize: 18,
             fontWeight: FontWeight.w600),
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         actions: const [SinoAvisos()],
       ),
       body: Column(
@@ -143,9 +144,9 @@ class PostoHomeScreen extends ConsumerWidget {
       bottomNavigationBar: Responsive.isDesktop(context)
           ? null
           : Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: AppTheme.glassNavGradient,
-                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                border: Border(top: BorderSide(color: AppTheme.bordaSuave)),
               ),
               child: Theme(
                 data: Theme.of(context).copyWith(
@@ -218,7 +219,7 @@ class PostoHomeScreen extends ConsumerWidget {
         dense: true,
         leading: Icon(icon, color: AppTheme.glassIcone, size: 20),
         title: Text(label,
-            style: const TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
+            style: TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -276,14 +277,14 @@ class PostoHomeScreen extends ConsumerWidget {
       // home_screen.dart): o drawer do celular fica sobre um scrim escuro,
       // não sobre conteúdo real pra desfocar.
       child: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient),
+        decoration: BoxDecoration(gradient: AppTheme.glassNavGradient),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.bordaSuave)),
               ),
               child: SafeArea(
                 bottom: false,
@@ -297,9 +298,9 @@ class PostoHomeScreen extends ConsumerWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.white, // logo sempre em cartão claro
                           borderRadius: BorderRadius.circular(AppTheme.radius),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: AppTheme.bordaSuave),
                           boxShadow: [
                             BoxShadow(
                               color: AppTheme.glassTextoAtivo.withOpacity(0.06),
@@ -319,7 +320,7 @@ class PostoHomeScreen extends ConsumerWidget {
                         nomeEmpresa ?? 'Posto',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.glassTexto,
                             fontSize: 14,
                             fontWeight: FontWeight.w600),
@@ -344,7 +345,7 @@ class PostoHomeScreen extends ConsumerWidget {
                             },
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(Icons.swap_horiz,
                                     color: AppTheme.glassTexto, size: 16),
                                 SizedBox(width: 4),
@@ -378,13 +379,13 @@ class PostoHomeScreen extends ConsumerWidget {
               _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
             if (pode('/posto/rede-postos'))
               _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Cadastros'),
             if (pode('/posto/usuarios'))
               _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
             if (pode('/posto/clientes'))
               _item(context, Icons.business, 'Clientes', '/posto/clientes'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Operação'),
             if (pode('/posto/negociacoes'))
               _item(
@@ -404,7 +405,7 @@ class PostoHomeScreen extends ConsumerWidget {
             if (pode('/posto/pre-pedidos'))
               _item(context, Icons.checklist, 'Pré-Pedidos',
                   '/posto/pre-pedidos'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Financeiro'),
             if (pode('/posto/financeiro'))
               _item(context, Icons.attach_money, 'Financeiro',
@@ -412,7 +413,7 @@ class PostoHomeScreen extends ConsumerWidget {
             if (pode('/posto/meus-dados'))
               _item(context, Icons.account_balance, 'Meus Dados / PIX',
                   '/posto/meus-dados'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Conta e Ajuda'),
             if (pode('/posto/assistente'))
               _item(context, Icons.smart_toy, 'Assistente FNI',
@@ -427,18 +428,19 @@ class PostoHomeScreen extends ConsumerWidget {
               _item(context, Icons.confirmation_number, 'Chamados',
                   '/posto/chamados',
                   badge: badges.chamados),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Sistema'),
             if (pode('/posto/documentos'))
               _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
             if (pode('/posto/lgpd'))
               _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             if (pode('/posto/avisos'))
               _item(context, Icons.notifications_outlined, 'Avisos',
                   '/posto/avisos',
                   badge: avisosNaoLidos),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
+            const TemaToggleTile(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair', style: TextStyle(color: Colors.red)),
@@ -459,7 +461,7 @@ class PostoHomeScreen extends ConsumerWidget {
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.glassTextoMuted)),

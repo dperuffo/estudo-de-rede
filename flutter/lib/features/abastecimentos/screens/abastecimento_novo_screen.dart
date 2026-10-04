@@ -154,9 +154,9 @@ class _AbastecimentoNovoScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Lançar Abastecimento Manual')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -165,12 +165,12 @@ class _AbastecimentoNovoScreenState
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: AppTheme.tintInfo,
                 borderRadius: BorderRadius.circular(8)),
-            child: const Text(
+            child: Text(
               'Use este formulário só para lançamentos manuais (sem integração automática com meio de pagamento) '
               'ou pra registrar um abastecimento avulso.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF1D4ED8)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgInfo),
             ),
           ),
           const SizedBox(height: 16),
@@ -179,11 +179,11 @@ class _AbastecimentoNovoScreenState
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],
@@ -198,7 +198,7 @@ class _AbastecimentoNovoScreenState
             trailing: const Icon(Icons.calendar_today, size: 18),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radius),
-                side: BorderSide(color: Colors.grey.shade400)),
+                side: BorderSide(color: AppTheme.grey400)),
             onTap: _selecionarDataHora,
           ),
           const SizedBox(height: 10),

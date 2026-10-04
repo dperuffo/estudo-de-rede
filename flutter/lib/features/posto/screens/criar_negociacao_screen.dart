@@ -129,9 +129,9 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Nova negociação'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop() (padrão já usado
         // em cliente_posto_detalhe_screen.dart): sem isso, deep link/refresh
@@ -146,9 +146,9 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          const Text(
+          Text(
             'Envie uma proposta de fornecimento para um cliente.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13),
           ),
           const SizedBox(height: 16),
           if (_erro != null) ...[
@@ -156,11 +156,11 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],
@@ -177,7 +177,7 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
           Text(
             'O cliente precisa já ser cadastrado na FNI — se o CNPJ não for encontrado, a negociação '
             'não é criada.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey600),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
@@ -237,7 +237,7 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
           Text(
             'Ciclo de faturamento e prazo de vencimento começam em 30/30 dias e são ajustados '
             'depois pelo time FNI — não fazem parte da negociação.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey600),
           ),
           const SizedBox(height: 16),
           SizedBox(

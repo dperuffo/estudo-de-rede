@@ -275,9 +275,9 @@ class _AbastecimentoDetalheScreenState
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Abastecimento'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
@@ -302,7 +302,7 @@ class _AbastecimentoDetalheScreenState
             children: [
               Text(
                   'ID ${a.codigoAbastecimento ?? a.id} · ${nomeProvedor(a.provedor)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               const SizedBox(height: 12),
               Card(
                 child: Padding(
@@ -339,11 +339,11 @@ class _AbastecimentoDetalheScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: AppTheme.tintErro,
                       borderRadius: BorderRadius.circular(8)),
                   child: Text(_erro!,
-                      style: const TextStyle(
-                          color: Color(0xFFB91C1C), fontSize: 13)),
+                      style: TextStyle(
+                          color: AppTheme.fgErro, fontSize: 13)),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -364,7 +364,7 @@ class _AbastecimentoDetalheScreenState
                 width: 120,
                 child: Text(label,
                     style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade600))),
+                        TextStyle(fontSize: 12, color: AppTheme.grey600))),
             Expanded(
                 child: Text(valor,
                     style: const TextStyle(
@@ -387,7 +387,7 @@ class _AbastecimentoDetalheScreenState
               const SizedBox(height: 4),
               Text(
                 'Encontrou um erro neste abastecimento? Solicite um ajuste — o cliente recebe uma notificação para aprovar ou recusar antes de qualquer mudança valer.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey600),
               ),
               const SizedBox(height: 12),
               // Nova regra do Daniel: abastecimento já em ciclo fechado
@@ -398,9 +398,9 @@ class _AbastecimentoDetalheScreenState
                 const OutlinedButton(
                     onPressed: null, child: Text('Solicitar ajuste')),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Este abastecimento já está em um ciclo fechado (faturado) e não pode mais ser ajustado.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.fgAviso),
                 ),
               ] else if (!_formularioAberto)
                 OutlinedButton(
@@ -439,13 +439,13 @@ class _AbastecimentoDetalheScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
+                      color: AppTheme.tintAviso,
                       borderRadius: BorderRadius.circular(12)),
                   child: Text(
                       _statusAjusteLabel[ajuste.status] ?? ajuste.status,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF92400E),
+                          color: AppTheme.fgAviso,
                           fontWeight: FontWeight.w600)),
                 ),
               ],
@@ -455,7 +455,7 @@ class _AbastecimentoDetalheScreenState
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: AppTheme.grey200),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -467,10 +467,10 @@ class _AbastecimentoDetalheScreenState
                           Text(
                               'Rodada #${r.numeroRodada} — ${r.autor == 'cliente' ? 'cliente' : 'posto'}',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade500)),
+                                  fontSize: 11, color: AppTheme.grey500)),
                           Text(_fmtDataHora(r.criadoEm),
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade500)),
+                                  fontSize: 11, color: AppTheme.grey500)),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -497,13 +497,13 @@ class _AbastecimentoDetalheScreenState
                           child: Text('"${r.motivo}"',
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  color: AppTheme.grey600,
                                   fontStyle: FontStyle.italic)),
                         ),
                       const SizedBox(height: 2),
                       Text(_decisaoLabel[r.decisao] ?? r.decisao,
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade500)),
+                              fontSize: 11, color: AppTheme.grey500)),
                     ],
                   ),
                 )),
@@ -550,18 +550,18 @@ class _AbastecimentoDetalheScreenState
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
+                    color: AppTheme.tintAviso,
                     borderRadius: BorderRadius.circular(8)),
-                child: const Text('Aguardando resposta do cliente.',
-                    style: TextStyle(color: Color(0xFF92400E), fontSize: 13)),
+                child: Text('Aguardando resposta do cliente.',
+                    style: TextStyle(color: AppTheme.fgAviso, fontSize: 13)),
               ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _processando ? null : () => _cancelar(ajuste.id),
-                child: const Text('Cancelar solicitação',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                child: Text('Cancelar solicitação',
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               ),
             ),
           ],
@@ -583,7 +583,7 @@ class _AbastecimentoDetalheScreenState
         const SizedBox(height: 4),
         Text(
             'Os campos já vêm com os valores atuais — edite só o que precisa corrigir.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
         const SizedBox(height: 12),
         TextField(
           controller: _dataHora,

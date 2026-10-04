@@ -4,6 +4,7 @@ import '../../motoristas/providers/motoristas_provider.dart' show Motorista;
 import '../../veiculos/providers/veiculos_provider.dart' show Veiculo;
 import '../providers/antifraude_provider.dart';
 import '../services/antifraude_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase 27.15x — formulário único de criar/editar regra antifraude, cobrindo
 // os tipos (troca os campos de "condições" conforme o tipo escolhido) —
@@ -24,10 +25,10 @@ Widget _erroBox(String? erro) {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
+          color: AppTheme.tintErro,
           borderRadius: BorderRadius.circular(8)),
       child: Text(erro,
-          style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+          style: TextStyle(color: AppTheme.fgErro, fontSize: 13)),
     ),
   );
 }
@@ -345,8 +346,8 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
               border: OutlineInputBorder()),
         ),
         const SizedBox(height: 6),
-        const Text('Preencha ao menos um dos dois campos acima.',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
+        Text('Preencha ao menos um dos dois campos acima.',
+            style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
       ];
     }
     // janela_tempo_frequencia
@@ -379,9 +380,9 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
         ],
       ),
       const SizedBox(height: 6),
-      const Text(
+      Text(
           'Preencha o intervalo mínimo, o horário permitido, ou os dois.',
-          style: TextStyle(fontSize: 11, color: Colors.grey)),
+          style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
     ];
   }
 }

@@ -44,16 +44,16 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Consulta de Pré-Pedido')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Confira o número do Pré-Pedido informado pelo motorista antes de liberar o abastecimento.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 12),
           Row(
@@ -93,7 +93,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                         'Nenhum Pré-Pedido nº $_numeroConsultado com parada pré-agendada para este posto foi '
                         'encontrado. Confira o número com o motorista ou se o CNPJ deste posto está na rota '
                         'planejada.',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: AppTheme.grey600),
                       ),
                     ),
                   );
@@ -115,7 +115,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
     final statusCor = r.status == 'ativo'
         ? const Color(0xFF16A34A)
         : r.status == 'concluido'
-            ? Colors.grey
+            ? AppTheme.grey500
             : const Color(0xFFDC2626);
 
     return Card(
@@ -160,7 +160,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.grey300),
                   borderRadius: BorderRadius.circular(8)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,7 +169,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade500)),
+                          color: AppTheme.grey500)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -186,7 +186,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                         decoration: BoxDecoration(
                           color: (r.paradaAtendida
                                   ? const Color(0xFF16A34A)
-                                  : const Color(0xFFB45309))
+                                  : AppTheme.fgAviso)
                               .withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -198,7 +198,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                               fontSize: 11,
                               color: r.paradaAtendida
                                   ? const Color(0xFF16A34A)
-                                  : const Color(0xFFB45309),
+                                  : AppTheme.fgAviso,
                               fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -210,7 +210,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
                       'Este veículo está autorizado a abastecer aqui. A confirmação é feita automaticamente pela '
                       'integração no momento do abastecimento.',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          TextStyle(fontSize: 11, color: AppTheme.grey600),
                     ),
                   ],
                 ],
@@ -228,7 +228,7 @@ class _PrePedidosPostoScreenState extends ConsumerState<PrePedidosPostoScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
             const SizedBox(height: 2),
             Text(valor,
                 style:

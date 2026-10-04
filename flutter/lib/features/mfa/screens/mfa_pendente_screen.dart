@@ -97,7 +97,7 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.shield_outlined,
+                Icon(Icons.shield_outlined,
                     size: 56, color: AppTheme.glassTextoAtivo),
                 const SizedBox(height: 20),
                 Text(
@@ -118,7 +118,7 @@ class _MfaPendenteScreenState extends State<MfaPendenteScreen> {
                           'autenticador (Google Authenticator, Authy, etc.) e digite o código de '
                           '6 dígitos atual pra continuar.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(fontSize: 14, color: AppTheme.grey500),
                 ),
                 const SizedBox(height: 32),
                 if (!precisaCadastrar) ...[

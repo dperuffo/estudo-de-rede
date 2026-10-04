@@ -72,16 +72,16 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Avaliações dos Clientes')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
@@ -95,7 +95,7 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
               Text(
                 'Esta tela é exclusiva do time interno (perfil administrador). Fale com um '
                 'administrador se você precisa desses dados.',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(fontSize: 13, color: AppTheme.grey500),
               ),
             ],
           ),
@@ -112,9 +112,9 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Feedback enviado pelos clientes sobre a plataforma, com espaço pra responder direto.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             Row(
@@ -134,7 +134,7 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                     child: Text('Nenhuma avaliação recebida ainda.',
-                        style: TextStyle(color: Colors.grey.shade500))),
+                        style: TextStyle(color: AppTheme.grey500))),
               )
             else
               ...lista.map(_cardAvaliacao),
@@ -151,10 +151,10 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFEF3C7) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintAviso : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintAviso : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +162,7 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
@@ -170,7 +170,7 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color:
-                        destaque ? const Color(0xFF92400E) : Colors.black87)),
+                        destaque ? AppTheme.fgAviso : AppTheme.glassTexto)),
           ],
         ),
       ),
@@ -201,7 +201,7 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                               fontWeight: FontWeight.w600, fontSize: 13)),
                       Text(a.userEmail,
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade500)),
+                              fontSize: 11, color: AppTheme.grey500)),
                     ],
                   ),
                 ),
@@ -216,24 +216,24 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                               size: 14,
                               color: i <= a.estrelas
                                   ? const Color(0xFFFBBF24)
-                                  : Colors.grey.shade300),
+                                  : AppTheme.grey300),
                       ],
                     ),
                     Text(rotuloNota(a.estrelas),
                         style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade600)),
+                            fontSize: 10, color: AppTheme.grey600)),
                     if (pendente)
                       Container(
                         margin: const EdgeInsets.only(top: 2),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                            color: const Color(0xFFFEF3C7),
+                            color: AppTheme.tintAviso,
                             borderRadius: BorderRadius.circular(8)),
-                        child: const Text('Pendente',
+                        child: Text('Pendente',
                             style: TextStyle(
                                 fontSize: 9,
-                                color: Color(0xFF92400E),
+                                color: AppTheme.fgAviso,
                                 fontWeight: FontWeight.w700)),
                       ),
                   ],
@@ -247,7 +247,7 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
             if (a.criadoEm != null) ...[
               const SizedBox(height: 4),
               Text(_dataHora.format(DateTime.parse(a.criadoEm!).toLocal()),
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
             ],
             const SizedBox(height: 10),
             if (!editando)
@@ -255,25 +255,25 @@ class _AvaliacoesAdminScreenState extends ConsumerState<AvaliacoesAdminScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: AppTheme.tintInfo,
                     borderRadius: BorderRadius.circular(8)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (a.respostaAdmin != null &&
                         a.respostaAdmin!.isNotEmpty) ...[
-                      const Text('Sua resposta',
+                      Text('Sua resposta',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1D4ED8))),
+                              color: AppTheme.fgInfo)),
                       const SizedBox(height: 2),
                       Text(a.respostaAdmin!,
                           style: const TextStyle(fontSize: 13)),
                     ] else
                       Text('Ainda sem resposta.',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade500)),
+                              fontSize: 12, color: AppTheme.grey500)),
                     const SizedBox(height: 6),
                     TextButton(
                       onPressed: () => setState(() {

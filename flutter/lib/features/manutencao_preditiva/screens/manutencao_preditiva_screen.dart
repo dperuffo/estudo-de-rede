@@ -59,17 +59,17 @@ class _ManutencaoPreditivaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Manutenção Preditiva')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Score de desgaste por veículo (óleo, pneus, filtros e outros 5 componentes), com base em km rodado, '
             'consumo e histórico real de manutenções.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 16),
           kpisAsync.when(
@@ -211,12 +211,12 @@ class _ManutencaoPreditivaScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFECACA))),
+                border: Border.all(color: AppTheme.tintErro)),
             child: Text(
               '🚨 ${k.totalCriticos} veículo(s) em estado crítico — pelo menos um componente vencido pelo km rodado. Priorize agendar manutenção para eles.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgErro),
             ),
           ),
         ],
@@ -229,10 +229,10 @@ class _ManutencaoPreditivaScreenState
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintErro : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintErro : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +240,7 @@ class _ManutencaoPreditivaScreenState
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
@@ -248,7 +248,7 @@ class _ManutencaoPreditivaScreenState
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color:
-                        destaque ? const Color(0xFFB91C1C) : Colors.black87)),
+                        destaque ? AppTheme.fgErro : AppTheme.glassTexto)),
           ],
         ),
       ),
@@ -257,11 +257,11 @@ class _ManutencaoPreditivaScreenState
 
   Widget _lista(List<VeiculoResumoManutencao> lista) {
     if (lista.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
             child: Text('Nenhum veículo encontrado para esse filtro.',
-                style: TextStyle(color: Colors.grey))),
+                style: TextStyle(color: AppTheme.grey500))),
       );
     }
     final total = lista.first.totalCount;
@@ -275,7 +275,7 @@ class _ManutencaoPreditivaScreenState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Página $_pagina de $totalPaginas · $total veículo(s)',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               Row(
                 children: [
                   TextButton(
@@ -349,7 +349,7 @@ class _ManutencaoPreditivaScreenState
                 v.kmAtual > 0
                     ? '${v.kmAtual.round().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} km'
                     : '—',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               ),
               if (v.nCriticos > 0 || v.nAlertas > 0)
                 Padding(

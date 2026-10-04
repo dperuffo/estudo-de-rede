@@ -23,8 +23,8 @@ const _filtroCicloLabel = <_FiltroCiclo, String>{
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
-const _corMeioPagamento = <String, Color>{
-  'profrotas': Color(0xFFDBEAFE),
+get _corMeioPagamento => <String, Color>{
+  'profrotas': AppTheme.tintInfo,
   'Valecard': Color(0xFFEDE9FE),
   'RedeFrota': Color(0xFFFFEDD5),
   'TicketLog': Color(0xFFCCFBF1),
@@ -41,7 +41,7 @@ const _corSolidaMeioPagamento = <String, Color>{
   'TicketLog': Color(0xFF0D9488),
   'Veloe': Color(0xFFDB2777),
 };
-const _corSolidaMeioPagamentoFallback = Color(0xFF64748B);
+get _corSolidaMeioPagamentoFallback => AppTheme.glassTextoMuted;
 
 String _nomeProvedor(String p) => p == 'profrotas' ? 'PróFrotas' : p;
 
@@ -83,9 +83,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Financeiro')),
       floatingActionButton: sessaoAsync.maybeWhen(
         data: (sessao) => sessao.empresaId == null
@@ -160,9 +160,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       children: [
-        const Text(
+        Text(
             'Contas a receber (faturas dos clientes) e contas a pagar (despesas do posto).',
-            style: TextStyle(color: Colors.grey, fontSize: 13)),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -178,7 +178,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
               'Período: ${_dataBr(janela.inicio)} – ${_dataBr(janela.fim)}',
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         ),
         GridView.count(
           // Fase Auditoria-UX-Responsividade (08/09/2026) — mais colunas a
@@ -211,7 +211,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           const SizedBox(height: 4),
           Text(
               'A receber x a pagar por dia de vencimento (${_dataBr(janelaPrevista.inicio)} – ${_dataBr(janelaPrevista.fim)}).',
-              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
           const SizedBox(height: 10),
           Card(
             child: Padding(
@@ -226,9 +226,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           const Text('Consolidado por meio de pagamento',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
-          const Text(
+          Text(
               'Abastecimentos que você forneceu no período, por meio de pagamento usado pelo cliente.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
           const SizedBox(height: 10),
           if (dados.indicadoresPorProvedor.length > 1)
             Card(
@@ -243,10 +243,10 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: _corMeioPagamento[p.provedor] ??
-                        const Color(0xFFF1F5F9),
+                        AppTheme.superficieAlt,
                     child: Text(_nomeProvedor(p.provedor).substring(0, 1),
-                        style: const TextStyle(
-                            color: Colors.black87, fontSize: 13)),
+                        style: TextStyle(
+                            color: AppTheme.glassTexto, fontSize: 13)),
                   ),
                   title: Text(_nomeProvedor(p.provedor)),
                   subtitle: Text(
@@ -273,10 +273,10 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 10),
         if (dados.despesas.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhuma despesa lançada ainda.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...dados.despesas.map((d) => _linhaDespesa(d)),
@@ -291,7 +291,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         d.status == 'paga' ? 'Paga' : (vencida ? 'Vencida' : 'Em aberto');
     final statusCor = d.status == 'paga'
         ? const Color(0xFF16A34A)
-        : (vencida ? const Color(0xFFDC2626) : const Color(0xFF64748B));
+        : (vencida ? const Color(0xFFDC2626) : AppTheme.glassTextoMuted);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -316,13 +316,13 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(d.descricao!,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               ),
             const SizedBox(height: 6),
             Row(
               children: [
                 Text('Vence ${_dataBr(d.vencimento)}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 const SizedBox(width: 8),
                 Container(
                   padding:
@@ -417,9 +417,9 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         const Text('Ciclos por Cliente',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
-        const Text(
+        Text(
             'Ciclo atual (em andamento) e resumo de faturas de cada cliente.',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         const SizedBox(height: 10),
         TextField(
           controller: _buscaCiclosCtrl,
@@ -444,16 +444,16 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         ),
         const SizedBox(height: 10),
         if (linhas.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhum cliente com ciclo ainda.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else if (filtradas.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhum resultado para esse filtro/busca.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...filtradas.map((l) => _linhaContraparte(context, l)),
@@ -477,7 +477,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text('Ciclo de ${l.cicloFaturamentoDias} dias',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ),
             const SizedBox(height: 8),
             if (ciclo != null) ...[
@@ -527,8 +527,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 ),
               ),
             ] else
-              const Text('Sem ciclo em andamento',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Sem ciclo em andamento',
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -539,10 +539,10 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                       const Color(0xFFDC2626)),
                 if (l.contagem.fechada > 0)
                   _chipContagem('${l.contagem.fechada} fechada(s)',
-                      const Color(0xFF64748B)),
+                      AppTheme.glassTextoMuted),
                 if (l.contagem.aVencer > 0)
                   _chipContagem('${l.contagem.aVencer} a vencer',
-                      const Color(0xFF64748B)),
+                      AppTheme.glassTextoMuted),
                 if (l.contagem.paga > 0)
                   _chipContagem(
                       '${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
@@ -550,8 +550,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                     l.contagem.fechada == 0 &&
                     l.contagem.aVencer == 0 &&
                     l.contagem.paga == 0)
-                  const Text('Nenhuma ainda',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('Nenhuma ainda',
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               ],
             ),
             if (l.valorEmAberto > 0)
@@ -559,7 +559,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: RichText(
                   text: TextSpan(
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: 12, color: AppTheme.glassTexto),
                     children: [
                       const TextSpan(text: 'Em aberto: '),
                       TextSpan(
@@ -688,7 +688,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               // Achado do Daniel — texto colorido em cima do fundo escuro
               // padrão do tooltip ficava ilegível. Corrigido: fundo escuro
               // explícito + texto branco, cor só na bolinha.
-              getTooltipColor: (_) => const Color(0xFF1E293B),
+              getTooltipColor: (_) => AppTheme.glassTexto,
               getTooltipItem: (group, groupIdx, rod, rodIdx) => BarTooltipItem(
                 '● ',
                 TextStyle(
@@ -803,7 +803,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                style: TextStyle(fontSize: 9, color: AppTheme.grey500)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(

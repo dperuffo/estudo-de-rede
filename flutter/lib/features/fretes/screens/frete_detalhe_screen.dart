@@ -31,9 +31,9 @@ class FreteDetalheScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Detalhes do frete')),
       body: freteAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -125,7 +125,7 @@ class _CartaoFrete extends StatelessWidget {
                             fontWeight: FontWeight.bold, fontSize: 17))),
                 Text(labelStatusFrete[frete.status] ?? frete.status,
                     style:
-                        const TextStyle(fontSize: 11, color: Colors.black54)),
+                        TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
               ],
             ),
             const SizedBox(height: 8),
@@ -160,7 +160,7 @@ class _CartaoFrete extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 '📐 Dimensões: ${frete.cargaComprimentoM ?? '—'}m × ${frete.cargaLarguraM ?? '—'}m × ${frete.cargaAlturaM ?? '—'}m (C×L×A)',
-                style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                style: TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted),
               ),
             ],
             if (frete.veiculosAceitos.isNotEmpty ||
@@ -173,7 +173,7 @@ class _CartaoFrete extends StatelessWidget {
                   ...frete.veiculosAceitos
                       .map((v) => _tagPeq('🚚 $v', Colors.blue)),
                   ...frete.carroceriasAceitas
-                      .map((c) => _tagPeq('📦 $c', Colors.black54)),
+                      .map((c) => _tagPeq('📦 $c', AppTheme.glassTextoMuted)),
                 ],
               ),
             ],
@@ -213,16 +213,16 @@ class _BlocoEndereco extends StatelessWidget {
             Text(endereco.linhaEndereco, style: const TextStyle(fontSize: 13)),
             if (endereco.cep != null)
               Text('CEP ${endereco.cep}',
-                  style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
             if (endereco.referencia != null)
               Text('Referência: ${endereco.referencia}',
-                  style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
             if (endereco.data != null || endereco.hora != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '🗓️ ${endereco.data ?? 'Data não informada'}${endereco.hora != null ? ' às ${endereco.hora!.substring(0, 5)}' : ''}',
-                  style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                  style: TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted),
                 ),
               ),
             if (endereco.contatoNome != null ||
@@ -231,7 +231,7 @@ class _BlocoEndereco extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   '👤 ${endereco.contatoNome ?? 'Contato'}${endereco.contatoTelefone != null ? ' — ${endereco.contatoTelefone}' : ''}',
-                  style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                  style: TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted),
                 ),
               ),
           ],
@@ -276,10 +276,10 @@ class _BlocoAgendamentoPatio extends ConsumerWidget {
             const Text('🗓️ Agendamento de Pátio',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Janela de carga/descarga combinada com o local. Confirma sozinho pra "em andamento"/"concluído" quando '
               'você bate o checkpoint — não precisa marcar chegada/saída aqui.',
-              style: TextStyle(fontSize: 11, color: Colors.black45),
+              style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 10),
             agendamentosAsync.when(
@@ -343,8 +343,8 @@ class _PainelPropostas extends ConsumerWidget {
       error: (e, _) => Text('Erro ao carregar propostas: $e'),
       data: (propostas) {
         if (propostas.isEmpty)
-          return const Text('Nenhuma proposta recebida ainda.',
-              style: TextStyle(color: Colors.black45));
+          return Text('Nenhuma proposta recebida ainda.',
+              style: TextStyle(color: AppTheme.glassTextoMuted));
         return Column(
             children: propostas
                 .map((p) => _LinhaProposta(
@@ -436,8 +436,8 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                                 const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                       Text(p.telefoneMotorista ?? '—',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black54)),
+                          style: TextStyle(
+                              fontSize: 12, color: AppTheme.glassTextoMuted)),
                       const SizedBox(height: 4),
                       ChipsReputacaoMotorista(reputacao: p.reputacao),
                     ],
@@ -451,15 +451,15 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                             fontWeight: FontWeight.bold, fontSize: 16)),
                     Text(
                         'Rodada ${p.rodadaAtual} · última de ${p.ultimoAutor == 'motorista' ? 'motorista' : 'você'}',
-                        style: const TextStyle(
-                            fontSize: 11, color: Colors.black54)),
+                        style: TextStyle(
+                            fontSize: 11, color: AppTheme.glassTextoMuted)),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(_labelStatusNegociacao[p.status] ?? p.status,
-                style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
             if (_erro != null) ...[
               const SizedBox(height: 6),
               Text(_erro!,
@@ -558,9 +558,9 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
             const Text('🛢️ Postos recomendados',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Sugira paradas de abastecimento no caminho — pode vincular a um benefício de Parcerias Locais daquele posto.',
-              style: TextStyle(fontSize: 11.5, color: Colors.black54),
+              style: TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 10),
             postosAsync.when(
@@ -568,8 +568,8 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
               error: (e, _) => Text('Erro: $e'),
               data: (postos) {
                 if (postos.isEmpty)
-                  return const Text('Nenhum posto recomendado ainda.',
-                      style: TextStyle(color: Colors.black45, fontSize: 13));
+                  return Text('Nenhum posto recomendado ainda.',
+                      style: TextStyle(color: AppTheme.glassTextoMuted, fontSize: 13));
                 return Column(
                   children: postos
                       .map((p) => Padding(
@@ -578,7 +578,7 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 8),
                               decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
+                                  color: AppTheme.grey100,
                                   borderRadius: BorderRadius.circular(8)),
                               child: Row(
                                 children: [
@@ -601,9 +601,9 @@ class _BlocoPostosRecomendados extends ConsumerWidget {
                                                   color: Colors.blue)),
                                         if (p.observacao != null)
                                           Text(p.observacao!,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                   fontSize: 11,
-                                                  color: Colors.black54)),
+                                                  color: AppTheme.glassTextoMuted)),
                                       ],
                                     ),
                                   ),
@@ -780,13 +780,13 @@ class _BlocoTimeline extends ConsumerWidget {
                                   style: const TextStyle(fontSize: 13)),
                               if (e.observacao != null)
                                 Text(e.observacao!,
-                                    style: const TextStyle(
-                                        fontSize: 11.5, color: Colors.black54)),
+                                    style: TextStyle(
+                                        fontSize: 11.5, color: AppTheme.glassTextoMuted)),
                               Text(
                                 '${e.criadoEm.toLocal().day.toString().padLeft(2, '0')}/${e.criadoEm.toLocal().month.toString().padLeft(2, '0')} às '
                                 '${e.criadoEm.toLocal().hour.toString().padLeft(2, '0')}:${e.criadoEm.toLocal().minute.toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                    fontSize: 10.5, color: Colors.black45),
+                                style: TextStyle(
+                                    fontSize: 10.5, color: AppTheme.glassTextoMuted),
                               ),
                             ],
                           ),
@@ -1005,9 +1005,9 @@ class _BlocoPagamentos extends ConsumerWidget {
                 const Text('💰 Pagamento do frete',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Confirme aqui quando cada parcela for paga ao motorista — não movimenta dinheiro automaticamente, é só pra controle.',
-                  style: TextStyle(fontSize: 11, color: Colors.black54),
+                  style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted),
                 ),
                 const SizedBox(height: 10),
                 ...pagamentos.map((p) => _LinhaPagamento(
@@ -1065,7 +1065,7 @@ class _LinhaPagamentoState extends ConsumerState<_LinhaPagamento> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: AppTheme.grey100,
             borderRadius: BorderRadius.circular(8)),
         child: Row(
           children: [
@@ -1079,7 +1079,7 @@ class _LinhaPagamentoState extends ConsumerState<_LinhaPagamento> {
                           fontWeight: FontWeight.w600, fontSize: 13)),
                   Text(_formatoMoedaDoc.format(p.valor),
                       style:
-                          const TextStyle(fontSize: 12, color: Colors.black54)),
+                          TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
                   if (_erro != null)
                     Text(_erro!,
                         style:
@@ -1219,9 +1219,9 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
           children: [
             const Text('📄 Documentos do frete (CT-e / CIOT)',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            const Text(
+            Text(
               'Emitidos fora da plataforma (SEFAZ / integradora credenciada na ANTT) — aqui é só o registro.',
-              style: TextStyle(fontSize: 11, color: Colors.black54),
+              style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 12),
             const Text('CT-e',
@@ -1234,8 +1234,8 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
               error: (e, _) => Text('Erro: $e',
                   style: const TextStyle(fontSize: 11, color: Colors.red)),
               data: (ctes) => ctes.isEmpty
-                  ? const Text('Nenhum CT-e registrado ainda.',
-                      style: TextStyle(fontSize: 12, color: Colors.black45))
+                  ? Text('Nenhum CT-e registrado ainda.',
+                      style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted))
                   : Column(
                       children: ctes
                           .map((c) => ListTile(
@@ -1283,8 +1283,8 @@ class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
               error: (e, _) => Text('Erro: $e',
                   style: const TextStyle(fontSize: 11, color: Colors.red)),
               data: (ciots) => ciots.isEmpty
-                  ? const Text('Nenhum CIOT registrado ainda.',
-                      style: TextStyle(fontSize: 12, color: Colors.black45))
+                  ? Text('Nenhum CIOT registrado ainda.',
+                      style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted))
                   : Column(
                       children: ciots
                           .map((c) => ListTile(

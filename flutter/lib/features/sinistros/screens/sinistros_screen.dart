@@ -44,9 +44,9 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Sinistros e Acidentes')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/sinistros/novo'),
@@ -97,12 +97,12 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
               ),
               const SizedBox(height: 16),
               if (filtrados.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                       child: Text(
                           'Nenhum sinistro registrado para esse filtro.',
-                          style: TextStyle(color: Colors.grey))),
+                          style: TextStyle(color: AppTheme.grey500))),
                 )
               else
                 ...filtrados.map(_card),
@@ -120,10 +120,10 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintErro : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintErro : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,14 +131,14 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
+                    color: destaque ? AppTheme.fgErro : AppTheme.glassTexto),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -158,8 +158,8 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 14))),
             if (s.houveVitima)
-              const Icon(Icons.warning_amber,
-                  size: 16, color: Color(0xFFB91C1C)),
+              Icon(Icons.warning_amber,
+                  size: 16, color: AppTheme.fgErro),
           ],
         ),
         subtitle: Padding(
@@ -174,7 +174,7 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
               const SizedBox(height: 2),
               Text(
                 '${s.motoristaNome ?? 'Sem motorista informado'} · ${_fmtMoeda(s.custoEstimado)}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               ),
               if (s.gravidade != null) ...[
                 const SizedBox(height: 6),
@@ -182,13 +182,13 @@ class _SinistrosScreenState extends ConsumerState<SinistrosScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                      color: cor?.fundo ?? const Color(0xFFF1F5F9),
+                      color: cor?.fundo ?? AppTheme.superficieAlt,
                       borderRadius: BorderRadius.circular(12)),
                   child: Text(s.gravidade!,
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: cor?.texto ?? Colors.grey.shade700)),
+                          color: cor?.texto ?? AppTheme.grey700)),
                 ),
               ],
             ],

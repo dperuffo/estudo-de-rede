@@ -34,9 +34,9 @@ class NotaFiscalDetalheScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('NF-e')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -53,7 +53,7 @@ class NotaFiscalDetalheScreen extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                   'Série ${nota.serieNf} · Emitida em ${_fmtData(nota.dataEmissao)}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
               const SizedBox(height: 16),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,8 +83,8 @@ class NotaFiscalDetalheScreen extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                           'Código ANP: ${nota.produtoCodigoAnp} — ${nota.produtoDescricaoAnp}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey)),
+                          style: TextStyle(
+                              fontSize: 12, color: AppTheme.grey500)),
                       const Divider(height: 20),
                       _linha('Litros', '${_numero.format(nota.quantidade)} L'),
                       _linha('Preço/L', _moeda.format(nota.valorUnitario)),
@@ -120,7 +120,7 @@ class NotaFiscalDetalheScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 16),
               Text('Chave de acesso: ${nota.chaveAcesso}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
             ],
           );
         },
@@ -136,15 +136,15 @@ class NotaFiscalDetalheScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(rotulo.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 10, color: Colors.grey, letterSpacing: 0.5)),
+                style: TextStyle(
+                    fontSize: 10, color: AppTheme.grey500, letterSpacing: 0.5)),
             const SizedBox(height: 4),
             Text(nome,
                 style:
                     const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(height: 2),
             Text('CNPJ: $cnpj',
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
       ),
@@ -158,7 +158,7 @@ class NotaFiscalDetalheScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(rotulo,
-              style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
           Text(valor,
               style: TextStyle(
                   fontSize: 13,

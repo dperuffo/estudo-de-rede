@@ -20,9 +20,9 @@ class UsuariosScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Usuários')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/posto/usuarios/novo'),
@@ -34,11 +34,11 @@ class UsuariosScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (usuarios) {
           if (usuarios.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Nenhum usuário vinculado a este posto ainda.',
-                    style: TextStyle(color: Colors.grey)),
+                    style: TextStyle(color: AppTheme.grey500)),
               ),
             );
           }
@@ -83,20 +83,20 @@ class UsuariosScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(u.email,
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,
               children: [
                 if (!u.ativo)
-                  _chip('Inativo', const Color(0xFF64748B))
+                  _chip('Inativo', AppTheme.glassTextoMuted)
                 else
                   _chip('Ativo', const Color(0xFF16A34A)),
                 _chip(
                     u.mfaHabilitado ? 'MFA ativado' : 'MFA pendente',
                     u.mfaHabilitado
                         ? const Color(0xFF16A34A)
-                        : const Color(0xFFB45309)),
+                        : AppTheme.fgAviso),
               ],
             ),
           ],
@@ -118,7 +118,7 @@ class UsuariosScreen extends ConsumerWidget {
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
       ),

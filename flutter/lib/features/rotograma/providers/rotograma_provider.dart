@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-3 — Rotograma de Segurança (cliente), porta de rotograma/
 // page.tsx + novo/page.tsx + [id]/page.tsx + [id]/editar/page.tsx +
@@ -55,9 +56,9 @@ Color corRiscoFundo(String categoria) {
     case 'crime':
       return const Color(0xFFFFE4E6);
     case 'radar':
-      return const Color(0xFFFFFBEB);
+      return AppTheme.tintAviso;
     default:
-      return const Color(0xFFFEF2F2);
+      return AppTheme.tintErro;
   }
 }
 

@@ -156,7 +156,7 @@ class _FidelidadeMotoristasScreenState
               child: const Text('Cancelar')),
           FilledButton(
               style:
-                  FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                  FilledButton.styleFrom(backgroundColor: AppTheme.fgErro),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Excluir')),
         ],
@@ -199,9 +199,9 @@ class _FidelidadeMotoristasScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Fidelidade dos Motoristas')),
       body: RefreshIndicator(
         onRefresh: () async => _carregar(),
@@ -241,7 +241,7 @@ class _FidelidadeMotoristasScreenState
               children: [
                 Text(
                   'Pontos, nível e engajamento dos motoristas no programa de fidelidade.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
@@ -269,7 +269,7 @@ class _FidelidadeMotoristasScreenState
                       padding: const EdgeInsets.all(24),
                       child: Center(
                         child: Text('Nenhum motorista com dados de fidelidade.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppTheme.grey600),
                             textAlign: TextAlign.center),
                       ),
                     ),
@@ -297,7 +297,7 @@ class _FidelidadeMotoristasScreenState
                     final missoes = snapM.data ?? const [];
                     if (missoes.isEmpty) {
                       return Text('Nenhuma missão cadastrada.',
-                          style: TextStyle(color: Colors.grey.shade600));
+                          style: TextStyle(color: AppTheme.grey600));
                     }
                     return Column(children: missoes.map(_cardMissao).toList());
                   },
@@ -335,16 +335,16 @@ class _FidelidadeMotoristasScreenState
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                       color: m.aderido
-                          ? const Color(0xFFDCFCE7)
-                          : const Color(0xFFF3F4F6),
+                          ? AppTheme.tintOk
+                          : AppTheme.superficieAlt,
                       borderRadius: BorderRadius.circular(12)),
                   child: Text(m.aderido ? 'Aderido' : 'Não aderiu',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: m.aderido
-                              ? const Color(0xFF15803D)
-                              : Colors.grey.shade600)),
+                              ? AppTheme.fgOk
+                              : AppTheme.grey600)),
                 ),
               ],
             ),
@@ -386,7 +386,7 @@ class _FidelidadeMotoristasScreenState
                 onChanged: (_) => _alternarAtiva(missao),
               ),
               IconButton(
-                icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
+                icon: Icon(Icons.delete_outline, color: AppTheme.fgErro),
                 onPressed: () => _excluirMissao(missao),
               ),
             ],
@@ -401,7 +401,7 @@ class _FidelidadeMotoristasScreenState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),

@@ -71,19 +71,19 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Novo Vínculo')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Associa um motorista a um veículo específico. Abastecimentos feitos em postos ou soluções de '
               'automação integradas via API podem ser autorizados apenas quando o par estiver ativo neste cadastro.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             if (_erro != null) ...[
@@ -92,11 +92,11 @@ class _VinculoNovoScreenState extends ConsumerState<VinculoNovoScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: AppTheme.tintErro,
                     borderRadius: BorderRadius.circular(8)),
                 child: Text(_erro!,
-                    style: const TextStyle(
-                        color: Color(0xFFB91C1C), fontSize: 13)),
+                    style: TextStyle(
+                        color: AppTheme.fgErro, fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],

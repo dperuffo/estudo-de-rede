@@ -43,20 +43,20 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Patrimônio')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(patrimonioResumoProvider),
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Registro formal de ativo imobilizado: valor de aquisição, depreciação contábil (linha reta pela '
               'vida útil) e correções (reavaliação, melhoria, baixa) — complementa o TCO, que usa depreciação '
               'econômica (curva FIPE) só pra custo/km.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             Row(
@@ -116,11 +116,11 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
 
   Widget _corpo(List<VeiculoPatrimonio> lista) {
     if (lista.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
             child: Text('Nenhum veículo encontrado para esse filtro.',
-                style: TextStyle(color: Colors.grey))),
+                style: TextStyle(color: AppTheme.grey500))),
       );
     }
 
@@ -164,13 +164,13 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: AppTheme.tintAviso,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFDE68A))),
+                border: Border.all(color: AppTheme.tintAviso)),
             child: Text(
               '⚠️ $semAquisicao veículo(s) sem valor/data de aquisição cadastrado — não entram no Patrimônio. '
               'Complete o cadastro em Veículos.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgAviso),
             ),
           ),
         ],
@@ -185,10 +185,10 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFFFBEB) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintAviso : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintAviso : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,7 +196,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
@@ -204,7 +204,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color:
-                        destaque ? const Color(0xFF92400E) : Colors.black87)),
+                        destaque ? AppTheme.fgAviso : AppTheme.glassTexto)),
           ],
         ),
       ),
@@ -215,16 +215,16 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
     final Color corBadge;
     final String textoBadge;
     if (v.baixado) {
-      corBadge = Colors.grey.shade200;
+      corBadge = AppTheme.grey200;
       textoBadge = 'Baixado';
     } else if (!v.patrimonioCompleto) {
-      corBadge = const Color(0xFFFFFBEB);
+      corBadge = AppTheme.tintAviso;
       textoBadge = 'Sem aquisição';
     } else if ((v.percentualDepreciado ?? 0) >= 100) {
       corBadge = const Color(0xFFFFF7ED);
       textoBadge = 'Vida útil esgotada';
     } else {
-      corBadge = const Color(0xFFECFDF5);
+      corBadge = AppTheme.tintOk;
       textoBadge = 'Em depreciação';
     }
 
@@ -264,7 +264,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                     Text(
                       '${_moeda.format(v.depreciacaoAcumulada!)} depreciados'
                       '${v.percentualDepreciado != null ? ' (${v.percentualDepreciado}%)' : ''}',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                     ),
                   const SizedBox(width: 8),
                   Container(

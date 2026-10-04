@@ -15,11 +15,11 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
   static Color _corCobertura(double pct) {
     if (pct >= 30) return const Color(0xFF2E7D32);
     if (pct >= 10) return const Color(0xFFF57F17);
-    return const Color(0xFFB71C1C);
+    return AppTheme.fgErro;
   }
 
   static Color _corScore(double score) {
-    if (score >= 80) return const Color(0xFFB71C1C);
+    if (score >= 80) return AppTheme.fgErro;
     if (score >= 60) return const Color(0xFFE65100);
     if (score >= 40) return const Color(0xFFF57F17);
     return AppTheme.glassTextoAtivo;
@@ -45,11 +45,11 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
                   Text(
                       '% dos municípios de cada macrorregião que já têm ao menos 1 posto GF (referência IBGE).',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                          TextStyle(fontSize: 11, color: AppTheme.grey500)),
                   const SizedBox(height: 12),
                   if (d.coberturaMacrorregiao.isEmpty)
-                    const Text('Ainda não há postos cadastrados.',
-                        style: TextStyle(color: Colors.grey))
+                    Text('Ainda não há postos cadastrados.',
+                        style: TextStyle(color: AppTheme.grey500))
                   else ...[
                     BarraHorizontal(
                       dados: d.coberturaMacrorregiao
@@ -90,11 +90,11 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
                               Text('${c.postosGf} postos',
                                   style: TextStyle(
                                       fontSize: 10,
-                                      color: Colors.grey.shade500)),
+                                      color: AppTheme.grey500)),
                               Text('${c.estadosComGf}/${c.totalUfs} estados',
                                   style: TextStyle(
                                       fontSize: 10,
-                                      color: Colors.grey.shade500)),
+                                      color: AppTheme.grey500)),
                             ],
                           ),
                         );
@@ -118,12 +118,12 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
                   Text(
                       'Menor penetração GF + maior preço de mercado (diesel ANP) = maior oportunidade.',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                          TextStyle(fontSize: 11, color: AppTheme.grey500)),
                   const SizedBox(height: 12),
                   if (d.oportunidades.isEmpty)
-                    const Text(
+                    Text(
                         'Sem dados suficientes para calcular oportunidades.',
-                        style: TextStyle(color: Colors.grey))
+                        style: TextStyle(color: AppTheme.grey500))
                   else ...[
                     SizedBox(
                       height: 260,

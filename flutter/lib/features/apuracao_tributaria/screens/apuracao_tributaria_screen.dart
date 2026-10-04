@@ -150,9 +150,9 @@ class _ApuracaoTributariaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Apuração de Crédito Tributário')),
       body: RefreshIndicator(
         onRefresh: () async => _carregar(),
@@ -250,7 +250,7 @@ class _ApuracaoTributariaScreenState
                               padding: const EdgeInsets.all(12),
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF3C7),
+                                  color: AppTheme.tintAviso,
                                   borderRadius: BorderRadius.circular(8)),
                               child: const Text(
                                   'Preencha o regime tributário e a elegibilidade acima para saber se sua empresa pode tomar o crédito de ICMS.',
@@ -262,14 +262,14 @@ class _ApuracaoTributariaScreenState
                               padding: const EdgeInsets.all(12),
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF2F2),
+                                  color: AppTheme.tintErro,
                                   borderRadius: BorderRadius.circular(8)),
                               child: Text(
                                   dados.regimeTributario == 'simples_nacional'
                                       ? 'Simples Nacional não tem direito a crédito de ICMS sobre combustível — os valores abaixo são só informativos.'
                                       : 'Sua empresa não é elegível ao crédito (não presta transporte tributado por ICMS, ou é optante por crédito outorgado) — valores abaixo são só informativos.',
-                                  style: const TextStyle(
-                                      fontSize: 13, color: Color(0xFFB91C1C))),
+                                  style: TextStyle(
+                                      fontSize: 13, color: AppTheme.fgErro)),
                             ),
                           Row(
                             children: [
@@ -310,7 +310,7 @@ class _ApuracaoTributariaScreenState
                             Text(
                                 '(aproximação — usa a UF do posto emitente, não a UF de início do transporte)',
                                 style: TextStyle(
-                                    fontSize: 11, color: Colors.grey.shade600)),
+                                    fontSize: 11, color: AppTheme.grey600)),
                             const SizedBox(height: 8),
                             ...ufs.map((uf) {
                               final total = comCredito
@@ -337,7 +337,7 @@ class _ApuracaoTributariaScreenState
                                 child: Center(
                                   child: Text(
                                       'Nenhuma nota fiscal de abastecimento neste período.',
-                                      style: TextStyle(color: Colors.grey.shade600)),
+                                      style: TextStyle(color: AppTheme.grey600)),
                                 ),
                               ),
                             )
@@ -347,7 +347,7 @@ class _ApuracaoTributariaScreenState
                           Text(
                               'Base legal: LC 192/2022 e Convênio ICMS 26/2023. Consulte seu contador antes de tomar o crédito — os valores acima são calculados a partir do que o posto informou na NF-e.',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade500)),
+                                  fontSize: 11, color: AppTheme.grey500)),
                         ],
                       );
                     },
@@ -374,12 +374,12 @@ class _ApuracaoTributariaScreenState
                         overflow: TextOverflow.ellipsis),
                   ),
                   Text(_data.format(DateTime.parse(n.dataEmissao)),
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
                 ],
               ),
               const SizedBox(height: 4),
               Text(n.produtoDescricaoAnp ?? n.produtoNomeXml ?? '—',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 12,
@@ -395,8 +395,8 @@ class _ApuracaoTributariaScreenState
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: n.vIcmsMonoRet != null
-                              ? const Color(0xFF15803D)
-                              : Colors.grey)),
+                              ? AppTheme.fgOk
+                              : AppTheme.grey500)),
                 ],
               ),
             ],
@@ -406,14 +406,14 @@ class _ApuracaoTributariaScreenState
 
   Widget _indicador(String label, String valor, {bool destaque = false}) =>
       Card(
-        color: destaque ? const Color(0xFFFEF3C7) : null,
+        color: destaque ? AppTheme.tintAviso : null,
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                   textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis),

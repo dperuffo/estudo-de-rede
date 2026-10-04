@@ -194,9 +194,9 @@ class _TabelaFreteFormScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title:
               Text(_editando ? 'Editar Tabela de Frete' : 'Nova Tabela de Frete')),
       body: ListView(
@@ -207,10 +207,10 @@ class _TabelaFreteFormScreenState
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
-                  style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  style: TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../providers/constantes_anp.dart';
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 5/10 — "⚖️ Modo Comparativo". Porta ModoComparativo.tsx (362 linhas)
 // — compara 2 estados OU 2 macrorregiões lado a lado (postos, cobertura,
@@ -33,7 +34,7 @@ class _Metricas {
 }
 
 const _corA = Color(0xFF0D47A1);
-const _corB = Color(0xFFB71C1C);
+get _corB => AppTheme.fgErro;
 
 class _AbaComparativoState extends State<AbaComparativo> {
   String _modo = 'estados'; // estados | regioes
@@ -110,11 +111,11 @@ class _AbaComparativoState extends State<AbaComparativo> {
   @override
   Widget build(BuildContext context) {
     if (_ufsDisponiveis.isEmpty) {
-      return const Center(
+      return Center(
           child: Padding(
               padding: EdgeInsets.all(24),
               child: Text('Sem UFs com postos cadastrados ainda.',
-                  style: TextStyle(color: Colors.grey))));
+                  style: TextStyle(color: AppTheme.grey500))));
     }
     final ufsA = _modo == 'estados' ? [_ladoA] : (regioesBrasil[_ladoA] ?? []);
     final ufsB = _modo == 'estados' ? [_ladoB] : (regioesBrasil[_ladoB] ?? []);
@@ -177,7 +178,7 @@ class _AbaComparativoState extends State<AbaComparativo> {
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
               Text(
                   'Postos, cobertura, distribuidoras e preço médio por combustível, lado a lado.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               const SizedBox(height: 12),
               Row(children: [
                 const Text('Comparar por: ', style: TextStyle(fontSize: 12)),
@@ -235,7 +236,7 @@ class _AbaComparativoState extends State<AbaComparativo> {
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade600)),
+                        color: AppTheme.grey600)),
                 const SizedBox(height: 8),
                 ...combustiveisComuns
                     .where((c) =>
@@ -284,7 +285,7 @@ class _AbaComparativoState extends State<AbaComparativo> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+            style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
         DropdownButton<String>(
           value: valor,
           isExpanded: true,
@@ -338,7 +339,7 @@ class _AbaComparativoState extends State<AbaComparativo> {
           child: Container(
             height: 12,
             decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: AppTheme.grey100,
                 borderRadius: BorderRadius.circular(3)),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
@@ -353,7 +354,7 @@ class _AbaComparativoState extends State<AbaComparativo> {
         SizedBox(
             width: 60,
             child: Text(texto,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600))),
+                style: TextStyle(fontSize: 10, color: AppTheme.grey600))),
       ]),
     );
   }
@@ -368,7 +369,7 @@ class _AbaComparativoState extends State<AbaComparativo> {
         const SizedBox(height: 6),
         if (dados.isEmpty)
           Text('Sem distribuidora cadastrada.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade400))
+              style: TextStyle(fontSize: 11, color: AppTheme.grey400))
         else
           BarraHorizontal(
               dados: dados

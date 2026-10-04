@@ -126,9 +126,9 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Ações Sugeridas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _detectando ? null : _detectar,
@@ -146,11 +146,11 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
           children: [
-            const Text(
+            Text(
               'Oportunidades detectadas automaticamente — CNH vencida, posto acima da média regional, hodômetro '
               'fora do padrão, volume acima do tanque, postos distantes no mesmo dia e preço fora da média '
               'regional. Aprovar executa a ação de verdade no sistema.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 12),
             kpisAsync.when(
@@ -235,7 +235,7 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                       child: Text(
                         'Nenhuma ação sugerida encontrada com esses filtros. Toque em "Detectar oportunidades" '
                         'para analisar CNH, postos, hodômetro e demais indicadores.',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: AppTheme.grey600),
                       ),
                     ),
                   );
@@ -257,8 +257,8 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
+                style: TextStyle(
+                    fontSize: 10, color: AppTheme.grey500, letterSpacing: 0.3)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
@@ -285,7 +285,7 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
     } else if (a.status == 'rejeitada') {
       statusTexto =
           'Rejeitada${a.decididoPor != null ? ' por ${a.decididoPor}' : ''}';
-      statusCor = Colors.grey;
+      statusCor = AppTheme.grey500;
     } else if (a.status == 'falhou') {
       statusTexto = 'Falhou: ${a.erroExecucao ?? 'erro desconhecido'}';
       statusCor = const Color(0xFFDC2626);
@@ -326,7 +326,7 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
                       overflow: TextOverflow.ellipsis),
                 ),
                 Text(_fmtDataHora(a.criadoEm),
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ],
             ),
             const SizedBox(height: 8),

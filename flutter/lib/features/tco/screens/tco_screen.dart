@@ -79,19 +79,19 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('TCO — Custo Total de Propriedade')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(tcoResumoProvider),
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Custo completo por veículo no período (combustível, manutenção, multas, oficinas, custos fixos e '
               'depreciação), pra identificar quais veículos estão pesando mais no bolso e quando vale trocar.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             Row(
@@ -209,11 +209,11 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
 
   Widget _corpo(List<VeiculoResumoTco> lista) {
     if (lista.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
             child: Text('Nenhum veículo encontrado para esse filtro.',
-                style: TextStyle(color: Colors.grey))),
+                style: TextStyle(color: AppTheme.grey500))),
       );
     }
 
@@ -251,13 +251,13 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: AppTheme.tintAviso,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFDE68A))),
+                border: Border.all(color: AppTheme.tintAviso)),
             child: Text(
               '⚠️ $semAquisicao veículo(s) sem valor de aquisição cadastrado — o TCO deles está sendo calculado sem '
               'depreciação (custo "operacional"). Complete o cadastro em Veículos pra ver o TCO completo.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgAviso),
             ),
           ),
         ],
@@ -269,7 +269,7 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Página $_pagina de $totalPaginas · $total veículo(s)',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               Row(
                 children: [
                   TextButton(
@@ -295,10 +295,10 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFFFBEB) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintAviso : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintAviso : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,7 +306,7 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
@@ -314,7 +314,7 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color:
-                        destaque ? const Color(0xFF92400E) : Colors.black87)),
+                        destaque ? AppTheme.fgAviso : AppTheme.glassTexto)),
           ],
         ),
       ),
@@ -357,7 +357,7 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
                     v.custoPorKm != null
                         ? '${_moeda.format(v.custoPorKm!)}/km'
                         : 'custo/km indisponível',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(width: 8),
                   Container(
@@ -365,8 +365,8 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: v.tcoCompleto
-                          ? const Color(0xFFECFDF5)
-                          : const Color(0xFFFFFBEB),
+                          ? AppTheme.tintOk
+                          : AppTheme.tintAviso,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -376,7 +376,7 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
                           fontWeight: FontWeight.w700,
                           color: v.tcoCompleto
                               ? const Color(0xFF047857)
-                              : const Color(0xFF92400E)),
+                              : AppTheme.fgAviso),
                     ),
                   ),
                   if (v.fonteDepreciacao == 'fipe_curva_real') ...[

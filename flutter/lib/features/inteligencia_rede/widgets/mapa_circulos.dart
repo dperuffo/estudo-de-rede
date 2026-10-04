@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import '../../../core/theme/app_theme.dart';
 
 // Widget de mapa único, reaproveitado pelas 4 abas de Inteligência de Rede
 // que têm um mapa Leaflet na web (MapaDensidade, MapaPrecoOperacional,
@@ -40,15 +41,15 @@ class MapaCirculos extends StatelessWidget {
       return Container(
         height: height,
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          border: Border.all(color: Colors.grey.shade300),
+          color: AppTheme.grey50,
+          border: Border.all(color: AppTheme.grey300),
           borderRadius: BorderRadius.circular(8),
         ),
         alignment: Alignment.center,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(mensagemVazio,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              style: TextStyle(color: AppTheme.grey500, fontSize: 12),
               textAlign: TextAlign.center),
         ),
       );

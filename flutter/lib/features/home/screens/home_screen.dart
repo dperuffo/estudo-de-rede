@@ -16,6 +16,7 @@ import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../insights_ia/providers/insights_ia_provider.dart';
 import '../../../core/widgets/sino_avisos.dart';
+import '../../../core/widgets/tema_toggle_tile.dart';
 
 // Fase Acesso-Rápido-Favoritos (04/08/2026, pedido do Daniel: "mecanismo de
 // acesso rápido... favoritos... usar inteligência artificial pra posicionar
@@ -307,14 +308,14 @@ class HomeScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
-        titleTextStyle: const TextStyle(
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
+        titleTextStyle: TextStyle(
             color: AppTheme.glassTexto,
             fontSize: 18,
             fontWeight: FontWeight.w600),
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         actions: const [SinoAvisos()],
       ),
       body: Column(
@@ -336,9 +337,9 @@ class HomeScreen extends ConsumerWidget {
       bottomNavigationBar: Responsive.isDesktop(context)
           ? null
           : Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: AppTheme.glassNavGradient,
-                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                border: Border(top: BorderSide(color: AppTheme.bordaSuave)),
               ),
               child: Theme(
                 data: Theme.of(context).copyWith(
@@ -458,7 +459,7 @@ class _HomeDrawer extends ConsumerWidget {
         dense: true,
         leading: Icon(icon, color: AppTheme.glassIcone, size: 20),
         title: Text(label,
-            style: const TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
+            style: TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
         // Fase FLT-7 (ajuste) — pedido do Daniel: a pílula com número
         // (Container com Text dentro) esticava a linha inteira do menu
         // verticalmente em alguns itens (o texto do Text virava uma coluna
@@ -525,14 +526,14 @@ class _HomeDrawer extends ConsumerWidget {
       // atrás do painel pra desfocar, só a superfície em si com gradiente +
       // realce + sombra, mesma linguagem visual da web.
       child: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient),
+        decoration: BoxDecoration(gradient: AppTheme.glassNavGradient),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.bordaSuave)),
               ),
               child: SafeArea(
                 bottom: false,
@@ -546,9 +547,9 @@ class _HomeDrawer extends ConsumerWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.white, // logo sempre em cartão claro
                           borderRadius: BorderRadius.circular(AppTheme.radius),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: AppTheme.bordaSuave),
                           boxShadow: [
                             BoxShadow(
                               color: AppTheme.glassTextoAtivo.withOpacity(0.06),
@@ -568,7 +569,7 @@ class _HomeDrawer extends ConsumerWidget {
                         nomeEmpresa ?? 'Minha empresa',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.glassTexto,
                             fontSize: 14,
                             fontWeight: FontWeight.w600),
@@ -593,7 +594,7 @@ class _HomeDrawer extends ConsumerWidget {
                             },
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(Icons.swap_horiz,
                                     color: AppTheme.glassTexto, size: 16),
                                 SizedBox(width: 4),
@@ -654,7 +655,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/central-regras'))
               _item(context, Icons.rule, 'Central de Regras & Alertas',
                   '/central-regras'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Cadastros'),
             if (pode('/clientes'))
               _item(context, Icons.business, 'Clientes', '/clientes',
@@ -682,7 +683,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/postos-internos'))
               _item(context, Icons.garage_outlined, 'Postos Internos',
                   '/postos-internos'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Roteirização e Abastecimento'),
             if (pode('/roteirizacao'))
               _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
@@ -743,7 +744,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/parametros-nf'))
               _item(context, Icons.receipt_long, 'Parâmetros de NF',
                   '/parametros-nf'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Fretes'),
             if (pode('/fretes'))
               _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
@@ -800,7 +801,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/pisos-antt'))
               _item(context, Icons.price_check, 'Piso Mínimo ANTT',
                   '/pisos-antt'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Manutenção e Ativos'),
             if (pode('/manutencao-preditiva'))
               _item(context, Icons.build, 'Manutenção Preditiva',
@@ -846,7 +847,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/oficinas'))
               _item(context, Icons.build_circle_outlined, 'Rede de Oficinas',
                   '/oficinas'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Financeiro'),
             if (pode('/financeiro'))
               _item(context, Icons.attach_money, 'Painel Financeiro',
@@ -870,7 +871,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/aprovacoes'))
               _item(context, Icons.check_circle_outline, 'Aprovações',
                   '/aprovacoes'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Relatórios e Sustentabilidade'),
             if (pode('/relatorios'))
               _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
@@ -882,7 +883,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/inteligencia-rede'))
               _item(context, Icons.hub, 'Inteligência de Rede',
                   '/inteligencia-rede'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Engajamento'),
             // Fase Parcerias Locais (17/07) — o cliente cria seus próprios
             // benefícios (treinamentos, marketplace, telemedicina etc.) no
@@ -896,7 +897,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/fidelidade-motoristas'))
               _item(context, Icons.emoji_events_outlined,
                   'Fidelidade dos Motoristas', '/fidelidade-motoristas'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Conta e Ajuda'),
             if (pode('/assistente'))
               _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
@@ -925,7 +926,7 @@ class _HomeDrawer extends ConsumerWidget {
             if (pode('/treinamento'))
               _item(context, Icons.school_outlined, 'Central de Treinamento',
                   '/treinamento'),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             _grp('Sistema'),
             if (pode('/documentos'))
               _item(context, Icons.folder, 'Documentos', '/documentos'),
@@ -949,7 +950,7 @@ class _HomeDrawer extends ConsumerWidget {
             // uma já mostra "Acesso restrito" pra quem não é, mas nem faz
             // sentido oferecer o item de menu nesse caso).
             if (sessao?.ehAdmin ?? false) ...[
-              const Divider(color: Color(0xFFE2E8F0), height: 1),
+              Divider(color: AppTheme.bordaSuave, height: 1),
               _grp('Administração'),
               _item(context, Icons.settings, 'Configurações do Sistema',
                   '/configuracoes'),
@@ -970,11 +971,12 @@ class _HomeDrawer extends ConsumerWidget {
               _item(context, Icons.account_tree, 'Grupo Econômico (todos)',
                   '/grupos-economicos'),
             ],
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
             if (pode('/avisos'))
               _item(context, Icons.notifications_outlined, 'Avisos', '/avisos',
                   badge: avisosNaoLidos),
-            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            Divider(color: AppTheme.bordaSuave, height: 1),
+            const TemaToggleTile(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair', style: TextStyle(color: Colors.red)),
@@ -995,7 +997,7 @@ class _HomeDrawer extends ConsumerWidget {
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.glassTextoMuted)),

@@ -95,8 +95,8 @@ class CotacoesScreen extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-              title: Text('Descartar', style: TextStyle(color: Colors.red.shade700)),
+              leading: Icon(Icons.delete_outline, color: AppTheme.fgErro),
+              title: Text('Descartar', style: TextStyle(color: AppTheme.fgErro)),
               onTap: () {
                 Navigator.pop(ctx);
                 _descartar(context, ref, c);
@@ -116,9 +116,9 @@ class CotacoesScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('🧮 Cotações')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/cotacoes/novo'),
@@ -139,7 +139,7 @@ class CotacoesScreen extends ConsumerWidget {
                       child: Center(
                         child: Text(
                             'Nenhuma cotação simulada ainda. Toque em "Nova Cotação" para começar.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppTheme.grey600),
                             textAlign: TextAlign.center),
                       ),
                     ),
@@ -169,14 +169,14 @@ class CotacoesScreen extends ConsumerWidget {
 
   Widget _card(BuildContext context, WidgetRef ref, Cotacao c) {
     final corStatus = switch (c.status) {
-      'convertida' => const Color(0xFFDCFCE7),
-      'descartada' => const Color(0xFFF3F4F6),
-      _ => const Color(0xFFDBEAFE),
+      'convertida' => AppTheme.tintOk,
+      'descartada' => AppTheme.superficieAlt,
+      _ => AppTheme.tintInfo,
     };
     final corStatusTexto = switch (c.status) {
-      'convertida' => const Color(0xFF15803D),
-      'descartada' => Colors.grey.shade600,
-      _ => const Color(0xFF1D4ED8),
+      'convertida' => AppTheme.fgOk,
+      'descartada' => AppTheme.grey600,
+      _ => AppTheme.fgInfo,
     };
     final statusLabel = switch (c.status) {
       'convertida' => 'Convertida',
@@ -214,7 +214,7 @@ class CotacoesScreen extends ConsumerWidget {
                   ),
                   if (c.status == 'simulada') ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                    Icon(Icons.more_vert, size: 18, color: AppTheme.grey500),
                   ],
                 ],
               ),
@@ -239,12 +239,12 @@ class CotacoesScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
+                      color: AppTheme.tintAviso,
                       borderRadius: BorderRadius.circular(8)),
                   child: Text(
                       '⚠️ Abaixo do piso mínimo ANTT (${_moeda.format(c.pisoAnttValor)})',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF92400E))),
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.fgAviso)),
                 ),
               ],
             ],

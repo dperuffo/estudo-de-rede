@@ -49,9 +49,9 @@ class _CicloAbertoClienteDetalheScreenState
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Ciclo em andamento'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
@@ -86,12 +86,12 @@ class _CicloAbertoClienteDetalheScreenState
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: AppTheme.tintInfo,
                       borderRadius: BorderRadius.circular(8)),
-                  child: const Text(
+                  child: Text(
                     'Período, vencimento e valor são PREVISTOS e podem mudar até o fechamento — o posto '
                     'fecha automaticamente quando o ciclo termina, virando uma fatura de verdade.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                    style: TextStyle(fontSize: 12, color: AppTheme.fgInfo),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -108,11 +108,11 @@ class _CicloAbertoClienteDetalheScreenState
                         Text(
                             '${_fmtData(c.periodoInicio)} — ${_fmtData(c.periodoFimPrevisto)} (previsto)',
                             style: TextStyle(
-                                fontSize: 13, color: Colors.grey.shade700)),
+                                fontSize: 13, color: AppTheme.grey700)),
                         Text(
                             'Vencimento previsto: ${_fmtData(c.vencimentoPrevisto)}',
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600)),
+                                fontSize: 12, color: AppTheme.grey600)),
                         const SizedBox(height: 12),
                         Text(
                             '${_numero.format(c.quantidadeAbastecimentos)} abastecimentos · '
@@ -123,8 +123,8 @@ class _CicloAbertoClienteDetalheScreenState
                           Text(
                             '${c.quantidadePendenteNfe} pendente(s) de NF-e '
                             '(${_moeda.format(c.valorPendenteNfe)}, fora do acumulado)',
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFFB91C1C)),
+                            style: TextStyle(
+                                fontSize: 12, color: AppTheme.fgErro),
                           ),
                         ],
                       ],
@@ -168,7 +168,7 @@ class _CicloAbertoClienteDetalheScreenState
                         c.itens.isEmpty
                             ? 'Nenhum abastecimento registrado neste ciclo ainda.'
                             : 'Nenhum abastecimento com este filtro de NF-e.',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: AppTheme.grey600),
                       ),
                     ),
                   )
@@ -197,13 +197,13 @@ class _CicloAbertoClienteDetalheScreenState
                             fontWeight: FontWeight.w600, fontSize: 13)),
                     Text('${i.motorista ?? '—'} · ${i.placa ?? '—'}',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
+                            fontSize: 12, color: AppTheme.grey600)),
                     if (i.litros != null)
                       Text(
                           '${_numero.format(i.litros)} L'
                           '${i.precoUnitario != null ? ' · ${_moeda.format(i.precoUnitario)}/L' : ''}',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600)),
+                              fontSize: 12, color: AppTheme.grey600)),
                   ],
                 ),
               ),
@@ -219,8 +219,8 @@ class _CicloAbertoClienteDetalheScreenState
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: i.temNfe
-                          ? const Color(0xFFDCFCE7)
-                          : const Color(0xFFFEE2E2),
+                          ? AppTheme.tintOk
+                          : AppTheme.tintErro,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -229,8 +229,8 @@ class _CicloAbertoClienteDetalheScreenState
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: i.temNfe
-                            ? const Color(0xFF15803D)
-                            : const Color(0xFFB91C1C),
+                            ? AppTheme.fgOk
+                            : AppTheme.fgErro,
                       ),
                     ),
                   ),

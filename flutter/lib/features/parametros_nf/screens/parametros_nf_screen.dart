@@ -95,9 +95,9 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Parâmetros de NF')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _abrirForm,
@@ -116,37 +116,37 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
       data: (lista) => ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
         children: [
-          const Text(
+          Text(
             'Preferências de emissão de nota fiscal por CNPJ da frota. Sem uma regra específica para o CNPJ, o '
             'posto ou sistema de automação segue a regra padrão (sem CNPJ preenchido), quando existir.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 10),
           Card(
-            color: const Color(0xFFFFFBEB),
+            color: AppTheme.tintAviso,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text('Atenção',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
-                          color: Color(0xFF92400E))),
+                          color: AppTheme.fgAviso)),
                   SizedBox(height: 4),
                   Text(
                       '• A emissão da nota fiscal está sempre sujeita às regras da SEFAZ e à legislação vigente.',
                       style:
-                          TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
+                          TextStyle(fontSize: 11.5, color: AppTheme.fgAviso)),
                   Text(
                       '• Nem todos os postos têm suporte à opção "Nota no ato do abastecimento".',
                       style:
-                          TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
+                          TextStyle(fontSize: 11.5, color: AppTheme.fgAviso)),
                   Text(
                       '• Alterações nestes parâmetros só valem a partir do próximo ciclo de faturamento.',
                       style:
-                          TextStyle(fontSize: 11.5, color: Color(0xFF92400E))),
+                          TextStyle(fontSize: 11.5, color: AppTheme.fgAviso)),
                 ],
               ),
             ),
@@ -157,7 +157,7 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text('Nenhuma regra cadastrada.',
-                    style: TextStyle(color: Colors.grey.shade600)),
+                    style: TextStyle(color: AppTheme.grey600)),
               ),
             ),
           ...lista.map((r) => Card(
@@ -174,19 +174,19 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
                       Text(
                           'Exige NF: ${r.exigeNotaFiscal} · Separa NF combustível: ${r.separarNfCombustivel}',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade700)),
+                              fontSize: 12, color: AppTheme.grey700)),
                       Text('Emissão: ${r.formaEmissao}',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade700)),
+                              fontSize: 12, color: AppTheme.grey700)),
                       Text(
                           'Destino: ${r.localDestino}${r.cnpjDestinoPersonalizado != null ? ' (${r.cnpjDestinoPersonalizado})' : ''}'
                           '${r.destinoPorUf.isNotEmpty ? ' — ${r.destinoPorUf.length} exceção(ões) por UF' : ''}',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade700)),
+                              fontSize: 12, color: AppTheme.grey700)),
                       if (r.observacao != null)
                         Text(r.observacao!,
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade700)),
+                                fontSize: 12, color: AppTheme.grey700)),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -196,7 +196,7 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
                             decoration: BoxDecoration(
                               color: (r.ativo
                                       ? const Color(0xFF16A34A)
-                                      : const Color(0xFF64748B))
+                                      : AppTheme.glassTextoMuted)
                                   .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -205,7 +205,7 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
                                     fontSize: 11,
                                     color: r.ativo
                                         ? const Color(0xFF16A34A)
-                                        : const Color(0xFF64748B),
+                                        : AppTheme.glassTextoMuted,
                                     fontWeight: FontWeight.w600)),
                           ),
                           const Spacer(),
@@ -317,11 +317,11 @@ class _FormParametroNFState extends State<_FormParametroNF> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
           ),
         Autocomplete<String>(

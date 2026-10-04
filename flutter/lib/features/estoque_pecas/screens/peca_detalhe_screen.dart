@@ -113,9 +113,9 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Peça')),
       body: pecaAsync.when(
         data: (p) {
@@ -142,10 +142,10 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(_erro!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,13 +162,13 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: AppTheme.grey200,
                     borderRadius: BorderRadius.circular(12)),
-                child: const Text('Inativa',
+                child: Text('Inativa',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black54)),
+                        color: AppTheme.glassTextoMuted)),
               ),
           ],
         ),
@@ -200,12 +200,12 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: AppTheme.tintErro,
                         borderRadius: BorderRadius.circular(8)),
-                    child: const Text(
+                    child: Text(
                         'Saldo abaixo (ou igual) ao estoque mínimo definido. Considere repor.',
                         style:
-                            TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                            TextStyle(color: AppTheme.fgErro, fontSize: 12)),
                   ),
                 ],
                 const SizedBox(height: 10),
@@ -301,8 +301,8 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                 movimentosAsync.when(
                   data: (lista) {
                     if (lista.isEmpty) {
-                      return const Text('Nenhum movimento registrado ainda.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey));
+                      return Text('Nenhum movimento registrado ainda.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.grey500));
                     }
                     return Column(
                       children: lista
@@ -334,14 +334,14 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
               style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   letterSpacing: 0.4)),
           const SizedBox(height: 2),
           Text(valor,
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: destaque ? const Color(0xFFB91C1C) : Colors.black87)),
+                  color: destaque ? AppTheme.fgErro : AppTheme.glassTexto)),
         ],
       ),
     );
@@ -358,7 +358,7 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
                 color: tipoMovimentoCorFundo[m.tipoMovimento] ??
-                    const Color(0xFFF1F5F9),
+                    AppTheme.superficieAlt,
                 borderRadius: BorderRadius.circular(12)),
             child: Text(
               tipoMovimentoLabel[m.tipoMovimento] ?? m.tipoMovimento,
@@ -366,7 +366,7 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: tipoMovimentoCorTexto[m.tipoMovimento] ??
-                      Colors.grey.shade700),
+                      AppTheme.grey700),
             ),
           ),
           const SizedBox(width: 8),
@@ -386,7 +386,7 @@ class _PecaDetalheScreenState extends ConsumerState<PecaDetalheScreen> {
                     if (m.manutencaoId != null) 'OS #${m.manutencaoId}',
                     if (m.motivo != null) m.motivo!,
                   ].join(' · '),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                 ),
               ],
             ),
@@ -465,7 +465,7 @@ class _FormMovimentoState extends State<_FormMovimento> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(_erroLocal!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         Row(
           children: [
@@ -474,17 +474,17 @@ class _FormMovimentoState extends State<_FormMovimento> {
                 onPressed: () => setState(() => _tipo = 'saida'),
                 style: OutlinedButton.styleFrom(
                   backgroundColor:
-                      _tipo == 'saida' ? const Color(0xFFFEF2F2) : null,
+                      _tipo == 'saida' ? AppTheme.tintErro : null,
                   side: BorderSide(
                       color: _tipo == 'saida'
                           ? const Color(0xFFFCA5A5)
-                          : Colors.grey.shade300),
+                          : AppTheme.grey300),
                 ),
                 child: Text('Saída (uso)',
                     style: TextStyle(
                         color: _tipo == 'saida'
-                            ? const Color(0xFFB91C1C)
-                            : Colors.grey.shade700)),
+                            ? AppTheme.fgErro
+                            : AppTheme.grey700)),
               ),
             ),
             const SizedBox(width: 8),
@@ -493,17 +493,17 @@ class _FormMovimentoState extends State<_FormMovimento> {
                 onPressed: () => setState(() => _tipo = 'entrada'),
                 style: OutlinedButton.styleFrom(
                   backgroundColor:
-                      _tipo == 'entrada' ? const Color(0xFFDCFCE7) : null,
+                      _tipo == 'entrada' ? AppTheme.tintOk : null,
                   side: BorderSide(
                       color: _tipo == 'entrada'
                           ? const Color(0xFF86EFAC)
-                          : Colors.grey.shade300),
+                          : AppTheme.grey300),
                 ),
                 child: Text('Entrada (compra)',
                     style: TextStyle(
                         color: _tipo == 'entrada'
-                            ? const Color(0xFF166534)
-                            : Colors.grey.shade700)),
+                            ? AppTheme.fgOk
+                            : AppTheme.grey700)),
               ),
             ),
           ],
@@ -560,9 +560,9 @@ class _FormMovimentoState extends State<_FormMovimento> {
             onChanged: (v) => setState(() => _manutencaoId = v),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
               'Vincular a uma OS mostra o consumo real de peças na manutenção — impede baixa sem justificativa.',
-              style: TextStyle(fontSize: 11, color: Colors.grey)),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         ],
         const SizedBox(height: 10),
         TextField(

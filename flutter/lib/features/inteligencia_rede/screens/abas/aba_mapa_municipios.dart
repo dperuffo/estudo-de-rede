@@ -30,7 +30,7 @@ class AbaMapaMunicipios extends StatelessWidget {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text('Distribuição geográfica dos postos GF.',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                          TextStyle(fontSize: 11, color: AppTheme.grey500)),
                   const SizedBox(height: 12),
                   MapaCirculos(
                     height: 420,
@@ -65,8 +65,8 @@ class AbaMapaMunicipios extends StatelessWidget {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 12),
                   if (d.topMunicipios.isEmpty)
-                    const Text('Ainda não há postos cadastrados.',
-                        style: TextStyle(color: Colors.grey))
+                    Text('Ainda não há postos cadastrados.',
+                        style: TextStyle(color: AppTheme.grey500))
                   else
                     BarraHorizontal(
                       dados: d.topMunicipios
@@ -94,9 +94,9 @@ class AbaMapaMunicipios extends StatelessWidget {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 12),
                   if (d.cobertura.isEmpty)
-                    const Text(
+                    Text(
                         'Ainda não há postos cadastrados. Importe a planilha em Postos Revendedores.',
-                        style: TextStyle(color: Colors.grey))
+                        style: TextStyle(color: AppTheme.grey500))
                   else
                     TabelaSimples(
                       colunas: const ['UF', 'Rede', 'Total ANP', 'Penetração'],

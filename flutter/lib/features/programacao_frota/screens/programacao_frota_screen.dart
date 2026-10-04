@@ -27,9 +27,9 @@ class ProgramacaoFrotaScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Programação de Frota')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(programacaoFrotaProvider),
@@ -60,10 +60,10 @@ class ProgramacaoFrotaScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Quadro de alocação: qual veículo está em viagem (e até quando fica ocupado), qual está livre e qual '
           'ainda não tem motorista vinculado. Não é rastreamento por GPS.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         Row(
@@ -85,10 +85,10 @@ class ProgramacaoFrotaScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         if (ativos.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Text('Nenhum veículo ativo cadastrado ainda.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...ativos.map((v) => _cardVeiculo(context, v)),
@@ -100,16 +100,16 @@ class ProgramacaoFrotaScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cor?.withValues(alpha: 0.08) ?? Colors.grey.shade100,
+        color: cor?.withValues(alpha: 0.08) ?? AppTheme.grey100,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: cor?.withValues(alpha: 0.3) ?? Colors.grey.shade300),
+            color: cor?.withValues(alpha: 0.3) ?? AppTheme.grey300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(titulo,
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           const SizedBox(height: 2),
           Text(valor,
               style: TextStyle(
@@ -133,7 +133,7 @@ class ProgramacaoFrotaScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.grey.shade300)),
+          side: BorderSide(color: AppTheme.grey300)),
       child: InkWell(
         onTap: v.freteId != null
             ? () => context.push('/fretes/${v.freteId}')
@@ -163,7 +163,7 @@ class ProgramacaoFrotaScreen extends ConsumerWidget {
                         .where((s) => s != null && s.isNotEmpty)
                         .join(' ')
                     : (v.tipoVeiculo ?? '—'),
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500),
               ),
               const SizedBox(height: 6),
               Text('Motorista: ${v.nomeMotorista ?? '—'}',

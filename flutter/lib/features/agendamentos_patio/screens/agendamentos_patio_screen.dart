@@ -5,19 +5,19 @@ import '../providers/agendamentos_patio_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-const _corStatus = <String, Color>{
-  'agendado': Color(0xFFFEF3C7),
-  'confirmado': Color(0xFFDBEAFE),
+get _corStatus => <String, Color>{
+  'agendado': AppTheme.tintAviso,
+  'confirmado': AppTheme.tintInfo,
   'em_andamento': Color(0xFFEDE9FE),
-  'concluido': Color(0xFFDCFCE7),
-  'cancelado': Color(0xFFF1F5F9),
+  'concluido': AppTheme.tintOk,
+  'cancelado': AppTheme.superficieAlt,
 };
-const _corTextoStatus = <String, Color>{
-  'agendado': Color(0xFF92400E),
-  'confirmado': Color(0xFF1E40AF),
+get _corTextoStatus => <String, Color>{
+  'agendado': AppTheme.fgAviso,
+  'confirmado': AppTheme.fgInfo,
   'em_andamento': Color(0xFF5B21B6),
-  'concluido': Color(0xFF166534),
-  'cancelado': Color(0xFF475569),
+  'concluido': AppTheme.fgOk,
+  'cancelado': AppTheme.glassTextoMuted,
 };
 
 // Fase agendamento-patio (04/08/2026) — porta de agendamentos-patio/page.tsx
@@ -68,9 +68,9 @@ class _AgendamentosPatioScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Agendamento de Pátio')),
       body: RefreshIndicator(
         onRefresh: () async =>
@@ -78,10 +78,10 @@ class _AgendamentosPatioScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Janelas de carga (coleta) e descarga (entrega) marcadas pros fretes do dia. Status "em andamento" e '
               '"concluído" são preenchidos sozinhos quando o motorista bate o checkpoint no app dele.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 12),
             Row(
@@ -153,11 +153,11 @@ class _AgendamentosPatioScreenState
                     ),
                     const SizedBox(height: 16),
                     if (agendamentos.isEmpty)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 24),
                         child: Text(
                             'Nenhum agendamento pra este dia. Agende dentro da tela de um frete.',
-                            style: TextStyle(color: Colors.black54)),
+                            style: TextStyle(color: AppTheme.glassTextoMuted)),
                       )
                     else
                       ...agendamentos.map((a) {
@@ -181,7 +181,7 @@ class _AgendamentosPatioScreenState
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: _corStatus[a.status] ??
-                                        const Color(0xFFF1F5F9),
+                                        AppTheme.superficieAlt,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -191,7 +191,7 @@ class _AgendamentosPatioScreenState
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                         color: _corTextoStatus[a.status] ??
-                                            Colors.black54),
+                                            AppTheme.glassTextoMuted),
                                   ),
                                 ),
                                 if (atrasado)
@@ -224,13 +224,13 @@ class _AgendamentosPatioScreenState
             children: [
               Text(label,
                   style:
-                      const TextStyle(fontSize: 10.5, color: Colors.black45)),
+                      TextStyle(fontSize: 10.5, color: AppTheme.glassTextoMuted)),
               const SizedBox(height: 2),
               Text(valor,
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: cor ?? Colors.black87)),
+                      color: cor ?? AppTheme.glassTexto)),
             ],
           ),
         ),

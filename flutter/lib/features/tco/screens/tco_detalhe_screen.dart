@@ -58,9 +58,9 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(widget.placa)),
       body: detalheAsync.when(
         data: (v) {
@@ -95,11 +95,11 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                         : [v.marca, v.modelo]
                             .where((s) => s != null && s.isNotEmpty)
                             .join(' '),
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(fontSize: 13, color: AppTheme.grey500),
                   ),
                   Text(
                     '${v.centroCustoNome ?? 'Sem centro de custo'}${v.anoFabricacao != null ? ' · ${v.anoFabricacao}' : ''}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   ),
                 ],
               ),
@@ -114,7 +114,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                   v.custoPorKm != null
                       ? '${_moeda.format(v.custoPorKm!)}/km'
                       : 'sem custo/km',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                 ),
               ],
             ),
@@ -147,13 +147,13 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: AppTheme.tintAviso,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFDE68A))),
-            child: const Text(
+                border: Border.all(color: AppTheme.tintAviso)),
+            child: Text(
               '⚠️ Este veículo não tem valor de aquisição cadastrado — o TCO acima é operacional (sem depreciação). '
               'Complete o cadastro em Veículos pra ver o TCO completo.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgAviso),
             ),
           ),
         Card(
@@ -259,9 +259,9 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                   _linhaDado('Valor FIPE atual',
                       v.valorFipe != null ? _moeda.format(v.valorFipe!) : '—'),
                 ] else
-                  const Text(
+                  Text(
                     'Este veículo ainda não está vinculado a um código FIPE — a depreciação acima usa a estimativa linear.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   ),
                 const SizedBox(height: 8),
                 TextButton(
@@ -276,7 +276,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
         const SizedBox(height: 12),
         Text(
           'Km no período: ${v.kmPeriodo != null ? '${_milhar(v.kmPeriodo!.round())} km' : 'sem abastecimentos com hodômetro no período'}.',
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: TextStyle(fontSize: 11, color: AppTheme.grey500),
         ),
       ],
     );
@@ -287,9 +287,9 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200)),
+          border: Border.all(color: AppTheme.grey200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -300,7 +300,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                   child: Text(label,
                       style: TextStyle(
                           fontSize: 10,
-                          color: Colors.grey.shade500,
+                          color: AppTheme.grey500,
                           fontWeight: FontWeight.w600))),
               if (selo != null)
                 Container(
@@ -323,7 +323,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: indisponivel ? Colors.grey.shade300 : Colors.black87),
+                color: indisponivel ? AppTheme.grey300 : AppTheme.glassTexto),
           ),
         ],
       ),
@@ -337,7 +337,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
           Text(valor,
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),

@@ -120,9 +120,9 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Editar motorista')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -221,11 +221,11 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: AppTheme.tintErro,
                       borderRadius: BorderRadius.circular(8)),
                   child: Text(_erro!,
-                      style: const TextStyle(
-                          color: Color(0xFFB91C1C), fontSize: 13)),
+                      style: TextStyle(
+                          color: AppTheme.fgErro, fontSize: 13)),
                 ),
               ],
               if (_sucesso != null) ...[
@@ -233,11 +233,11 @@ class _MotoristaEditarScreenState extends ConsumerState<MotoristaEditarScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
+                      color: AppTheme.tintOk,
                       borderRadius: BorderRadius.circular(8)),
                   child: Text(_sucesso!,
-                      style: const TextStyle(
-                          color: Color(0xFF15803D), fontSize: 13)),
+                      style: TextStyle(
+                          color: AppTheme.fgOk, fontSize: 13)),
                 ),
               ],
               const SizedBox(height: 16),

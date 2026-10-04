@@ -179,9 +179,9 @@ class _NegociacaoDetalheScreenState
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Negociação'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
@@ -212,12 +212,12 @@ class _NegociacaoDetalheScreenState
               Text(
                 'Status: ${statusNegociacaoLabel[negociacao.status] ?? negociacao.status} · '
                 'Rodada #${negociacao.rodadaAtual}',
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(fontSize: 13, color: AppTheme.grey500),
               ),
               Text(
                 'Atualizado em ${_fmtDataHora(negociacao.atualizadoEm)}'
                 '${negociacao.nomeAtualizadoPor != null ? ' por ${negociacao.nomeAtualizadoPor}' : ''}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500),
               ),
               if (negociacao.emAndamento) ...[
                 const SizedBox(height: 8),
@@ -237,11 +237,11 @@ class _NegociacaoDetalheScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: AppTheme.tintErro,
                       borderRadius: BorderRadius.circular(8)),
                   child: Text(_erro!,
-                      style: const TextStyle(
-                          color: Color(0xFFB91C1C), fontSize: 13)),
+                      style: TextStyle(
+                          color: AppTheme.fgErro, fontSize: 13)),
                 ),
               ],
               const SizedBox(height: 16),
@@ -254,10 +254,10 @@ class _NegociacaoDetalheScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBEB),
+                      color: AppTheme.tintAviso,
                       borderRadius: BorderRadius.circular(8)),
-                  child: const Text('Aguardando resposta do cliente.',
-                      style: TextStyle(color: Color(0xFF92400E), fontSize: 13)),
+                  child: Text('Aguardando resposta do cliente.',
+                      style: TextStyle(color: AppTheme.fgAviso, fontSize: 13)),
                 ),
               const SizedBox(height: 20),
               const Text('Histórico de rodadas',
@@ -275,16 +275,16 @@ class _NegociacaoDetalheScreenState
                             children: [
                               Text(
                                 'Rodada #${r.numeroRodada} — ${r.autor == 'cliente' ? 'cliente' : 'posto'}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.grey,
+                                    color: AppTheme.grey500,
                                     fontWeight: FontWeight.bold),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
+                                  color: AppTheme.grey100,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(

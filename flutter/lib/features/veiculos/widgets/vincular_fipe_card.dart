@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../providers/veiculos_provider.dart';
 import '../services/fipe_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase TCO 2 (29/07/2026) — porta de VincularFipe.tsx. Cascata
 // tipo→marca→modelo→ano pra vincular o veículo a um código FIPE, usada só
@@ -146,18 +147,18 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: AppTheme.grey300),
           borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Vínculo FIPE', style: Theme.of(context).textTheme.titleSmall),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 4, bottom: 8),
             child: Text(
               'Opcional — vincula o veículo à tabela FIPE pra usar a curva de depreciação real (mês a mês) no TCO, '
               'em vez da estimativa linear.',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
             ),
           ),
           if (_erro != null) ...[
@@ -165,11 +166,11 @@ class _VincularFipeCardState extends State<VincularFipeCard> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(6)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 12)),
             ),
             const SizedBox(height: 8),
           ],

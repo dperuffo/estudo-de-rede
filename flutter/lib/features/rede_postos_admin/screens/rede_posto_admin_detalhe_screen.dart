@@ -116,23 +116,23 @@ class _RedePostoAdminDetalheScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Rede de Postos')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Text(
               'Esta tela é exclusiva do time interno (perfil administrador).',
-              style: TextStyle(fontSize: 13, color: Colors.grey)),
+              style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
         ),
       ),
     );
@@ -172,16 +172,16 @@ class _RedePostoAdminDetalheScreenState
                     child: Text(_erroEdicao!,
                         style: const TextStyle(color: Colors.red)),
                   ),
-                const Text('Nome da Rede',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Nome da Rede',
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 const SizedBox(height: 4),
                 TextField(
                     controller: _nomeCtrl,
                     decoration:
                         const InputDecoration(border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                const Text('CNPJ da Matriz',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('CNPJ da Matriz',
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 const SizedBox(height: 4),
                 TextField(
                     controller: _cnpjCtrl,
@@ -219,10 +219,10 @@ class _RedePostoAdminDetalheScreenState
                         fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 8),
                 if (rede.vinculos.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text('Nenhum posto vinculado ainda.',
-                        style: TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: AppTheme.grey500)),
                   )
                 else
                   ...rede.vinculos.map((v) => ListTile(
@@ -259,9 +259,9 @@ class _RedePostoAdminDetalheScreenState
         final disponiveis =
             todos.where((p) => !jaVinculados.contains(p.id)).toList();
         if (disponiveis.isEmpty) {
-          return const Text(
+          return Text(
             'Nenhum outro posto do sistema disponível para vincular.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13),
           );
         }
         return Column(

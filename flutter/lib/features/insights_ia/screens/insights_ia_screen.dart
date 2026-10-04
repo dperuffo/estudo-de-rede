@@ -51,9 +51,9 @@ class InsightsIaScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Insights de IA')),
       body: acesso.when(
         data: (temAcesso) {
@@ -66,7 +66,7 @@ class InsightsIaScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                         'Este recurso está disponível para empresas no plano Enterprise, ou com liberação manual. Fale com o time comercial para saber mais.',
-                        style: TextStyle(color: Colors.grey.shade600)),
+                        style: TextStyle(color: AppTheme.grey600)),
                   ),
                 ),
               ],
@@ -85,7 +85,7 @@ class InsightsIaScreen extends ConsumerWidget {
                     Text(
                         'Sinais cruzados entre combustível, manutenção, pneus, sinistros, multas, aprovações, seguro e motoristas — gerados 1x/dia.',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
+                            fontSize: 12, color: AppTheme.grey600)),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -104,7 +104,7 @@ class InsightsIaScreen extends ConsumerWidget {
                                   Text('Novos',
                                       style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade600)),
+                                          color: AppTheme.grey600)),
                                 ],
                               ),
                             ),
@@ -126,7 +126,7 @@ class InsightsIaScreen extends ConsumerWidget {
                                   Text('Impacto estimado (novos)',
                                       style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade600)),
+                                          color: AppTheme.grey600)),
                                 ],
                               ),
                             ),
@@ -141,7 +141,7 @@ class InsightsIaScreen extends ConsumerWidget {
                           padding: const EdgeInsets.all(16),
                           child: Text(
                               'Nenhum insight no momento. Volte amanhã — os sinais são atualizados 1x por dia.',
-                              style: TextStyle(color: Colors.grey.shade600)),
+                              style: TextStyle(color: AppTheme.grey600)),
                         ),
                       )
                     else
@@ -170,7 +170,7 @@ class InsightsIaScreen extends ConsumerWidget {
 
   Widget _card(BuildContext context, WidgetRef ref, InsightIA i) {
     final corSeveridade = switch (i.severidade) {
-      'critica' => Colors.red.shade700,
+      'critica' => AppTheme.fgErro,
       'alta' => Colors.orange.shade700,
       'media' => Colors.amber.shade700,
       _ => Colors.blueGrey,
@@ -210,13 +210,13 @@ class InsightsIaScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                          color: const Color(0xFFDBEAFE),
+                          color: AppTheme.tintInfo,
                           borderRadius: BorderRadius.circular(12)),
-                      child: const Text('Novo',
+                      child: Text('Novo',
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1D4ED8))),
+                              color: AppTheme.fgInfo)),
                     ),
                   const Spacer(),
                   IconButton(
@@ -231,7 +231,7 @@ class InsightsIaScreen extends ConsumerWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(categoriaLabel[i.categoria] ?? i.categoria,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
               const SizedBox(height: 6),
               Text(i.descricao, style: const TextStyle(fontSize: 13)),
               if (i.recomendacao != null && i.recomendacao!.isNotEmpty) ...[

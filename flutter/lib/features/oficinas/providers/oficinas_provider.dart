@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Onda-2 (benchmark TicketLog, item #5) — Rede de Oficinas
 // Credenciadas com Orçamento (cliente), porta de oficinas/page.tsx +
@@ -28,18 +29,18 @@ const statusOrcamentoLabel = {
   'recusado': 'Recusado',
 };
 
-const statusOrcamentoCorFundo = {
-  'solicitado': Color(0xFFFEF3C7),
-  'respondido': Color(0xFFDBEAFE),
-  'aceito': Color(0xFFDCFCE7),
-  'recusado': Color(0xFFF1F5F9),
+get statusOrcamentoCorFundo => {
+  'solicitado': AppTheme.tintAviso,
+  'respondido': AppTheme.tintInfo,
+  'aceito': AppTheme.tintOk,
+  'recusado': AppTheme.superficieAlt,
 };
 
-const statusOrcamentoCorTexto = {
-  'solicitado': Color(0xFF92400E),
-  'respondido': Color(0xFF1E40AF),
-  'aceito': Color(0xFF166534),
-  'recusado': Color(0xFF475569),
+get statusOrcamentoCorTexto => {
+  'solicitado': AppTheme.fgAviso,
+  'respondido': AppTheme.fgInfo,
+  'aceito': AppTheme.fgOk,
+  'recusado': AppTheme.glassTextoMuted,
 };
 
 class Oficina {

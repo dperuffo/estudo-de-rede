@@ -11,7 +11,7 @@ import '../../../core/theme/app_theme.dart';
 // Paleta fixa por combustível — mesma família de cores usada nos gráficos
 // já existentes (precos_screen.dart, analise_cliente_screen.dart), pra
 // manter a identidade visual entre as duas visões do app.
-const _coresCombustivel = [
+get _coresCombustivel => [
   AppTheme.glassTextoAtivo,
   Colors.red,
   Colors.green,
@@ -75,8 +75,8 @@ class PostoDashboardScreen extends ConsumerWidget {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
-            const Text('Desempenho de vendas e negociações.',
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
+            Text('Desempenho de vendas e negociações.',
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
             const SizedBox(height: 20),
             _tituloSecao('Vendas — últimos 30 dias'),
             _gradeIndicadores(context, [
@@ -130,8 +130,8 @@ class PostoDashboardScreen extends ConsumerWidget {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600)),
                                 Text('${d.participacao.toStringAsFixed(0)}%',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey)),
+                                    style: TextStyle(
+                                        fontSize: 12, color: AppTheme.grey500)),
                               ],
                             ),
                           ))
@@ -266,7 +266,7 @@ class PostoDashboardScreen extends ConsumerWidget {
               // fundo escuro padrão do tooltip ficava ilegível (ex.: azul
               // sobre cinza escuro). Corrigido: fundo escuro explícito,
               // texto branco, bolinha colorida só como identificador.
-              getTooltipColor: (_) => const Color(0xFF1E293B),
+              getTooltipColor: (_) => AppTheme.glassTexto,
               getTooltipItems: (spots) => spots
                   .map((s) => LineTooltipItem(
                         '● ',
@@ -366,8 +366,8 @@ class PostoDashboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(
           texto.toUpperCase(),
-          style: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.grey500),
         ),
       );
 
@@ -375,7 +375,7 @@ class PostoDashboardScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
-              child: Text(texto, style: const TextStyle(color: Colors.grey))),
+              child: Text(texto, style: TextStyle(color: AppTheme.grey500))),
         ),
       );
 
@@ -395,8 +395,8 @@ class PostoDashboardScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(i.label,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.grey500),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),

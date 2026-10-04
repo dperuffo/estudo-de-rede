@@ -72,21 +72,21 @@ class _NovaRedeScreenState extends ConsumerState<NovaRedeScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Nova Rede de Postos')),
       body: postosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (postos) {
           if (postos.isEmpty) {
-            return const Padding(
+            return Padding(
               padding: EdgeInsets.all(24),
               child: Text(
                 'Você precisa ter um posto cadastrado antes de criar uma Rede de Postos. '
                 'Cadastre em "Meu Posto" e volte aqui em seguida.',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: AppTheme.grey500),
               ),
             );
           }
@@ -102,11 +102,11 @@ class _NovaRedeScreenState extends ConsumerState<NovaRedeScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: AppTheme.tintErro,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(_erro!,
-                        style: const TextStyle(color: Color(0xFFB91C1C))),
+                        style: TextStyle(color: AppTheme.fgErro)),
                   ),
                 const Text('Posto fundador *',
                     style: TextStyle(fontWeight: FontWeight.w600)),
@@ -122,9 +122,9 @@ class _NovaRedeScreenState extends ConsumerState<NovaRedeScreen> {
                       const InputDecoration(border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Você poderá vincular outros postos a esta Rede depois de criá-la.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                 ),
                 const SizedBox(height: 16),
                 const Text('Nome da Rede *',

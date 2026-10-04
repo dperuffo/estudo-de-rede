@@ -64,8 +64,8 @@ class AbaVisaoGeral extends ConsumerWidget {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
-            const Text('Visão geral da frota.',
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
+            Text('Visão geral da frota.',
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
             const SizedBox(height: 20),
             if (dados.mostrarPrimeirosPassos) ...[
               _cardPrimeirosPassos(context, dados),
@@ -128,13 +128,13 @@ class AbaVisaoGeral extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFB45309).withOpacity(0.1),
+                                color: AppTheme.fgAviso.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(_formatarData(m.vencimento),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFFB45309),
+                                      color: AppTheme.fgAviso,
                                       fontWeight: FontWeight.w600)),
                             ),
                           ))
@@ -214,13 +214,13 @@ class AbaVisaoGeral extends ConsumerWidget {
                         style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w600)),
                     if (opcional)
-                      const TextSpan(
+                      TextSpan(
                           text: '  (opcional)',
-                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                   ])),
                   const SizedBox(height: 2),
                   Text(descricao,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
                 ],
               ),
             ),
@@ -251,9 +251,9 @@ class AbaVisaoGeral extends ConsumerWidget {
             const Text('🚀 Primeiros passos na plataforma',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'O essencial pra começar a operar. Você já pode consultar rotas e preços de combustível agora mesmo — não precisa esperar terminar esta lista.',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
             ),
             const SizedBox(height: 10),
             passo(
@@ -331,10 +331,10 @@ class AbaVisaoGeral extends ConsumerWidget {
                             fontSize: 13, fontWeight: FontWeight.w700))),
               ),
               if (resumo.ultimos.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(20),
                   child: Text('Nenhum ajuste registrado ainda.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)),
                 )
               else
                 ...resumo.ultimos.map((a) => ListTile(
@@ -455,13 +455,13 @@ class AbaVisaoGeral extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF2F2),
-              border: Border.all(color: const Color(0xFFFECACA)),
+              color: AppTheme.tintErro,
+              border: Border.all(color: AppTheme.tintErro),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '🚨 ${m.totalCriticos} veículo(s) em estado crítico — pelo menos um componente vencido pelo km rodado.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgErro),
             ),
           ),
         GridView.count(
@@ -515,7 +515,7 @@ class AbaVisaoGeral extends ConsumerWidget {
             return BarChartGroupData(x: e.key, barRods: [
               BarChartRodData(
                 toY: e.value.litros,
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [AppTheme.glassTextoAtivo, Color(0xFF42A5F5)],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
@@ -575,7 +575,7 @@ class AbaVisaoGeral extends ConsumerWidget {
       ),
       const SizedBox(height: 8),
       Text('Valor gasto no período: ${_moeda.format(valorTotal)}',
-          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
     ]);
   }
 
@@ -583,8 +583,8 @@ class AbaVisaoGeral extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(
           texto.toUpperCase(),
-          style: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.grey500),
         ),
       );
 
@@ -592,7 +592,7 @@ class AbaVisaoGeral extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
-              child: Text(texto, style: const TextStyle(color: Colors.grey))),
+              child: Text(texto, style: TextStyle(color: AppTheme.grey500))),
         ),
       );
 
@@ -618,8 +618,8 @@ class AbaVisaoGeral extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(i.label,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.grey500),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
@@ -630,8 +630,8 @@ class AbaVisaoGeral extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis),
                         if (i.sub != null)
                           Text(i.sub!,
-                              style: const TextStyle(
-                                  fontSize: 10, color: Colors.grey),
+                              style: TextStyle(
+                                  fontSize: 10, color: AppTheme.grey500),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis),
                       ],

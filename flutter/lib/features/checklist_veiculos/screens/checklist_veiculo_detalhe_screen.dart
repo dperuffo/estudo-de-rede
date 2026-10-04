@@ -132,9 +132,9 @@ class _ChecklistVeiculoDetalheScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(widget.placa)),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -148,11 +148,11 @@ class _ChecklistVeiculoDetalheScreenState
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 12)),
             ),
           Row(
             children: [
@@ -216,12 +216,12 @@ class _ChecklistVeiculoDetalheScreenState
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 5, vertical: 1),
                                     decoration: BoxDecoration(
-                                        color: const Color(0xFFFFFBEB),
+                                        color: AppTheme.tintAviso,
                                         borderRadius: BorderRadius.circular(8)),
-                                    child: const Text('crítico',
+                                    child: Text('crítico',
                                         style: TextStyle(
                                             fontSize: 9,
-                                            color: Color(0xFF92400E))),
+                                            color: AppTheme.fgAviso)),
                                   ),
                               ],
                             ),
@@ -268,11 +268,11 @@ class _ChecklistVeiculoDetalheScreenState
           inspecoesAsync.when(
             data: (inspecoes) {
               if (inspecoes.isEmpty) {
-                return const Padding(
+                return Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Center(
                       child: Text('Nenhuma inspeção registrada ainda.',
-                          style: TextStyle(color: Colors.grey))),
+                          style: TextStyle(color: AppTheme.grey500))),
                 );
               }
               final pendencias = inspecoes
@@ -285,16 +285,16 @@ class _ChecklistVeiculoDetalheScreenState
                 children: [
                   if (pendencias.isNotEmpty) ...[
                     Text('⚠️ Pendências abertas (${pendencias.length})',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFFB91C1C))),
+                            color: AppTheme.fgErro)),
                     const SizedBox(height: 6),
                     ...pendencias.map((p) => Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2F2),
+                              color: AppTheme.tintErro,
                               borderRadius: BorderRadius.circular(8)),
                           child: Row(
                             children: [
@@ -304,14 +304,14 @@ class _ChecklistVeiculoDetalheScreenState
                                   children: [
                                     Text(
                                         '${p.item.item} · desde ${_fmtData(p.dataInspecao)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 12,
-                                            color: Color(0xFF991B1B))),
+                                            color: AppTheme.fgErro)),
                                     if (p.item.observacao != null)
                                       Text(p.item.observacao!,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 11,
-                                              color: Color(0xFF991B1B))),
+                                              color: AppTheme.fgErro)),
                                   ],
                                 ),
                               ),
@@ -344,16 +344,16 @@ class _ChecklistVeiculoDetalheScreenState
                         style: TextStyle(
                             fontSize: 11,
                             color: ehMotorista
-                                ? const Color(0xFF1D4ED8)
-                                : const Color(0xFF64748B)),
+                                ? AppTheme.fgInfo
+                                : AppTheme.glassTextoMuted),
                       ),
                       trailing: naoConformes > 0
                           ? Text('$naoConformes não conforme(s)',
-                              style: const TextStyle(
-                                  fontSize: 10, color: Color(0xFF991B1B)))
-                          : const Text('Tudo conforme',
                               style: TextStyle(
-                                  fontSize: 10, color: Color(0xFF166534))),
+                                  fontSize: 10, color: AppTheme.fgErro))
+                          : Text('Tudo conforme',
+                              style: TextStyle(
+                                  fontSize: 10, color: AppTheme.fgOk)),
                       children: insp.itens
                           .map((it) => ListTile(
                                 dense: true,

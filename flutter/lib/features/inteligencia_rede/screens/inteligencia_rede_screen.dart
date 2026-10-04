@@ -70,13 +70,13 @@ class InteligenciaRedeScreen extends ConsumerWidget {
           // na web) em vez do sublinhado branco sobre navy.
           backgroundColor: Colors.transparent,
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           elevation: 0,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           bottom: TabBar(
             isScrollable: true,
             indicator: BoxDecoration(
@@ -132,7 +132,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
   Widget _cabecalhoKpis(BuildContext context, InteligenciaRedeCompleta d) {
     final k = d.kpis;
     return Container(
-      color: Colors.grey.shade50,
+      color: AppTheme.grey50,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: GridView.count(
         // Achado real: 4 colunas deixava cada cartão estreito demais pra

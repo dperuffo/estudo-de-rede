@@ -88,9 +88,9 @@ class _AbastecimentosNegadosScreenState extends ConsumerState<AbastecimentosNega
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        flexibleSpace: Container(decoration: BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Abastecimentos negados (PDV)'),
       ),
       body: RefreshIndicator(
@@ -129,8 +129,8 @@ class _AbastecimentosNegadosScreenState extends ConsumerState<AbastecimentosNega
     final cores = {
       'pendente': _ambar,
       'liberado': _verde,
-      'recusado': Colors.grey,
-      'expirado': Colors.grey,
+      'recusado': AppTheme.grey500,
+      'expirado': AppTheme.grey500,
     };
     final rotulos = {
       'pendente': 'Aguardando decisão',
@@ -151,11 +151,11 @@ class _AbastecimentosNegadosScreenState extends ConsumerState<AbastecimentosNega
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Código ${item.codigo}', style: const TextStyle(fontSize: 11, color: Colors.black45)),
+                      Text('Código ${item.codigo}', style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
                       Text('${item.placa ?? ''} — ${item.motoristaNome ?? ''}',
                           style: const TextStyle(fontWeight: FontWeight.w600)),
                       if (item.motoristaCpf != null)
-                        Text('CPF ${item.motoristaCpf}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                        Text('CPF ${item.motoristaCpf}', style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
                     ],
                   ),
                 ),
@@ -174,7 +174,7 @@ class _AbastecimentosNegadosScreenState extends ConsumerState<AbastecimentosNega
             Text(
               '${item.postoNome ?? 'Posto'} · ${_dataHora.format(item.criadoEm)}'
               '${item.valorCombustivel != null ? ' · ${item.combustivel ?? ''} ${item.litros ?? ''} L · ${_moeda.format(item.valorCombustivel)}' : ''}',
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 8),
             const Row(children: [
@@ -216,8 +216,8 @@ class _AbastecimentosNegadosScreenState extends ConsumerState<AbastecimentosNega
                 OutlinedButton(onPressed: () => _decidir(item, false), child: const Text('Manter negado')),
               ]),
             ] else if (situacao == 'expirado')
-              const Text('O prazo deste pedido expirou — não é mais possível liberar.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54)),
+              Text('O prazo deste pedido expirou — não é mais possível liberar.',
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
             if (item.decididoPor != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -225,7 +225,7 @@ class _AbastecimentosNegadosScreenState extends ConsumerState<AbastecimentosNega
                   '${item.situacao == 'liberado' ? 'Liberado' : 'Mantido negado'} por ${item.decididoPor}'
                   '${item.decididoEm != null ? ' em ${_dataHora.format(item.decididoEm!)}' : ''}'
                   '${(item.justificativa ?? '').isNotEmpty ? ' — "${item.justificativa}"' : ''}',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
                 ),
               ),
           ],

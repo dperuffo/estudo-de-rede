@@ -7,18 +7,18 @@ import '../services/documentos_service.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-const _statusCor = <String, Color>{
-  'nao_iniciada': Color(0xFF64748B),
-  'pendente': Color(0xFFB45309),
-  'aprovada': Color(0xFF15803D),
-  'rejeitada': Color(0xFFB91C1C),
+get _statusCor => <String, Color>{
+  'nao_iniciada': AppTheme.glassTextoMuted,
+  'pendente': AppTheme.fgAviso,
+  'aprovada': AppTheme.fgOk,
+  'rejeitada': AppTheme.fgErro,
 };
 
-const _statusFundo = <String, Color>{
-  'nao_iniciada': Color(0xFFF1F5F9),
-  'pendente': Color(0xFFFFFBEB),
-  'aprovada': Color(0xFFF0FDF4),
-  'rejeitada': Color(0xFFFEF2F2),
+get _statusFundo => <String, Color>{
+  'nao_iniciada': AppTheme.superficieAlt,
+  'pendente': AppTheme.tintAviso,
+  'aprovada': AppTheme.tintOk,
+  'rejeitada': AppTheme.tintErro,
 };
 
 // Fase FLT-2 — Documentos (documentação societária self-service), porta de
@@ -195,9 +195,9 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Documentos')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -236,17 +236,17 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         if (dados.status == 'rejeitada' && dados.motivoRejeicao != null) ...[
           const SizedBox(height: 10),
           _banner('Motivo da rejeição: ${dados.motivoRejeicao}',
-              const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
+              AppTheme.tintErro, AppTheme.fgErro),
         ],
         if (dados.status == 'pendente') ...[
           const SizedBox(height: 10),
           _banner('Documentação enviada, aguardando análise do admin.',
-              const Color(0xFFFFFBEB), const Color(0xFF92400E)),
+              AppTheme.tintAviso, AppTheme.fgAviso),
         ],
         if (dados.status == 'aprovada') ...[
           const SizedBox(height: 10),
           _banner('Documentação aprovada — nenhuma pendência.',
-              const Color(0xFFF0FDF4), const Color(0xFF15803D)),
+              AppTheme.tintOk, AppTheme.fgOk),
         ],
         const SizedBox(height: 16),
         const Text('Documentos da empresa',
@@ -309,10 +309,10 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
           const SizedBox(height: 10),
         ],
         if (dados.socios.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text('Nenhum sócio cadastrado.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...dados.socios.map((s) => Card(
@@ -354,12 +354,12 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         const SizedBox(height: 20),
         if (_erroGeral != null) ...[
           _banner(
-              _erroGeral!, const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
+              _erroGeral!, AppTheme.tintErro, AppTheme.fgErro),
           const SizedBox(height: 10)
         ],
         if (_sucessoGeral != null) ...[
           _banner(
-              _sucessoGeral!, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
+              _sucessoGeral!, AppTheme.tintOk, AppTheme.fgOk),
           const SizedBox(height: 10),
         ],
         if (dados.status == 'nao_iniciada' || dados.status == 'rejeitada')
@@ -371,13 +371,13 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
             ),
           )
         else if (dados.status == 'pendente')
-          const Text(
+          Text(
               'Sua documentação está em análise — assim que o admin decidir, você será avisado aqui.',
-              style: TextStyle(fontSize: 12, color: Colors.grey))
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500))
         else if (dados.status == 'aprovada')
-          const Text(
+          Text(
               'Documentação aprovada. Se precisar corrigir algum documento, envie novamente acima.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
       ],
     );
   }
@@ -403,8 +403,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                       fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               if (doc == null)
-                const Text('Não enviado',
-                    style: TextStyle(fontSize: 12, color: Color(0xFFB45309)))
+                Text('Não enviado',
+                    style: TextStyle(fontSize: 12, color: AppTheme.fgAviso))
               else
                 Row(
                   children: [

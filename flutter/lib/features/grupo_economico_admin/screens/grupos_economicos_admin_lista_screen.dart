@@ -22,9 +22,9 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Grupo Econômico (todos)')),
       floatingActionButton: !ehAdmin
           ? null
@@ -38,7 +38,7 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
@@ -51,7 +51,7 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
               SizedBox(height: 8),
               Text(
                   'Esta tela é exclusiva do time interno (perfil administrador).',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
             ],
           ),
         ),
@@ -66,10 +66,10 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Visão consolidada de toda a plataforma — todos os Grupos Econômicos de clientes de frota, '
           'independente de quem os criou. Diferente de Rede de Postos, aqui só o time interno cria/edita/vincula.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         kpis.when(
@@ -87,11 +87,11 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
         listaAsync.when(
           data: (lista) {
             if (lista.isEmpty) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                     child: Text('Nenhum Grupo Econômico cadastrado ainda.',
-                        style: TextStyle(color: Colors.grey))),
+                        style: TextStyle(color: AppTheme.grey500))),
               );
             }
             return Column(
@@ -112,7 +112,7 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
             const SizedBox(height: 4),
             Text(valor,
                 style:
@@ -143,8 +143,8 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: g.ativo
-                      ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFF1F5F9),
+                      ? AppTheme.tintOk
+                      : AppTheme.superficieAlt,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -153,8 +153,8 @@ class GruposEconomicosAdminListaScreen extends ConsumerWidget {
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: g.ativo
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFF64748B)),
+                          ? AppTheme.fgOk
+                          : AppTheme.glassTextoMuted),
                 ),
               ),
             ],

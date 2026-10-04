@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/supabase_service.dart';
 import '../providers/meu_posto_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 class _StatusInfo {
   final String texto;
@@ -10,17 +11,17 @@ class _StatusInfo {
   const _StatusInfo(this.texto, this.cor, this.corTexto);
 }
 
-const _statusLabel = <String, _StatusInfo>{
+get _statusLabel => <String, _StatusInfo>{
   'pendente': _StatusInfo(
-      'Cadastro ainda não confirmado', Color(0xFFF1F5F9), Color(0xFF475569)),
+      'Cadastro ainda não confirmado', AppTheme.superficieAlt, AppTheme.glassTextoMuted),
   'confirmado': _StatusInfo(
-      '✓ CNPJ confirmado na base ANP', Color(0xFFF0FDF4), Color(0xFF15803D)),
+      '✓ CNPJ confirmado na base ANP', AppTheme.tintOk, AppTheme.fgOk),
   'novo_sem_anp': _StatusInfo('Posto novo — CNPJ não está na base ANP ainda',
-      Color(0xFFEFF6FF), Color(0xFF1D4ED8)),
+      AppTheme.tintInfo, AppTheme.fgInfo),
   'possivel_duplicidade': _StatusInfo(
       '⚠ Possível duplicidade sinalizada — em revisão pela FNI',
-      Color(0xFFFFFBEB),
-      Color(0xFF92400E)),
+      AppTheme.tintAviso,
+      AppTheme.fgAviso),
 };
 
 const _motivoMensagem = <String, String>{
@@ -56,11 +57,11 @@ class MeuPostoScreen extends ConsumerWidget {
       ),
       data: (empresa) {
         if (empresa == null) {
-          return const Center(
+          return Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text('Nenhum posto vinculado a este usuário.',
-                  style: TextStyle(color: Colors.grey)),
+                  style: TextStyle(color: AppTheme.grey500)),
             ),
           );
         }
@@ -229,25 +230,25 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
         const Text('Meu Posto',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Confirme os dados do seu estabelecimento — CNPJ, endereço e localização são comparados com a '
           'base nacional da ANP pra evitar cadastro duplicado, e alimentam os preços exibidos pros clientes '
           'nas consultas de postos e roteirização.',
-          style: TextStyle(color: Colors.grey, fontSize: 13),
+          style: TextStyle(color: AppTheme.grey500, fontSize: 13),
         ),
         const SizedBox(height: 16),
         _banner(statusAtual.texto, statusAtual.cor, statusAtual.corTexto),
         if (_erro != null) ...[
           const SizedBox(height: 12),
-          _banner(_erro!, const Color(0xFFFEF2F2), const Color(0xFFB91C1C)),
+          _banner(_erro!, AppTheme.tintErro, AppTheme.fgErro),
         ],
         if (_resultadoStatus != null) ...[
           const SizedBox(height: 12),
           _banner(
             'Cadastro salvo. ${_statusLabel[_resultadoStatus]?.texto ?? ''}'
             '${_resultadoStatus == 'possivel_duplicidade' ? ' — seus dados já foram salvos normalmente, a FNI vai revisar e entrar em contato se precisar de algo.' : ''}',
-            _statusLabel[_resultadoStatus]?.cor ?? const Color(0xFFF1F5F9),
-            _statusLabel[_resultadoStatus]?.corTexto ?? const Color(0xFF475569),
+            _statusLabel[_resultadoStatus]?.cor ?? AppTheme.superficieAlt,
+            _statusLabel[_resultadoStatus]?.corTexto ?? AppTheme.glassTextoMuted,
           ),
         ],
         const SizedBox(height: 20),
@@ -265,12 +266,12 @@ class _MeuPostoFormState extends ConsumerState<_MeuPostoForm> {
           _campo('UF', _uf, maxLength: 2),
         ]),
         _secao('Localização (latitude/longitude)', [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 8),
             child: Text(
               'Usada pra comparar seu posto com a base da ANP e evitar cadastro duplicado, além de '
               'posicionar seu posto certinho no mapa de consultas/roteirização.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
           ),
           _campo('Latitude', _latitude, hint: '-23.550520'),

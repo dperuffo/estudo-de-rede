@@ -136,16 +136,16 @@ class _CriarNegociacaoClienteScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Nova negociação')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          const Text(
+          Text(
             'Envie uma proposta de fornecimento para um posto.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13),
           ),
           const SizedBox(height: 16),
           if (_erro != null) ...[
@@ -153,11 +153,11 @@ class _CriarNegociacaoClienteScreenState
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],
@@ -174,7 +174,7 @@ class _CriarNegociacaoClienteScreenState
           Text(
             'Se o posto ainda não tiver cadastro na FNI, a negociação fica registrada mesmo assim e passa '
             'a valer pro lado dele assim que se cadastrar com o mesmo CNPJ.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey600),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(

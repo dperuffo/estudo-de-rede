@@ -18,9 +18,9 @@ class EmConstrucaoScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(titulo)),
       body: Center(
         child: Padding(
@@ -28,18 +28,18 @@ class EmConstrucaoScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.construction, size: 48, color: Colors.grey),
+              Icon(Icons.construction, size: 48, color: AppTheme.grey500),
               const SizedBox(height: 16),
               Text(
                 '$titulo ainda está em construção nesta versão do app.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15, color: Colors.grey),
+                style: TextStyle(fontSize: 15, color: AppTheme.grey500),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Por enquanto, use a versão web pra essa funcionalidade.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(fontSize: 13, color: AppTheme.grey500),
               ),
             ],
           ),

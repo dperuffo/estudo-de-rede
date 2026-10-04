@@ -356,18 +356,18 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Roteirização')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Consulte a rede de postos por UF/Município, busque um posto específico ou monte um roteiro '
             'inteligente com paradas de abastecimento otimizadas — mistura os postos próprios cadastrados '
             'com a base pública de preços ANP.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 12),
           SegmentedButton<String>(
@@ -478,7 +478,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Nenhum posto encontrado.',
-                style: TextStyle(color: Colors.grey.shade600)),
+                style: TextStyle(color: AppTheme.grey600)),
           ),
         ),
       ];
@@ -494,7 +494,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Nenhum posto encontrado com os filtros atuais.',
-                style: TextStyle(color: Colors.grey.shade600)),
+                style: TextStyle(color: AppTheme.grey600)),
           ),
         )
       else ...[
@@ -528,7 +528,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.filter_list, size: 16, color: Colors.grey),
+                Icon(Icons.filter_list, size: 16, color: AppTheme.grey500),
                 const SizedBox(width: 6),
                 const Text('Filtrar resultados',
                     style:
@@ -573,7 +573,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                                 decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: b == 'Sem bandeira'
-                                        ? Colors.grey.shade500
+                                        ? AppTheme.grey500
                                         : corBandeira(b)),
                               ),
                               const SizedBox(width: 6),
@@ -684,7 +684,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           Container(
             margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppTheme.grey300),
                 borderRadius: BorderRadius.circular(6)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -778,7 +778,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(_avisoCombustivel!,
-              style: TextStyle(fontSize: 11, color: Colors.amber.shade800)),
+              style: TextStyle(fontSize: 11, color: AppTheme.fgAviso)),
         ),
       const SizedBox(height: 10),
       DropdownButtonFormField<String>(
@@ -797,7 +797,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         padding: const EdgeInsets.only(top: 4),
         child: Text(
           perfisPeso.firstWhere((p) => p.chave == _perfilChave).descricao,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 11, color: AppTheme.grey600),
         ),
       ),
       const SizedBox(height: 10),
@@ -837,21 +837,21 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           ),
         ),
         if (!origemDestinoOk)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 4),
             child: Text(
                 'Escolha origem e destino nas sugestões de busca para ver as opções de rota.',
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ),
       ];
     }
 
     if (alternativas.length < 2) {
-      return const [
+      return [
         Padding(
           padding: EdgeInsets.only(bottom: 4),
           child: Text('Só encontrei uma opção de rota entre esses pontos.',
-              style: TextStyle(fontSize: 11, color: Colors.grey)),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         ),
       ];
     }
@@ -952,7 +952,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           color: selecionada ? const Color(0xFF10B981).withOpacity(0.10) : null,
           border: Border.all(
               color:
-                  selecionada ? const Color(0xFF10B981) : Colors.grey.shade300,
+                  selecionada ? const Color(0xFF10B981) : AppTheme.grey300,
               width: selecionada ? 2 : 1),
           borderRadius: BorderRadius.circular(8),
         ),
@@ -971,7 +971,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
               const SizedBox(height: 2),
             Text(
                 '${op.distanciaKm.toStringAsFixed(0)} km · ${(op.duracaoMin / 60).toStringAsFixed(1)} h',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey700)),
           ],
         ),
       ),
@@ -986,7 +986,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
     return [
       if (r.linhaReta)
         Card(
-          color: Colors.amber.shade50,
+          color: AppTheme.tintAviso,
           child: const Padding(
             padding: EdgeInsets.all(10),
             child: Text(
@@ -997,7 +997,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         ),
       if (r.candidatosEncontrados == 0)
         Card(
-          color: Colors.amber.shade50,
+          color: AppTheme.tintAviso,
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Text(
@@ -1073,7 +1073,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             padding: const EdgeInsets.all(16),
             child: Text(
                 'Nenhuma parada necessária para esse trajeto com o tanque atual.',
-                style: TextStyle(color: Colors.grey.shade600)),
+                style: TextStyle(color: AppTheme.grey600)),
           ),
         )
       else
@@ -1122,7 +1122,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         Text(valor,
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
         Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
       ],
     );
   }
@@ -1133,7 +1133,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       'estrategico': const Color(0xFF0EA5E9),
       'emergencia': const Color(0xFFDC2626),
     };
-    final cor = coresMotivo[p.motivo] ?? Colors.grey;
+    final cor = coresMotivo[p.motivo] ?? AppTheme.grey500;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -1163,7 +1163,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                       overflow: TextOverflow.ellipsis),
                 ),
                 Text('km ${p.candidato.km.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ],
             ),
             const SizedBox(height: 6),
@@ -1173,7 +1173,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             ),
             Text(
               'Chegada: ${p.pctChegada.toStringAsFixed(0)}% tanque · Saída: ${p.pctApos.toStringAsFixed(0)}% tanque',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey600),
             ),
           ],
         ),
@@ -1188,7 +1188,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       'C': const Color(0xFFD97706),
       'D': const Color(0xFFDC2626),
     };
-    final cor = coresGrade[p.score.grade] ?? Colors.grey;
+    final cor = coresGrade[p.score.grade] ?? AppTheme.grey500;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1225,7 +1225,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                   decoration: BoxDecoration(
                     color: (p.origem == 'anp'
                             ? const Color(0xFF0284C7)
-                            : Colors.grey)
+                            : AppTheme.grey500)
                         .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1234,7 +1234,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                           fontSize: 10,
                           color: p.origem == 'anp'
                               ? const Color(0xFF0284C7)
-                              : Colors.grey.shade700,
+                              : AppTheme.grey700,
                           fontWeight: FontWeight.w600)),
                 ),
               ],
@@ -1242,12 +1242,12 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             const SizedBox(height: 4),
             Text(
               '${p.municipio ?? '—'} - ${p.uf ?? '—'}${p.bandeira != null ? ' · ${p.bandeira}' : ''}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 8),
             if (p.precos.isEmpty)
               Text('Sem preço registrado',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500))
             else
               Wrap(
                 spacing: 6,
@@ -1257,7 +1257,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: AppTheme.grey100,
                               borderRadius: BorderRadius.circular(6)),
                           child: Text(
                               '${preco.combustivel} R\$ ${preco.preco.toStringAsFixed(3)}',

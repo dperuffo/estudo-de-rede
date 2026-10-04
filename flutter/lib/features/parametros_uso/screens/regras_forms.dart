@@ -4,6 +4,7 @@ import '../../motoristas/providers/motoristas_provider.dart' show Motorista;
 import '../../veiculos/providers/veiculos_provider.dart' show Veiculo;
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-3 — os 8 formulários "Nova Regra" (tudo que não é Vínculo, que
 // tem tela própria — ver vinculo_novo_screen.dart). Cada um é mostrado via
@@ -23,10 +24,10 @@ Widget _erroBox(String? erro) {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
+          color: AppTheme.tintErro,
           borderRadius: BorderRadius.circular(8)),
       child: Text(erro,
-          style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+          style: TextStyle(color: AppTheme.fgErro, fontSize: 13)),
     ),
   );
 }
@@ -503,7 +504,7 @@ class _FormProdutoState extends State<_FormProduto> {
           ],
         ),
         Text('Nenhum marcado = usa o combustível do cadastro do veículo.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
         const SizedBox(height: 10),
         TextField(
           controller: _obsCtrl,
@@ -934,7 +935,7 @@ class _FormPostosState extends State<_FormPostos> {
         if (widget.postos.isEmpty)
           Text(
               'Nenhum posto negociado ainda — feche uma negociação em "Negociações com Postos" primeiro.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600))
+              style: TextStyle(fontSize: 12, color: AppTheme.grey600))
         else
           Wrap(
             spacing: 6,

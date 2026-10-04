@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../providers/torre_de_controle_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Grupo 2 (Rodopar/Datapar, item 4, 03/08/2026) — mapa ao vivo da Torre
 // de Controle, alimentado pelo endpoint GENÉRICO de ingestão GPS
@@ -13,7 +14,7 @@ Color _corPorIdade(DateTime timestampGps) {
   final minutos = DateTime.now().difference(timestampGps).inMinutes;
   if (minutos <= 15) return const Color(0xFF16A34A); // verde
   if (minutos <= 120) return const Color(0xFFEAB308); // amarelo
-  return const Color(0xFF64748B); // cinza
+  return AppTheme.glassTextoMuted; // cinza
 }
 
 String _tempoRelativo(DateTime data) {
@@ -71,8 +72,8 @@ class MapaVeiculos extends StatelessWidget {
                             shape: BoxShape.circle,
                             color: cor,
                             border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black38, blurRadius: 3)
+                            boxShadow: [
+                              BoxShadow(color: AppTheme.glassTextoMuted, blurRadius: 3)
                             ],
                           ),
                           child: const Icon(Icons.local_shipping,
@@ -94,7 +95,7 @@ class MapaVeiculos extends StatelessWidget {
             children: [
               _legendaItem(const Color(0xFF16A34A), 'Recente (≤15 min)'),
               _legendaItem(const Color(0xFFEAB308), 'Até 2h atrás'),
-              _legendaItem(const Color(0xFF64748B), 'Mais de 2h sem sinal'),
+              _legendaItem(AppTheme.glassTextoMuted, 'Mais de 2h sem sinal'),
             ],
           ),
         ),
@@ -112,7 +113,7 @@ class MapaVeiculos extends StatelessWidget {
             decoration: BoxDecoration(shape: BoxShape.circle, color: cor)),
         const SizedBox(width: 4),
         Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey700)),
       ],
     );
   }

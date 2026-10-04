@@ -6,6 +6,7 @@ import '../../providers/inteligencia_rede_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 8/10 — "🚦 Operacional". Porta Operacional.tsx (535 linhas) — 4
 // sub-abas: Mapa de Preços, Postos Inconsistentes, Score por Região,
@@ -109,12 +110,12 @@ class _AbaOperacionalState extends State<AbaOperacional> {
   Widget build(BuildContext context) {
     final d = widget.dados;
     if (d.precosMapaOperacional.isEmpty && d.desvioAnp.isEmpty) {
-      return const Center(
+      return Center(
           child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
                   'Ainda não há preços/postos suficientes para o painel operacional.',
-                  style: TextStyle(color: Colors.grey))));
+                  style: TextStyle(color: AppTheme.grey500))));
     }
     return Column(
       children: [
@@ -219,7 +220,7 @@ class _MapaPrecosState extends State<_MapaPrecos> {
         MapaCirculos(pontos: pontos, height: 400),
         const SizedBox(height: 6),
         Text('🟢 Preço baixo · 🟡 Preço médio · 🔴 Preço alto',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+            style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
       ]),
     );
   }
@@ -262,7 +263,7 @@ class _PostosInconsistentesState extends State<_PostosInconsistentes> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
+                color: AppTheme.tintOk,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(
                 '✅ Nenhum posto com desvio superior a ${_tolerancia.toInt()}%.',
@@ -273,7 +274,7 @@ class _PostosInconsistentesState extends State<_PostosInconsistentes> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(
                 '⚠️ ${filtrado.length} registros com desvio superior a ${_tolerancia.toInt()}%',
@@ -284,7 +285,7 @@ class _PostosInconsistentesState extends State<_PostosInconsistentes> {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           BarraHorizontal(
             dados: top20
@@ -335,12 +336,12 @@ class _ScorePorRegiaoState extends State<_ScorePorRegiao> {
   @override
   Widget build(BuildContext context) {
     if (widget.scores.isEmpty) {
-      return const Center(
+      return Center(
           child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
                   'Sem dados suficientes (preço + ANP resolvido) para calcular o score.',
-                  style: TextStyle(color: Colors.grey))));
+                  style: TextStyle(color: AppTheme.grey500))));
     }
     final agrupadoMapa = <String, List<double>>{};
     for (final s in widget.scores) {
@@ -475,12 +476,12 @@ class _DistribuicaoGrade extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (scores.isEmpty) {
-      return const Center(
+      return Center(
           child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
                   'Sem dados suficientes para calcular a distribuição de graus.',
-                  style: TextStyle(color: Colors.grey))));
+                  style: TextStyle(color: AppTheme.grey500))));
     }
     final contagem = {'A': 0, 'B': 0, 'C': 0, 'D': 0};
     for (final s in scores) contagem[s.grade] = (contagem[s.grade] ?? 0) + 1;
@@ -511,7 +512,7 @@ class _DistribuicaoGrade extends StatelessWidget {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade600)),
+                color: AppTheme.grey600)),
         const SizedBox(height: 8),
         SizedBox(
           height: 220,
@@ -535,7 +536,7 @@ class _DistribuicaoGrade extends StatelessWidget {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade600)),
+                color: AppTheme.grey600)),
         const SizedBox(height: 8),
         Builder(builder: (context) {
           final porUfMapa = <String, Map<String, int>>{};
@@ -579,8 +580,8 @@ Widget _seletorCombustivel(
   return Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Row(children: [
-      const Text('Combustível: ',
-          style: TextStyle(fontSize: 12, color: Colors.grey)),
+      Text('Combustível: ',
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
       const SizedBox(width: 4),
       DropdownButton<String>(
         value: opcoes.contains(atual) ? atual : null,

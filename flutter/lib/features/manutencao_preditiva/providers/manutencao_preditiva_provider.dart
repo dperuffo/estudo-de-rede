@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 import '../services/manutencao_preditiva_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-3 — Manutenção Preditiva (cliente), porta de
 // manutencao-preditiva/page.tsx + [placa]/page.tsx + actions.ts +
@@ -33,9 +34,9 @@ const labelStatus = {'ok': 'OK', 'alerta': 'Alerta', 'critico': 'Crítico'};
 Color corStatusTexto(String status) {
   switch (status) {
     case 'critico':
-      return const Color(0xFFB91C1C);
+      return AppTheme.fgErro;
     case 'alerta':
-      return const Color(0xFF92400E);
+      return AppTheme.fgAviso;
     default:
       return const Color(0xFF047857);
   }
@@ -44,11 +45,11 @@ Color corStatusTexto(String status) {
 Color corStatusFundo(String status) {
   switch (status) {
     case 'critico':
-      return const Color(0xFFFEF2F2);
+      return AppTheme.tintErro;
     case 'alerta':
-      return const Color(0xFFFFFBEB);
+      return AppTheme.tintAviso;
     default:
-      return const Color(0xFFECFDF5);
+      return AppTheme.tintOk;
   }
 }
 

@@ -63,23 +63,23 @@ class _DocumentosEmpresaDetalheScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Revisar Documentação')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Text(
               'Esta tela é exclusiva do time interno (perfil administrador).',
-              style: TextStyle(fontSize: 13, color: Colors.grey)),
+              style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
         ),
       ),
     );
@@ -110,7 +110,7 @@ class _DocumentosEmpresaDetalheScreenState
         Text(
           'CNPJ ${d.cnpj ?? '—'} · ${d.segmento == 'Revenda' ? 'Posto' : 'Cliente'} · '
           'Status: ${statusDocumentacaoLabel[situacao.status] ?? situacao.status}',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey600),
         ),
         const SizedBox(height: 16),
         Card(
@@ -143,13 +143,13 @@ class _DocumentosEmpresaDetalheScreenState
                 if (situacao.socios.isEmpty)
                   Text('Nenhum sócio cadastrado.',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                          TextStyle(fontSize: 12, color: AppTheme.grey500))
                 else
                   ...situacao.socios.map((s) => Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade200),
+                            border: Border.all(color: AppTheme.grey200),
                             borderRadius: BorderRadius.circular(8)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +159,7 @@ class _DocumentosEmpresaDetalheScreenState
                                     fontWeight: FontWeight.w600, fontSize: 13)),
                             Text('CPF: ${s.cpf}',
                                 style: TextStyle(
-                                    fontSize: 11, color: Colors.grey.shade500)),
+                                    fontSize: 11, color: AppTheme.grey500)),
                             const SizedBox(height: 8),
                             for (final tipo in tiposDocumentoSocio)
                               _linhaDocumento(tipo,
@@ -178,11 +178,11 @@ class _DocumentosEmpresaDetalheScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+                style: TextStyle(fontSize: 12, color: AppTheme.fgErro),
                 children: [
                   const TextSpan(
                       text: 'Motivo da rejeição anterior: ',
@@ -204,7 +204,7 @@ class _DocumentosEmpresaDetalheScreenState
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: AppTheme.grey200),
           borderRadius: BorderRadius.circular(8)),
       child: Row(
         children: [
@@ -234,11 +234,11 @@ class _DocumentosEmpresaDetalheScreenState
 
   Widget _painelDecisao(String status) {
     if (status == 'aprovada') {
-      return const Card(
+      return Card(
         child: Padding(
           padding: EdgeInsets.all(14),
           child: Text('Documentação já aprovada.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF15803D))),
+              style: TextStyle(fontSize: 13, color: AppTheme.fgOk)),
         ),
       );
     }

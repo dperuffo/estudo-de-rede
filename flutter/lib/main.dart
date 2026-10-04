@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "core/router/app_router.dart";
 import "core/theme/app_theme.dart";
+import "core/theme/tema_host.dart";
 import "core/services/supabase_service.dart";
 import "core/services/inactivity_guard.dart";
 
@@ -19,17 +20,20 @@ class FniApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    return MaterialApp.router(
-      title: "FNI Gestao de Frotas",
-      theme: AppTheme.light,
-      themeMode: ThemeMode.light,
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-      // Fase Timeout-Inatividade (21/08/2026) — envolve TODA a árvore
-      // roteada num único Listener global (ver inactivity_guard.dart),
-      // sem precisar tocar em nenhuma tela individualmente.
-      builder: (context, child) =>
-          InactivityGuard(child: child ?? const SizedBox.shrink()),
+    return TemaHost(
+      builder: (context, modo) => MaterialApp.router(
+        title: "FNI Gestao de Frotas",
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark_,
+        themeMode: modo,
+        routerConfig: router,
+        debugShowCheckedModeBanner: false,
+        // Fase Timeout-Inatividade (21/08/2026) — envolve TODA a árvore
+        // roteada num único Listener global (ver inactivity_guard.dart),
+        // sem precisar tocar em nenhuma tela individualmente.
+        builder: (context, child) =>
+            InactivityGuard(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

@@ -125,9 +125,9 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Abastecimentos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/abastecimentos/novo'),
@@ -175,7 +175,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                 Text(
                   'Alimentado automaticamente pelas integrações com meios de pagamento. '
                   'Lançamento manual também disponível.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12),
                 ),
                 if (pendentesManuais > 0) ...[
                   const SizedBox(height: 12),
@@ -186,15 +186,15 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: AppTheme.tintAviso,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '🟡 $pendentesManuais pendente${pendentesManuais == 1 ? '' : 's'} de aprovação',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF92400E)),
+                            color: AppTheme.fgAviso),
                       ),
                     ),
                   ),
@@ -315,7 +315,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                       padding: const EdgeInsets.all(24),
                       child: Center(
                         child: Text('Nenhum abastecimento encontrado.',
-                            style: TextStyle(color: Colors.grey.shade600)),
+                            style: TextStyle(color: AppTheme.grey600)),
                       ),
                     ),
                   )
@@ -326,7 +326,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                   Text(
                     'Mostrando os ${dados.registros.length} mais recentes de ${_numero.format(dados.total)}. '
                     'Use os filtros pra refinar — a paginação completa ainda não existe nesta versão do app.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey600),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -366,7 +366,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                   Expanded(
                     child: Text(r.codigoAbastecimento ?? '—',
                         style:
-                            const TextStyle(fontSize: 11, color: Colors.grey)),
+                            TextStyle(fontSize: 11, color: AppTheme.grey500)),
                   ),
                   _badgeProvedor(r.provedor),
                 ],
@@ -378,7 +378,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
                 '${r.placa ?? '—'} · ${r.motoristaNome ?? '—'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey600),
               ),
               const SizedBox(height: 6),
               Text(
@@ -387,11 +387,11 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
               if (temNota)
                 _badgeTexto(
                     'Emitida${numeroNf != null ? ' · Nº $numeroNf' : ''}',
-                    const Color(0xFFDCFCE7),
-                    const Color(0xFF15803D))
+                    AppTheme.tintOk,
+                    AppTheme.fgOk)
               else
-                _badgeTexto('Pendente', const Color(0xFFFEF3C7),
-                    const Color(0xFF92400E)),
+                _badgeTexto('Pendente', AppTheme.tintAviso,
+                    AppTheme.fgAviso),
             ],
           ),
         ),
@@ -404,7 +404,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: cor != null ? Color(cor) : Colors.grey.shade200,
+        color: cor != null ? Color(cor) : AppTheme.grey200,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(nomeProvedor(provedor), style: const TextStyle(fontSize: 11)),
@@ -428,7 +428,7 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),

@@ -8,6 +8,7 @@ import '../../veiculos/providers/veiculos_provider.dart'
     show Veiculo, veiculosClienteProvider;
 import '../providers/rotograma_provider.dart';
 import '../services/rotograma_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-3 — porta de RotogramaForm.tsx, compartilhado entre criar
 // (rotograma_novo_screen.dart) e editar (rotograma_editar_screen.dart).
@@ -205,10 +206,10 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(_erro!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
           const SizedBox(height: 12),
         ],
@@ -362,13 +363,13 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
             ),
           ],
         ),
-        const Text(
+        Text(
             'Trechos perigosos, zonas de crime, radares e lombadas na rota.',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         const SizedBox(height: 8),
         if (_riscos.isEmpty)
-          const Text('Nenhum ponto de risco adicionado.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Text('Nenhum ponto de risco adicionado.',
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         ..._riscos.asMap().entries.map((e) => _linhaEditavel(
               km: e.value.controllerKm,
               local: e.value.controllerLocal,
@@ -408,13 +409,13 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
             ),
           ],
         ),
-        const Text(
+        Text(
             'Postos, restaurantes e locais seguros para pernoite na rota.',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         const SizedBox(height: 8),
         if (_paradas.isEmpty)
-          const Text('Nenhuma parada adicionada.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Text('Nenhuma parada adicionada.',
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         ..._paradas.asMap().entries.map((e) => _linhaEditavel(
               km: e.value.controllerKm,
               local: e.value.controllerLocal,
@@ -451,7 +452,7 @@ class _RotogramaFormState extends ConsumerState<RotogramaForm> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: AppTheme.grey200),
           borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

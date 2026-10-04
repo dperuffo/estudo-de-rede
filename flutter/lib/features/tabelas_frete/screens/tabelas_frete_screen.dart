@@ -38,7 +38,7 @@ class TabelasFreteScreen extends ConsumerWidget {
               child: const Text('Cancelar')),
           FilledButton(
               style:
-                  FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                  FilledButton.styleFrom(backgroundColor: AppTheme.fgErro),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Excluir')),
         ],
@@ -78,8 +78,8 @@ class TabelasFreteScreen extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-              title: Text('Excluir', style: TextStyle(color: Colors.red.shade700)),
+              leading: Icon(Icons.delete_outline, color: AppTheme.fgErro),
+              title: Text('Excluir', style: TextStyle(color: AppTheme.fgErro)),
               onTap: () {
                 Navigator.pop(ctx);
                 _excluir(context, ref, t);
@@ -99,9 +99,9 @@ class TabelasFreteScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Tabelas de Frete')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/tabelas-frete/novo'),
@@ -122,7 +122,7 @@ class TabelasFreteScreen extends ConsumerWidget {
                       child: Center(
                         child: Text(
                             'Nenhuma tabela de frete cadastrada. Toque em "Nova Tabela" para começar.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppTheme.grey600),
                             textAlign: TextAlign.center),
                       ),
                     ),
@@ -174,24 +174,24 @@ class TabelasFreteScreen extends ConsumerWidget {
                         horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                         color: t.ativo
-                            ? const Color(0xFFDCFCE7)
-                            : const Color(0xFFF3F4F6),
+                            ? AppTheme.tintOk
+                            : AppTheme.superficieAlt,
                         borderRadius: BorderRadius.circular(12)),
                     child: Text(t.ativo ? 'Ativa' : 'Inativa',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: t.ativo
-                                ? const Color(0xFF15803D)
-                                : Colors.grey.shade600)),
+                                ? AppTheme.fgOk
+                                : AppTheme.grey600)),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                  Icon(Icons.more_vert, size: 18, color: AppTheme.grey500),
                 ],
               ),
               if (rota != null) ...[
                 const SizedBox(height: 4),
-                Text(rota, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(rota, style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
               ],
               const SizedBox(height: 6),
               Text(

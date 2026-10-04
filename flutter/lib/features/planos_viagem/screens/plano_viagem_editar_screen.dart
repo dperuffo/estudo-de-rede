@@ -54,9 +54,9 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Editar Plano de Viagem'),
         actions: [
           IconButton(
@@ -109,7 +109,7 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppTheme.tintInfo,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
@@ -128,19 +128,19 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.superficie,
                     borderRadius: BorderRadius.circular(12)),
                 child: Text(statusLabel,
-                    style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF1E40AF))),
+                    style: TextStyle(
+                        fontSize: 11, color: AppTheme.fgInfo)),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Gerado automaticamente a partir da rota calculada. Os postos abaixo têm autorização pré-agendada '
             'pra abastecer este veículo.',
-            style: TextStyle(fontSize: 11, color: Color(0xFF1E40AF)),
+            style: TextStyle(fontSize: 11, color: AppTheme.fgInfo),
           ),
           const SizedBox(height: 8),
           ...prePedido.paradas.map((p) => Container(
@@ -148,7 +148,7 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.superficie,
                     borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
@@ -165,8 +165,8 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: p.atendido
-                            ? const Color(0xFFDCFCE7)
-                            : const Color(0xFFF1F5F9),
+                            ? AppTheme.tintOk
+                            : AppTheme.superficieAlt,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -174,8 +174,8 @@ class PlanoViagemEditarScreen extends ConsumerWidget {
                         style: TextStyle(
                             fontSize: 10,
                             color: p.atendido
-                                ? const Color(0xFF15803D)
-                                : Colors.grey.shade600),
+                                ? AppTheme.fgOk
+                                : AppTheme.grey600),
                       ),
                     ),
                   ],

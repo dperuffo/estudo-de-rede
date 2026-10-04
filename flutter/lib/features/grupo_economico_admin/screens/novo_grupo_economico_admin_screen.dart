@@ -69,23 +69,23 @@ class _NovoGrupoEconomicoAdminScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Novo Grupo Econômico')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Text(
               'Esta tela é exclusiva do time interno (perfil administrador).',
-              style: TextStyle(fontSize: 13, color: Colors.grey)),
+              style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
         ),
       ),
     );
@@ -102,10 +102,10 @@ class _NovoGrupoEconomicoAdminScreenState
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
-                  style: const TextStyle(color: Color(0xFFB91C1C))),
+                  style: TextStyle(color: AppTheme.fgErro)),
             ),
           const Text('Nome do Grupo *',
               style: TextStyle(fontWeight: FontWeight.w600)),
@@ -125,9 +125,9 @@ class _NovoGrupoEconomicoAdminScreenState
             decoration: const InputDecoration(border: OutlineInputBorder()),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Você poderá vincular as empresas clientes depois de criar o Grupo.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 24),
           SizedBox(

@@ -96,9 +96,9 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Parâmetros de Uso')),
       floatingActionButton: _fab(),
       body: Column(
@@ -261,7 +261,7 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
                   decoration: BoxDecoration(
                     color: (ativo
                             ? const Color(0xFF16A34A)
-                            : const Color(0xFF64748B))
+                            : AppTheme.glassTextoMuted)
                         .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -270,7 +270,7 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
                           fontSize: 11,
                           color: ativo
                               ? const Color(0xFF16A34A)
-                              : const Color(0xFF64748B),
+                              : AppTheme.glassTextoMuted,
                           fontWeight: FontWeight.w600)),
                 ),
                 const Spacer(),
@@ -290,12 +290,12 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
       style: TextStyle(
           fontSize: destaque ? 13 : 12,
           fontWeight: destaque ? FontWeight.w600 : FontWeight.normal,
-          color: destaque ? null : Colors.grey.shade700));
+          color: destaque ? null : AppTheme.grey700));
 
   Widget _vazio(String texto) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(texto, style: TextStyle(color: Colors.grey.shade600)),
+          child: Text(texto, style: TextStyle(color: AppTheme.grey600)),
         ),
       );
 
@@ -312,10 +312,10 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
           children: [
-            const Text(
+            Text(
               'Associa um motorista a um veículo específico. Abastecimentos feitos em postos ou soluções de '
               'automação integradas via API podem ser autorizados apenas quando o par estiver ativo.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -358,7 +358,7 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
                       decoration: BoxDecoration(
                         color: (v.ativo
                                 ? const Color(0xFF16A34A)
-                                : const Color(0xFF64748B))
+                                : AppTheme.glassTextoMuted)
                             .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -367,7 +367,7 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
                               fontSize: 11,
                               color: v.ativo
                                   ? const Color(0xFF16A34A)
-                                  : const Color(0xFF64748B),
+                                  : AppTheme.glassTextoMuted,
                               fontWeight: FontWeight.w600)),
                     ),
                   ),

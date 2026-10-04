@@ -96,9 +96,9 @@ class _PatrimonioDetalheScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(widget.placa)),
       body: detalheAsync.when(
         data: (v) {
@@ -135,11 +135,11 @@ class _PatrimonioDetalheScreenState
                         : [v.marca, v.modelo]
                             .where((s) => s != null && s.isNotEmpty)
                             .join(' '),
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(fontSize: 13, color: AppTheme.grey500),
                   ),
                   Text(
                     '${v.centroCustoNome ?? 'Sem centro de custo'}${v.anoFabricacao != null ? ' · ${v.anoFabricacao}' : ''}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   ),
                 ],
               ),
@@ -160,7 +160,7 @@ class _PatrimonioDetalheScreenState
                       : v.percentualDepreciado != null
                           ? '${v.percentualDepreciado}% depreciado'
                           : '',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                 ),
               ],
             ),
@@ -173,13 +173,13 @@ class _PatrimonioDetalheScreenState
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: AppTheme.tintAviso,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFDE68A))),
-            child: const Text(
+                border: Border.all(color: AppTheme.tintAviso)),
+            child: Text(
               '⚠️ Este veículo não tem valor de aquisição cadastrado — não é possível calcular a depreciação '
               'contábil. Complete o cadastro em Veículos pra ver o patrimônio completo.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgAviso),
             ),
           ),
         Card(
@@ -245,19 +245,19 @@ class _PatrimonioDetalheScreenState
                     style:
                         TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Reavaliação (ajusta o valor contábil pra cima/baixo), melhoria (capitalização que aumenta a '
                   'base depreciável, ex.: baú novo) ou baixa (venda, perda total, sinistro — encerra a '
                   'depreciação na data informada).',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                 ),
                 const SizedBox(height: 10),
                 if (_erro != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(_erro!,
-                        style: const TextStyle(
-                            color: Color(0xFFB91C1C), fontSize: 12)),
+                        style: TextStyle(
+                            color: AppTheme.fgErro, fontSize: 12)),
                   ),
                 sessaoAsync.when(
                   data: (sessao) => veiculoIdAsync.when(
@@ -271,13 +271,13 @@ class _PatrimonioDetalheScreenState
                           ref.watch(ajustesPatrimonioProvider(veiculoId)).when(
                                 data: (lista) {
                                   if (lista.isEmpty) {
-                                    return const Padding(
+                                    return Padding(
                                       padding: EdgeInsets.only(bottom: 10),
                                       child: Text(
                                           'Nenhum ajuste registrado ainda.',
                                           style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey)),
+                                              color: AppTheme.grey500)),
                                     );
                                   }
                                   return Column(
@@ -335,7 +335,7 @@ class _PatrimonioDetalheScreenState
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
           Text(valor,
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -349,7 +349,7 @@ class _PatrimonioDetalheScreenState
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: AppTheme.grey300),
           borderRadius: BorderRadius.circular(8)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +364,7 @@ class _PatrimonioDetalheScreenState
                       fontWeight: FontWeight.w700, fontSize: 12),
                 ),
                 Text(_dataBr.format(DateTime.parse(a.dataAjuste)),
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
                 if (a.motivo != null) ...[
                   const SizedBox(height: 4),
                   Text(a.motivo!, style: const TextStyle(fontSize: 11)),
@@ -456,7 +456,7 @@ class _FormAjusteState extends State<_FormAjuste> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(_erroLocal!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         DropdownButtonFormField<String>(
           value: _tipo,

@@ -72,9 +72,9 @@ class _AnomaliasScreenState extends ConsumerState<AnomaliasScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Anomalias em Abastecimentos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _detectando ? null : _detectar,
@@ -95,10 +95,10 @@ class _AnomaliasScreenState extends ConsumerState<AnomaliasScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
           children: [
-            const Text(
+            Text(
               'Achados automáticos de possível fraude ou erro de lançamento — volume acima do tanque, '
               'postos distantes no mesmo dia, hodômetro retrocedendo e preço fora da média regional.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 12),
             kpisAsync.when(
@@ -161,7 +161,7 @@ class _AnomaliasScreenState extends ConsumerState<AnomaliasScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                         'Nenhuma anomalia encontrada com esses filtros. Toque em "Detectar agora" para analisar os abastecimentos mais recentes.',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: AppTheme.grey600),
                       ),
                     ),
                   );
@@ -183,8 +183,8 @@ class _AnomaliasScreenState extends ConsumerState<AnomaliasScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
+                style: TextStyle(
+                    fontSize: 10, color: AppTheme.grey500, letterSpacing: 0.3)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
@@ -229,7 +229,7 @@ class _AnomaliasScreenState extends ConsumerState<AnomaliasScreen> {
                 ),
                 const Spacer(),
                 Text(_fmtData(a.dataAbastecimento),
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ],
             ),
             const SizedBox(height: 8),

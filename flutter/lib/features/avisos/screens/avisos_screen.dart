@@ -25,9 +25,9 @@ const _tipoIcone = <String, IconData>{
   'aviso_geral': Icons.campaign_outlined,
 };
 
-const _urgenciaCor = <String, Color>{
-  'informativo': Color(0xFF64748B),
-  'atencao': Color(0xFFB45309),
+get _urgenciaCor => <String, Color>{
+  'informativo': AppTheme.glassTextoMuted,
+  'atencao': AppTheme.fgAviso,
   'critico': Color(0xFFDC2626),
 };
 
@@ -55,9 +55,9 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Central de Avisos')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -78,11 +78,11 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
             onRefresh: () async => ref.invalidate(avisosProvider),
             child: avisos.isEmpty
                 ? ListView(
-                    children: const [
+                    children: [
                       Padding(
                         padding: EdgeInsets.all(24),
                         child: Text('Nenhum aviso no momento.',
-                            style: TextStyle(color: Colors.grey)),
+                            style: TextStyle(color: AppTheme.grey500)),
                       ),
                     ],
                   )
@@ -91,7 +91,7 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
                     itemCount: avisos.length,
                     itemBuilder: (context, i) {
                       final a = avisos[i];
-                      final cor = _urgenciaCor[a.urgencia] ?? Colors.grey;
+                      final cor = _urgenciaCor[a.urgencia] ?? AppTheme.grey500;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         shape: RoundedRectangleBorder(
@@ -108,7 +108,7 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
                           subtitle: Text(
                               '${_fmtData(a.dataPublicacao)}${a.fixado ? ' · 📌 Fixado' : ''}',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600)),
+                                  fontSize: 11, color: AppTheme.grey600)),
                           children: [
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -118,7 +118,7 @@ class _AvisosScreenState extends ConsumerState<AvisosScreen> {
                                   Text(a.resumo,
                                       style: TextStyle(
                                           fontSize: 13,
-                                          color: Colors.grey.shade700)),
+                                          color: AppTheme.grey700)),
                                   const SizedBox(height: 8),
                                   if (a.urlImagem != null)
                                     Padding(

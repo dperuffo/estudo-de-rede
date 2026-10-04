@@ -70,16 +70,16 @@ class _ConfiguracoesSistemaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Configurações do Sistema')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
@@ -93,7 +93,7 @@ class _ConfiguracoesSistemaScreenState
               Text(
                 'Esta tela é exclusiva do time interno (perfil administrador). Fale com um '
                 'administrador se você precisa ajustar essas configurações.',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(fontSize: 13, color: AppTheme.grey500),
               ),
             ],
           ),
@@ -113,9 +113,9 @@ class _ConfiguracoesSistemaScreenState
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Parâmetros globais da plataforma — valem para todos os clientes, postos e usuários.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             Card(
@@ -128,11 +128,11 @@ class _ConfiguracoesSistemaScreenState
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Se um usuário ficar sem interagir com o sistema por esse tempo, ele é desconectado '
                       'automaticamente e precisa entrar de novo. Vale para todos os perfis (admin, gestor de '
                       'frota, analista e posto) em todos os clientes.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                     ),
                     const SizedBox(height: 16),
                     if (_erro != null) ...[
@@ -140,11 +140,11 @@ class _ConfiguracoesSistemaScreenState
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
+                            color: AppTheme.tintErro,
                             borderRadius: BorderRadius.circular(8)),
                         child: Text(_erro!,
-                            style: const TextStyle(
-                                color: Color(0xFFB91C1C), fontSize: 12)),
+                            style: TextStyle(
+                                color: AppTheme.fgErro, fontSize: 12)),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -172,9 +172,9 @@ class _ConfiguracoesSistemaScreenState
                     ),
                     if (_ok) ...[
                       const SizedBox(height: 8),
-                      const Text('Salvo.',
+                      Text('Salvo.',
                           style: TextStyle(
-                              color: Color(0xFF15803D),
+                              color: AppTheme.fgOk,
                               fontSize: 12,
                               fontWeight: FontWeight.w600)),
                     ],
@@ -182,7 +182,7 @@ class _ConfiguracoesSistemaScreenState
                     Text(
                       'Entre $logoutInatividadeMinutosMin e $logoutInatividadeMinutosMax minutos.',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                          TextStyle(fontSize: 11, color: AppTheme.grey500),
                     ),
                   ],
                 ),

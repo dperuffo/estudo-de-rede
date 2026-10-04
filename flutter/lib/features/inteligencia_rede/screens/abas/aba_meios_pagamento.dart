@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 11/11 — "💳 Meios de Pagamento". Pedido do Daniel: "Criar um painel
 // de preços médios com os preços praticados nos abastecimentos nos
@@ -76,12 +77,12 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
     final dados = widget.dados.precosPorMeioPagamento;
 
     if (dados.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
               'Nenhum abastecimento com meio de pagamento identificado ainda.',
-              style: TextStyle(color: Colors.grey)),
+              style: TextStyle(color: AppTheme.grey500)),
         ),
       );
     }
@@ -186,7 +187,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Litros transacionados por tipo de combustível — o preço médio de cada meio de pagamento pode variar conforme o mix de combustível.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 10),
                   BarraHorizontal(
@@ -215,7 +216,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Média ponderada por litro (todos os combustíveis), do mais em conta ao mais caro.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 10),
                   BarraHorizontal(
@@ -226,7 +227,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                               cor: p.chave == maisVantajoso?.chave
                                   ? const Color(0xFF2E7D32)
                                   : (p.chave == menosVantajoso?.chave
-                                      ? const Color(0xFFB71C1C)
+                                      ? AppTheme.fgErro
                                       : _corA),
                               texto: formatarMoeda(p.precoMedio),
                             ))
@@ -259,7 +260,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Variação de preço entre os meios de pagamento, separado por tipo de combustível.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 10),
                   TabelaSimples(
@@ -295,7 +296,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(
                     'Por ${_modoGeo == 'estado' ? 'estado' : 'região'}, o meio mais barato vs. o mais caro (para o combustível selecionado).',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 10),
                   Row(children: [
@@ -363,7 +364,7 @@ class _AbaMeiosPagamentoState extends State<AbaMeiosPagamento> {
                   else
                     Text('Sem dados suficientes pra esse recorte.',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade400)),
+                            fontSize: 12, color: AppTheme.grey400)),
                 ],
               ),
             ),

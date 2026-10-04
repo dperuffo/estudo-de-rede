@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas (cliente),
 // porta de multas/page.tsx + multas/[id]/page.tsx + multas/actions.ts +
@@ -19,22 +20,22 @@ const statusMultaLabel = {
   'cancelada': 'Cancelada',
 };
 
-const statusMultaCorFundo = {
-  'pendente_indicacao': Color(0xFFFEF3C7),
-  'indicada': Color(0xFFDBEAFE),
-  'paga': Color(0xFFDCFCE7),
+get statusMultaCorFundo => {
+  'pendente_indicacao': AppTheme.tintAviso,
+  'indicada': AppTheme.tintInfo,
+  'paga': AppTheme.tintOk,
   'recorrida': Color(0xFFF3E8FF),
-  'vencida': Color(0xFFFEE2E2),
-  'cancelada': Color(0xFFF1F5F9),
+  'vencida': AppTheme.tintErro,
+  'cancelada': AppTheme.superficieAlt,
 };
 
-const statusMultaCorTexto = {
-  'pendente_indicacao': Color(0xFF92400E),
-  'indicada': Color(0xFF1E40AF),
-  'paga': Color(0xFF166534),
+get statusMultaCorTexto => {
+  'pendente_indicacao': AppTheme.fgAviso,
+  'indicada': AppTheme.fgInfo,
+  'paga': AppTheme.fgOk,
   'recorrida': Color(0xFF6B21A8),
-  'vencida': Color(0xFF991B1B),
-  'cancelada': Color(0xFF475569),
+  'vencida': AppTheme.fgErro,
+  'cancelada': AppTheme.glassTextoMuted,
 };
 
 const gravidadeMultaLabel = {

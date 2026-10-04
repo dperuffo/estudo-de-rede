@@ -113,9 +113,9 @@ class _AvisoEmpresaFormScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(_editando ? 'Editar aviso' : 'Novo aviso')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -165,7 +165,7 @@ class _AvisoEmpresaFormScreenState
           const SizedBox(height: 8),
           Text(
               'Visível para sua empresa e, se houver, para as demais empresas do mesmo grupo econômico.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _salvando ? null : _salvar,

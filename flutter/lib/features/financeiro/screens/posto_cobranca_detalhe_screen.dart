@@ -63,9 +63,9 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: Text(postoNome),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
@@ -90,7 +90,7 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text('Ciclo de $cicloFaturamentoDias dias',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
+                            fontSize: 12, color: AppTheme.grey600)),
                   ],
                 ],
               ),
@@ -105,7 +105,7 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text('Nenhum ciclo em andamento agora.',
-                    style: TextStyle(color: Colors.grey.shade600)),
+                    style: TextStyle(color: AppTheme.grey600)),
               ),
             )
           else
@@ -126,8 +126,8 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
                           ),
-                          const Icon(Icons.chevron_right,
-                              color: Colors.grey, size: 18),
+                          Icon(Icons.chevron_right,
+                              color: AppTheme.grey500, size: 18),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -138,8 +138,8 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           '${cicloAtual!.quantidadePendenteNfe} sem NF-e ainda (${_moeda.format(cicloAtual!.valorPendenteNfe)}, fora do acumulado)',
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF92400E)),
+                          style: TextStyle(
+                              fontSize: 12, color: AppTheme.fgAviso),
                         ),
                       ],
                     ],
@@ -157,7 +157,7 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text('Nenhuma fatura ainda.',
-                    style: TextStyle(color: Colors.grey.shade600)),
+                    style: TextStyle(color: AppTheme.grey600)),
               ),
             )
           else
@@ -170,10 +170,10 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
   Widget _linhaFatura(BuildContext context, FaturaFinanceiro f) {
     final statusExib = _statusExibicao(f.status, f.vencimento);
     final cor = switch (statusExib) {
-      'paga' => const Color(0xFF15803D),
-      'vencida' => const Color(0xFFB91C1C),
-      'cancelada' => Colors.grey,
-      _ => const Color(0xFF92400E),
+      'paga' => AppTheme.fgOk,
+      'vencida' => AppTheme.fgErro,
+      'cancelada' => AppTheme.grey500,
+      _ => AppTheme.fgAviso,
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -201,7 +201,7 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+              Icon(Icons.chevron_right, color: AppTheme.grey500, size: 18),
             ],
           ),
         ),

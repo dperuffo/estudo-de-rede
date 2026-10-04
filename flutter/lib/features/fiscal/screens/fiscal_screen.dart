@@ -86,9 +86,9 @@ class _FiscalScreenState extends ConsumerState<FiscalScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Fiscal (CT-e/MDF-e)')),
       body: async.when(
         data: (r) {
@@ -227,7 +227,7 @@ class _FiscalScreenState extends ConsumerState<FiscalScreen> {
                       Text(
                           'Envio do certificado A1 (.pfx/.p12) e teste de conexão com o provedor fiscal só estão disponíveis na versão web, por segurança (o certificado precisa ir direto ao provedor, sem passar por armazenamento no app).',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600)),
+                              fontSize: 12, color: AppTheme.grey600)),
                       const SizedBox(height: 10),
                       Text(
                           'Vencimento do certificado: ${r.fiscal?.certificadoVencimento ?? '—'}',

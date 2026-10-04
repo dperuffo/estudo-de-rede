@@ -42,9 +42,9 @@ class _ChecklistVeiculosScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Checklist de Inspeção')),
       body: listaAsync.when(
         data: (lista) {
@@ -55,10 +55,10 @@ class _ChecklistVeiculosScreenState
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text(
+              Text(
                 'Registro de inspeções periódicas (pneus, freios, luzes, documentação e outros itens de segurança), '
                 'com histórico de não conformidades e tempo de resolução.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500),
               ),
               const SizedBox(height: 16),
               Row(
@@ -86,11 +86,11 @@ class _ChecklistVeiculosScreenState
               ),
               const SizedBox(height: 16),
               if (lista.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                       child: Text('Nenhum veículo encontrado.',
-                          style: TextStyle(color: Colors.grey))),
+                          style: TextStyle(color: AppTheme.grey500))),
                 )
               else
                 ...lista.map(_card),
@@ -108,10 +108,10 @@ class _ChecklistVeiculosScreenState
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintErro : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintErro : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,14 +119,14 @@ class _ChecklistVeiculosScreenState
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
+                    color: destaque ? AppTheme.fgErro : AppTheme.glassTexto),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -155,7 +155,7 @@ class _ChecklistVeiculosScreenState
               ),
               const SizedBox(height: 2),
               Text('Última inspeção: ${_fmtData(v.ultimaInspecao)}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
             ],
           ),
         ),
@@ -163,24 +163,24 @@ class _ChecklistVeiculosScreenState
             ? Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
+                    color: AppTheme.tintErro,
                     borderRadius: BorderRadius.circular(12)),
                 child: Text('${v.pendenciasAbertas} pendente(s)',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF991B1B))),
+                        color: AppTheme.fgErro)),
               )
             : Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
+                    color: AppTheme.tintOk,
                     borderRadius: BorderRadius.circular(12)),
-                child: const Text('OK',
+                child: Text('OK',
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF166534))),
+                        color: AppTheme.fgOk)),
               ),
       ),
     );

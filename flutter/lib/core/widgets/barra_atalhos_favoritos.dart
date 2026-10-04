@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/menu_favoritos_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_theme.dart';
 
 // Item já resolvido (href -> label/ícone), pronto pra desenhar. Resolução
 // fica a cargo de quem monta a barra (HomeScreen/PostoHomeScreen), porque
@@ -85,10 +86,10 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppTheme.superficie,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: BorderSide(color: AppTheme.grey300),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -102,14 +103,14 @@ class _Chip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(item.label,
                   style:
-                      const TextStyle(fontSize: 13, color: Color(0xFF334155))),
+                      TextStyle(fontSize: 13, color: AppTheme.glassTexto)),
               const SizedBox(width: 2),
               InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: onRemover,
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.all(4),
-                  child: Icon(Icons.close, size: 14, color: Colors.grey),
+                  child: Icon(Icons.close, size: 14, color: AppTheme.grey500),
                 ),
               ),
             ],

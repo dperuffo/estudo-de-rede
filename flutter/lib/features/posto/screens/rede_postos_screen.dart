@@ -107,9 +107,9 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Rede de Postos')),
       body: redeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -129,7 +129,7 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.hub_outlined, size: 56, color: Colors.grey),
+          Icon(Icons.hub_outlined, size: 56, color: AppTheme.grey500),
           const SizedBox(height: 16),
           const Text(
             'Seu posto ainda não faz parte de uma Rede de Postos.',
@@ -137,11 +137,11 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Uma Rede agrupa postos sob a mesma bandeira/grupo — usuários vinculados a um '
             'posto da Rede passam a ver os postos irmãos nas telas do sistema.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -174,16 +174,16 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
                     child: Text(_erroEdicao!,
                         style: const TextStyle(color: Colors.red)),
                   ),
-                const Text('Nome da Rede',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Nome da Rede',
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 const SizedBox(height: 4),
                 TextField(
                     controller: _nomeCtrl,
                     decoration:
                         const InputDecoration(border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                const Text('CNPJ da Matriz',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('CNPJ da Matriz',
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 const SizedBox(height: 4),
                 TextField(
                     controller: _cnpjCtrl,
@@ -221,10 +221,10 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
                         fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 8),
                 if (rede.vinculos.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text('Nenhum posto vinculado ainda.',
-                        style: TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: AppTheme.grey500)),
                   )
                 else
                   ...rede.vinculos.map((v) => ListTile(
@@ -261,9 +261,9 @@ class _RedePostosScreenState extends ConsumerState<RedePostosScreen> {
         final disponiveis =
             todos.where((p) => !jaVinculados.contains(p.id)).toList();
         if (disponiveis.isEmpty) {
-          return const Text(
+          return Text(
             'Nenhum outro posto seu disponível para vincular.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13),
           );
         }
         return Column(

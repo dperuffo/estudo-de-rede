@@ -54,9 +54,9 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Motoristas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/motoristas/novo'),
@@ -68,11 +68,11 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (motoristas) {
           if (motoristas.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Nenhum motorista cadastrado ainda.',
-                    style: TextStyle(color: Colors.grey)),
+                    style: TextStyle(color: AppTheme.grey500)),
               ),
             );
           }
@@ -159,7 +159,7 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                           'Nenhum motorista encontrado com esse filtro.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -197,16 +197,16 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('CPF ${m.cpf} · ${m.classificacao}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             if (m.cnhVencimento != null)
               Text('CNH vence em ${_fmtData(m.cnhVencimento)}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
           ],
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: (m.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B))
+            color: (m.ativo ? const Color(0xFF16A34A) : AppTheme.glassTextoMuted)
                 .withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -215,7 +215,7 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                   fontSize: 11,
                   color: m.ativo
                       ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                      : AppTheme.glassTextoMuted,
                   fontWeight: FontWeight.w600)),
         ),
         isThreeLine: m.cnhVencimento != null,
@@ -234,7 +234,7 @@ class _MotoristasScreenState extends ConsumerState<MotoristasScreen> {
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
       ),

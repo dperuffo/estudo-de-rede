@@ -47,9 +47,9 @@ class FretesScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Fretes'),
           bottom: fretesAsync.maybeWhen(
             data: (fretes) => TabBar(
@@ -145,7 +145,7 @@ class _ListaFretes extends ConsumerWidget {
                 const SizedBox(height: 80),
                 Center(
                     child: Text(mensagemVazia,
-                        style: const TextStyle(color: Colors.black45))),
+                        style: TextStyle(color: AppTheme.glassTextoMuted))),
               ],
             )
           : ListView.builder(
@@ -202,7 +202,7 @@ class _CardFrete extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style:
-                        const TextStyle(fontSize: 12, color: Colors.black54)),
+                        TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted)),
               ),
             ],
             const Divider(height: 20),
@@ -278,10 +278,10 @@ class _ChipStatusFrete extends StatelessWidget {
       'aguardando_confirmacao' => Colors.orange,
       'aceito' => Colors.green,
       'em_andamento' => Colors.green,
-      'concluido' => Colors.grey,
+      'concluido' => AppTheme.grey500,
       'cancelado' => Colors.red,
       'recusado' => Colors.red,
-      _ => Colors.grey,
+      _ => AppTheme.grey500,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

@@ -5,12 +5,12 @@ import '../providers/relatorios_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-const _cores = [
+get _cores => [
   AppTheme.glassTextoAtivo,
   Color(0xFFE65100),
   Color(0xFF2E7D32),
   Color(0xFF6A1B9A),
-  Color(0xFFB71C1C),
+  AppTheme.fgErro,
   Color(0xFF00838F),
   Color(0xFFF9A825),
   Color(0xFF4527A0),
@@ -54,9 +54,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Relatórios Personalizados')),
       body: brutosAsync.when(
         data: (brutos) => _conteudo(brutos),
@@ -126,9 +126,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        const Text('Fonte',
+        Text('Fonte',
             style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.grey500)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: _fonte,
@@ -154,9 +154,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           onChanged: (v) => _trocarFonte(v ?? _fonte),
         ),
         const SizedBox(height: 12),
-        const Text('Dimensão',
+        Text('Dimensão',
             style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.grey500)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: dimensaoAtual.id,
@@ -168,9 +168,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           onChanged: (v) => setState(() => _dimensaoId = v ?? _dimensaoId),
         ),
         const SizedBox(height: 12),
-        const Text('Métricas',
+        Text('Métricas',
             style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.grey500)),
         const SizedBox(height: 4),
         Wrap(
           spacing: 6,
@@ -191,9 +191,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           }).toList(),
         ),
         const SizedBox(height: 12),
-        const Text('Gráfico',
+        Text('Gráfico',
             style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.grey500)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: _tipoGrafico,
@@ -214,7 +214,7 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             child: Text(
               'Nenhum dado de ${fonteLabel[_fonte] ?? _fonte} '
               'encontrado no período (últimos 12 meses${_fonte == 'custos_fixos' ? ', e também os próximos 12' : ''}).',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              style: TextStyle(color: AppTheme.grey500, fontSize: 13),
             ),
           )
         else if (resultado.isEmpty || metricasAtuais.isEmpty)
@@ -222,13 +222,13 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
                 'Nenhum resultado para essa combinação de dimensão/métrica.',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
           )
         else ...[
           Text(
             '${metricasAtuais.map((m) => m.label).join(', ')} por ${dimensaoAtual.label.toLowerCase()} — ${resultado.length} grupo(s)'
             '${resultado.length > 25 ? ' (mostrando os 25 maiores no gráfico)' : ''}',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 12),
           if (metricasAtuais.length > 1)
@@ -236,7 +236,7 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 'O gráfico mostra apenas a 1ª métrica selecionada (${metricaGrafico.label}) — as demais continuam na tabela abaixo.',
-                style: TextStyle(fontSize: 11, color: Colors.amber.shade800),
+                style: TextStyle(fontSize: 11, color: AppTheme.fgAviso),
               ),
             ),
           if (_tipoGrafico != 'table') _grafico(dadosGrafico, metricaGrafico),
@@ -319,7 +319,7 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (_) => const Color(0xFF1E293B),
+              getTooltipColor: (_) => AppTheme.glassTexto,
               getTooltipItem: (group, groupIdx, rod, rodIdx) => BarTooltipItem(
                 '${dados[group.x.toInt()].chave}\n${formatarValorMetrica(rod.toY, metrica.formato)}',
                 const TextStyle(color: Colors.white, fontSize: 11),
@@ -385,13 +385,13 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                 const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(
-              show: true, border: Border.all(color: Colors.grey.shade300)),
+              show: true, border: Border.all(color: AppTheme.grey300)),
           gridData: FlGridData(
               getDrawingHorizontalLine: (_) =>
                   FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1)),
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => const Color(0xFF1E293B),
+              getTooltipColor: (_) => AppTheme.glassTexto,
               getTooltipItems: (spots) => spots
                   .map((s) => LineTooltipItem(
                         '${dados[s.x.toInt()].chave}\n${formatarValorMetrica(s.y, metrica.formato)}',
@@ -489,7 +489,7 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                             fontSize: 12, fontWeight: FontWeight.w600))),
                   DataCell(Text('${r.qtdLinhas}',
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600))),
+                          fontSize: 12, color: AppTheme.grey600))),
                 ]))
             .toList(),
       ),

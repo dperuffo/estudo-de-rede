@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/agendamentos_patio_provider.dart';
 import '../services/agendamentos_patio_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 final _service = AgendamentosPatioService();
 
-const _corStatus = <String, Color>{
-  'agendado': Color(0xFFFEF3C7),
-  'confirmado': Color(0xFFDBEAFE),
+get _corStatus => <String, Color>{
+  'agendado': AppTheme.tintAviso,
+  'confirmado': AppTheme.tintInfo,
   'em_andamento': Color(0xFFEDE9FE),
-  'concluido': Color(0xFFDCFCE7),
-  'cancelado': Color(0xFFF1F5F9),
+  'concluido': AppTheme.tintOk,
+  'cancelado': AppTheme.superficieAlt,
 };
-const _corTextoStatus = <String, Color>{
-  'agendado': Color(0xFF92400E),
-  'confirmado': Color(0xFF1E40AF),
+get _corTextoStatus => <String, Color>{
+  'agendado': AppTheme.fgAviso,
+  'confirmado': AppTheme.fgInfo,
   'em_andamento': Color(0xFF5B21B6),
-  'concluido': Color(0xFF166534),
-  'cancelado': Color(0xFF475569),
+  'concluido': AppTheme.fgOk,
+  'cancelado': AppTheme.glassTextoMuted,
 };
 
 // Fase agendamento-patio (04/08/2026) — porta de AgendamentoPatioCard.tsx
@@ -193,7 +194,7 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.black12),
+          border: Border.all(color: AppTheme.bordaSuave),
           borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,10 +202,10 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
           Text(
             labelTipoAgendamentoPatio[widget.tipo]?.toUpperCase() ??
                 widget.tipo.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: Colors.black45),
+                color: AppTheme.glassTextoMuted),
           ),
           const SizedBox(height: 8),
           if (mostrarFormulario) ...[
@@ -290,7 +291,7 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: _corStatus[agendamento.status] ??
-                        const Color(0xFFF1F5F9),
+                        AppTheme.superficieAlt,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -300,7 +301,7 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _corTextoStatus[agendamento.status] ??
-                            Colors.black54),
+                            AppTheme.glassTextoMuted),
                   ),
                 ),
                 Text(
@@ -310,14 +311,14 @@ class _AgendamentoPatioCardState extends ConsumerState<AgendamentoPatioCard> {
                 if (agendamento.doca != null)
                   Text('· doca ${agendamento.doca}',
                       style:
-                          const TextStyle(fontSize: 13, color: Colors.black54)),
+                          TextStyle(fontSize: 13, color: AppTheme.glassTextoMuted)),
               ],
             ),
             if (agendamento.observacoes != null) ...[
               const SizedBox(height: 4),
               Text(agendamento.observacoes!,
                   style:
-                      const TextStyle(fontSize: 11.5, color: Colors.black45)),
+                      TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted)),
             ],
             if (['agendado', 'confirmado'].contains(agendamento.status)) ...[
               const SizedBox(height: 6),

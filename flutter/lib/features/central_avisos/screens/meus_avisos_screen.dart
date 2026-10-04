@@ -37,7 +37,7 @@ class MeusAvisosScreen extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Voltar')),
           FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+              style: FilledButton.styleFrom(backgroundColor: AppTheme.fgErro),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Excluir')),
         ],
@@ -62,9 +62,9 @@ class MeusAvisosScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Meus Avisos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/central-avisos/gerenciar/novo'),
@@ -84,7 +84,7 @@ class MeusAvisosScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                           'Nenhum aviso criado ainda. Toque em "Novo aviso" para comunicar algo à sua empresa (e às empresas do mesmo grupo econômico, se houver).',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   ),
                 ],
@@ -112,7 +112,7 @@ class MeusAvisosScreen extends ConsumerWidget {
 
   Widget _card(BuildContext context, WidgetRef ref, AvisoEmpresa a) {
     final corUrgencia = switch (a.urgencia) {
-      'critico' => Colors.red.shade700,
+      'critico' => AppTheme.fgErro,
       'atencao' => Colors.orange.shade700,
       _ => Colors.blueGrey,
     };
@@ -136,16 +136,16 @@ class MeusAvisosScreen extends ConsumerWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                       color: a.ativo
-                          ? const Color(0xFFDCFCE7)
-                          : const Color(0xFFF3F4F6),
+                          ? AppTheme.tintOk
+                          : AppTheme.superficieAlt,
                       borderRadius: BorderRadius.circular(12)),
                   child: Text(a.ativo ? 'Ativo' : 'Inativo',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: a.ativo
-                              ? const Color(0xFF15803D)
-                              : Colors.grey.shade600)),
+                              ? AppTheme.fgOk
+                              : AppTheme.grey600)),
                 ),
               ],
             ),

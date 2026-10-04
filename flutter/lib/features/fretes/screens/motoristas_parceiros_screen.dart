@@ -23,9 +23,9 @@ class MotoristasParceirosScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Motoristas Parceiros')),
       body: empresaId == null
           ? const Center(child: Text('Selecione uma empresa primeiro.'))
@@ -34,10 +34,10 @@ class MotoristasParceirosScreen extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  const Text(
+                  Text(
                     'Motoristas agregados/terceiros com quem você já tem relação — convide pra poder atribuir frete '
                     'direto a eles, sem abrir pro mercado aberto.',
-                    style: TextStyle(fontSize: 12.5, color: Colors.black54),
+                    style: TextStyle(fontSize: 12.5, color: AppTheme.glassTextoMuted),
                   ),
                   const SizedBox(height: 16),
                   _FormConvidarParceiro(
@@ -53,8 +53,8 @@ class MotoristasParceirosScreen extends ConsumerWidget {
                     error: (e, _) => Text('Erro: $e'),
                     data: (parceiros) {
                       if (parceiros.isEmpty)
-                        return const Text('Nenhum parceiro convidado ainda.',
-                            style: TextStyle(color: Colors.black45));
+                        return Text('Nenhum parceiro convidado ainda.',
+                            style: TextStyle(color: AppTheme.glassTextoMuted));
                       return Column(
                           children: parceiros
                               .map((p) => _CardParceiro(parceiro: p))
@@ -84,7 +84,7 @@ class _CardParceiro extends StatelessWidget {
     final cor = switch (parceiro.status) {
       'ativo' => Colors.green,
       'convidado' => Colors.orange,
-      _ => Colors.grey,
+      _ => AppTheme.grey500,
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -192,10 +192,10 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
             const Text('Convidar motorista parceiro',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Busque pelo CPF ou telefone — o motorista precisa já ter conta no app "Estrada que Cuida". Ele recebe o '
               'convite lá e decide se aceita entrar na sua rede.',
-              style: TextStyle(fontSize: 11.5, color: Colors.black54),
+              style: TextStyle(fontSize: 11.5, color: AppTheme.glassTextoMuted),
             ),
             const SizedBox(height: 10),
             Row(
@@ -232,7 +232,7 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppTheme.grey100,
                     borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
@@ -246,8 +246,8 @@ class _FormConvidarParceiroState extends State<_FormConvidarParceiro> {
                           Text(
                               _encontrado!.telefone ??
                                   'sem telefone cadastrado',
-                              style: const TextStyle(
-                                  fontSize: 11, color: Colors.black54)),
+                              style: TextStyle(
+                                  fontSize: 11, color: AppTheme.glassTextoMuted)),
                         ],
                       ),
                     ),

@@ -84,7 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // (src/app/login/page.tsx).
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: AppTheme.superficieAlt,
         body: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -96,9 +96,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 24),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppTheme.superficie,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: AppTheme.bordaSuave),
                         boxShadow: [
                           BoxShadow(
                               color: AppTheme.glassTextoAtivo.withOpacity(0.06),
@@ -110,15 +110,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           height: 100, fit: BoxFit.contain),
                     ),
                     const SizedBox(height: 32),
-                    const Text('Gestao de Frotas',
+                    Text('Gestao de Frotas',
                         style: TextStyle(
                             color: AppTheme.glassTextoAtivo,
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 8),
-                    const Text('Plataforma de inteligencia de rede',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 14)),
+                    Text('Plataforma de inteligencia de rede',
+                        style: TextStyle(color: AppTheme.glassTextoMuted, fontSize: 14)),
                     const SizedBox(height: 40),
 
                     // Fase FLT-1 — formulário de e-mail/senha (equivalente a
@@ -126,14 +126,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: Color(0xFF0F172A)),
+                      style: TextStyle(color: AppTheme.glassTexto),
                       decoration: _inputDecoration('E-mail'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _senhaCtrl,
                       obscureText: !_senhaVisivel,
-                      style: const TextStyle(color: Color(0xFF0F172A)),
+                      style: TextStyle(color: AppTheme.glassTexto),
                       decoration: _inputDecoration(
                         'Senha',
                         suffixIcon: IconButton(
@@ -141,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             _senhaVisivel
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: Color(0xFF64748B),
+                            color: AppTheme.glassTextoMuted,
                           ),
                           onPressed: () =>
                               setState(() => _senhaVisivel = !_senhaVisivel),
@@ -180,15 +180,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
 
                     const SizedBox(height: 20),
-                    Row(children: const [
-                      Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    Row(children: [
+                      Expanded(child: Divider(color: AppTheme.bordaSuave)),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Text('ou',
                             style:
                                 TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
                       ),
-                      Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                      Expanded(child: Divider(color: AppTheme.bordaSuave)),
                     ]),
                     const SizedBox(height: 20),
 
@@ -198,14 +198,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _loadingGoogle ? null : _entrarComGoogle,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
+                          backgroundColor: AppTheme.superficie,
                           foregroundColor: AppTheme.glassTextoAtivo,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                           elevation: 4,
                         ),
                         child: _loadingGoogle
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
@@ -241,16 +241,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   InputDecoration _inputDecoration(String label, {Widget? suffixIcon}) =>
       InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF64748B)),
+        labelStyle: TextStyle(color: AppTheme.glassTextoMuted),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppTheme.superficie,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+          borderSide: BorderSide(color: AppTheme.bordaForte),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

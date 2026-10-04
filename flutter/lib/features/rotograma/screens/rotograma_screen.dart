@@ -18,9 +18,9 @@ class RotogramaScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Rotograma de Segurança')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/rotograma/novo'),
@@ -39,16 +39,16 @@ class RotogramaScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Mapa de pontos de risco, paradas e contatos de emergência para o motorista levar na viagem.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         if (lista.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text('Nenhum Rotograma cadastrado ainda.',
-                style: TextStyle(color: Colors.grey.shade500)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...lista.map((r) => Card(
@@ -56,11 +56,11 @@ class RotogramaScreen extends ConsumerWidget {
                 child: ListTile(
                   onTap: () => context.push('/rotograma/${r.id}'),
                   leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFEFF6FF),
+                    backgroundColor: AppTheme.tintInfo,
                     child: Text('#${r.numero}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF1D4ED8),
+                            color: AppTheme.fgInfo,
                             fontWeight: FontWeight.w700)),
                   ),
                   title: Text('${r.origem ?? '—'} → ${r.destino ?? '—'}',

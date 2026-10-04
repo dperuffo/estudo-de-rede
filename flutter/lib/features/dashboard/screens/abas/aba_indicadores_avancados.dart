@@ -6,6 +6,7 @@ import '../../../inteligencia_rede/widgets/inteligencia_shared.dart';
 import '../../../roteirizacao/providers/roteirizacao_provider.dart'
     show produtosPosto;
 import '../../providers/indicadores_avancados_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 final _moeda2 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -88,8 +89,8 @@ class _AbaIndicadoresAvancadosState
           const Text('Indicadores avançados',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text('Preços, consumo e rankings do período selecionado.',
-              style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Text('Preços, consumo e rankings do período selecionado.',
+              style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
           const SizedBox(height: 12),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -99,8 +100,8 @@ class _AbaIndicadoresAvancadosState
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Período:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('Período:',
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                   const SizedBox(width: 8),
                   DropdownButton<({int ano, int mes})>(
                     value: _periodo,
@@ -123,8 +124,8 @@ class _AbaIndicadoresAvancadosState
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Combustível:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('Combustível:',
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                   const SizedBox(width: 8),
                   DropdownButton<String?>(
                     value: _combustivel,
@@ -243,7 +244,7 @@ class _AbaIndicadoresAvancadosState
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(subtitulo,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ),
           ],
         ),
@@ -253,7 +254,7 @@ class _AbaIndicadoresAvancadosState
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
-              child: Text(texto, style: const TextStyle(color: Colors.grey))),
+              child: Text(texto, style: TextStyle(color: AppTheme.grey500))),
         ),
       );
 
@@ -270,10 +271,10 @@ class _AbaIndicadoresAvancadosState
                 subtitulo:
                     'Faixa de preço paga na rede, comparada à referência ANP do estado mais frequente.'),
             if (itens.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem abastecimentos no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 220,
@@ -331,8 +332,8 @@ class _AbaIndicadoresAvancadosState
                 )),
               ),
               const SizedBox(height: 4),
-              const Text('🔵 Preço pago  ·  ⚪ Referência ANP',
-                  style: TextStyle(fontSize: 10, color: Colors.grey)),
+              Text('🔵 Preço pago  ·  ⚪ Referência ANP',
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
               const SizedBox(height: 10),
               TabelaSimples(
                 colunas: const ['Combustível', 'Qtd', 'Méd.', 'CV', 'ANP Méd.'],
@@ -375,10 +376,10 @@ class _AbaIndicadoresAvancadosState
                 subtitulo:
                     'Litros por dia; dias restantes projetados pelo padrão de consumo por dia da semana (últimos 90 dias).'),
             if (pontos.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem dados de consumo no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 200,
@@ -428,15 +429,15 @@ class _AbaIndicadoresAvancadosState
                 )),
               ),
               const SizedBox(height: 4),
-              const Text('🔵 Realizado  ·  🔵 Projetado (claro)',
-                  style: TextStyle(fontSize: 10, color: Colors.grey)),
+              Text('🔵 Realizado  ·  🔵 Projetado (claro)',
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
               if (dados.isMesAtual && dados.diaAtual < dados.diasNoMes) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Realizado até o dia ${dados.diaAtual}: ${_numero.format(dados.totalLitrosMes.round())} L · '
                   'Projeção p/ os ${dados.diasNoMes - dados.diaAtual} dias restantes: ${_numero.format(dados.totalLitrosProjetado.round())} L · '
                   'Total estimado: ${_numero.format((dados.totalLitrosMes + dados.totalLitrosProjetado).round())} L',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                 ),
               ],
             ],
@@ -457,10 +458,10 @@ class _AbaIndicadoresAvancadosState
           children: [
             _tituloItem('3. Evolução do preço médio por abastecimento (R\$/L)'),
             if (pontos.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem dados no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else
               SizedBox(
                 height: 180,
@@ -527,10 +528,10 @@ class _AbaIndicadoresAvancadosState
           children: [
             _tituloItem('4. Evolutivo de volume — Top 5 postos'),
             if (pontos.isEmpty || postos.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem abastecimentos em postos no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 200,
@@ -615,10 +616,10 @@ class _AbaIndicadoresAvancadosState
           children: [
             _tituloItem('5. Top 5 postos — maior volume no período'),
             if (top.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem abastecimentos em postos no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else
               SizedBox(
                 height: 200,
@@ -682,10 +683,10 @@ class _AbaIndicadoresAvancadosState
                 subtitulo:
                     'Top 10 no gráfico; frota completa não cabe num único painel.'),
             if (itens.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem abastecimentos no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else ...[
               SizedBox(
                 height: 220,
@@ -846,13 +847,13 @@ class _AbaIndicadoresAvancadosState
                 subtitulo:
                     'KM rodado e km/L a partir de hodômetros consecutivos reais dos abastecimentos (integração PróFrotas). Sem dado de GPS/trajetória.'),
             if (itens.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Sem dados suficientes no período.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else ...[
               Text('Top 15 — KM médio por abastecimento',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
               const SizedBox(height: 6),
               miniBarChart(
                   top15KmMedio,
@@ -861,7 +862,7 @@ class _AbaIndicadoresAvancadosState
                   (v) => '${v.toStringAsFixed(0)} km'),
               const SizedBox(height: 16),
               Text('Top 15 — km/L (🟢 ≥ q66 · 🟠 ≥ q33 · 🔴 abaixo)',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
               const SizedBox(height: 6),
               miniBarChart(
                   top15KmL,
@@ -1003,11 +1004,11 @@ class _AbaIndicadoresAvancadosState
                 subtitulo:
                     'km/L, R\$/L, custo/km (TCO) e manutenção agrupados pelas características do veículo — apoia decisão de customização.'),
             if (itens.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(12),
                   child: Text(
                       'Sem dados suficientes no período (precisa de veículos com marca, modelo e abastecimentos).',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)))
+                      style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
             else ...[
               Wrap(
                 spacing: 8,
@@ -1047,7 +1048,7 @@ class _AbaIndicadoresAvancadosState
               if (top12KmlFinal.isNotEmpty) ...[
                 Text('⛽ Consumo médio km/L por marca/modelo/motor',
                     style:
-                        TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                        TextStyle(fontSize: 11, color: AppTheme.grey600)),
                 const SizedBox(height: 6),
                 miniBarChart(
                     top12KmlFinal,
@@ -1059,7 +1060,7 @@ class _AbaIndicadoresAvancadosState
               if (top12CustoFinal.isNotEmpty) ...[
                 Text('💰 Custo por km (TCO) por marca/modelo/motor',
                     style:
-                        TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                        TextStyle(fontSize: 11, color: AppTheme.grey600)),
                 const SizedBox(height: 6),
                 miniBarChart(
                     top12CustoFinal,

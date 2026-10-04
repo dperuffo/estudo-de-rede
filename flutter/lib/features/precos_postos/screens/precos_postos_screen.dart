@@ -25,9 +25,9 @@ class PrecosPostosScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Preços dos Postos Parceiros')),
       body: postosAsync.when(
         data: (postos) => _conteudo(context, postos),
@@ -39,20 +39,20 @@ class PrecosPostosScreen extends ConsumerWidget {
 
   Widget _conteudo(BuildContext context, List<PostoComPrecos> postos) {
     if (postos.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(24),
         child: Text(
           'Você ainda não tem negociação com nenhum posto — os preços aparecem aqui assim que houver pelo menos uma negociação.',
-          style: TextStyle(color: Colors.grey, fontSize: 13),
+          style: TextStyle(color: AppTheme.grey500, fontSize: 13),
         ),
       );
     }
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Preços informados pelos postos com quem você tem alguma negociação, pendente ou fechada.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         for (final posto in postos) _cardPosto(posto),
@@ -74,7 +74,7 @@ class PrecosPostosScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             if (posto.precos.isEmpty)
               Text('Este posto ainda não informou preços.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500))
             else
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,

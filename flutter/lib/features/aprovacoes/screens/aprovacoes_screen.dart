@@ -146,7 +146,7 @@ class AprovacoesScreen extends ConsumerWidget {
                 child: const Text('Voltar')),
             FilledButton(
                 style:
-                    FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                    FilledButton.styleFrom(backgroundColor: AppTheme.fgErro),
                 onPressed: () => Navigator.pop(ctx, true),
                 child: const Text('Reprovar')),
           ],
@@ -214,9 +214,9 @@ class AprovacoesScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Aprovações')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirFormNova(context, ref),
@@ -249,7 +249,7 @@ class AprovacoesScreen extends ConsumerWidget {
                               Text('Pendentes',
                                   style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600)),
+                                      color: AppTheme.grey600)),
                             ],
                           ),
                         ),
@@ -270,7 +270,7 @@ class AprovacoesScreen extends ConsumerWidget {
                               Text('Valor pendente',
                                   style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600)),
+                                      color: AppTheme.grey600)),
                             ],
                           ),
                         ),
@@ -284,7 +284,7 @@ class AprovacoesScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('Nenhuma solicitação de aprovação ainda.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -309,18 +309,18 @@ class AprovacoesScreen extends ConsumerWidget {
 
   Widget _card(BuildContext context, WidgetRef ref, SolicitacaoAprovacao s) {
     final corStatus = switch (s.status) {
-      'aprovada' => const Color(0xFFDCFCE7),
+      'aprovada' => AppTheme.tintOk,
       'executada' => const Color(0xFFE0E7FF),
-      'reprovada' => const Color(0xFFFEE2E2),
-      'cancelada' => const Color(0xFFF3F4F6),
-      _ => const Color(0xFFFEF3C7),
+      'reprovada' => AppTheme.tintErro,
+      'cancelada' => AppTheme.superficieAlt,
+      _ => AppTheme.tintAviso,
     };
     final corStatusTexto = switch (s.status) {
-      'aprovada' => const Color(0xFF15803D),
+      'aprovada' => AppTheme.fgOk,
       'executada' => const Color(0xFF4338CA),
-      'reprovada' => const Color(0xFFB91C1C),
-      'cancelada' => Colors.grey.shade600,
-      _ => const Color(0xFF92400E),
+      'reprovada' => AppTheme.fgErro,
+      'cancelada' => AppTheme.grey600,
+      _ => AppTheme.fgAviso,
     };
     final statusLabel = switch (s.status) {
       'aprovada' => 'Aprovada',

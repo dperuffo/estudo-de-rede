@@ -29,7 +29,7 @@ class FaturasFretesScreen extends ConsumerWidget {
               child: const Text('Voltar')),
           FilledButton(
               style:
-                  FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                  FilledButton.styleFrom(backgroundColor: AppTheme.fgErro),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Cancelar fatura')),
         ],
@@ -93,8 +93,8 @@ class FaturasFretesScreen extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: Icon(Icons.cancel_outlined, color: Colors.red.shade700),
-              title: Text('Cancelar fatura', style: TextStyle(color: Colors.red.shade700)),
+              leading: Icon(Icons.cancel_outlined, color: AppTheme.fgErro),
+              title: Text('Cancelar fatura', style: TextStyle(color: AppTheme.fgErro)),
               onTap: () {
                 Navigator.pop(ctx);
                 _cancelar(context, ref, f);
@@ -114,9 +114,9 @@ class FaturasFretesScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Faturas de Frete')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/faturas-fretes/gerar'),
@@ -137,7 +137,7 @@ class FaturasFretesScreen extends ConsumerWidget {
                       child: Center(
                         child: Text(
                             'Nenhuma fatura gerada ainda. Toque em "Gerar Fatura" para agrupar CT-es autorizados por tomador.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppTheme.grey600),
                             textAlign: TextAlign.center),
                       ),
                     ),
@@ -167,14 +167,14 @@ class FaturasFretesScreen extends ConsumerWidget {
 
   Widget _card(BuildContext context, WidgetRef ref, FaturaFrete f) {
     final corStatus = switch (f.status) {
-      'paga' => const Color(0xFFDCFCE7),
-      'cancelada' => const Color(0xFFF3F4F6),
-      _ => const Color(0xFFDBEAFE),
+      'paga' => AppTheme.tintOk,
+      'cancelada' => AppTheme.superficieAlt,
+      _ => AppTheme.tintInfo,
     };
     final corStatusTexto = switch (f.status) {
-      'paga' => const Color(0xFF15803D),
-      'cancelada' => Colors.grey.shade600,
-      _ => const Color(0xFF1D4ED8),
+      'paga' => AppTheme.fgOk,
+      'cancelada' => AppTheme.grey600,
+      _ => AppTheme.fgInfo,
     };
     final statusLabel = switch (f.status) {
       'paga' => 'Paga',
@@ -213,7 +213,7 @@ class FaturasFretesScreen extends ConsumerWidget {
                   ),
                   if (f.status == 'aberta') ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                    Icon(Icons.more_vert, size: 18, color: AppTheme.grey500),
                   ],
                 ],
               ),

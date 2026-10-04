@@ -84,9 +84,9 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Privacidade (LGPD)')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -104,9 +104,9 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Seus direitos como titular de dados, conforme a Lei Geral de Proteção de Dados (LGPD).',
-          style: TextStyle(color: Colors.grey, fontSize: 13),
+          style: TextStyle(color: AppTheme.grey500, fontSize: 13),
         ),
         const SizedBox(height: 20),
         _secao(
@@ -114,8 +114,8 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
           subtitulo:
               'Direito de acesso (art. 18, I). Para correção de algum dado, abra um chamado em Gestão de Chamados.',
           child: dados.dados == null
-              ? const Text('Não foi possível carregar seus dados cadastrais.',
-                  style: TextStyle(color: Colors.grey))
+              ? Text('Não foi possível carregar seus dados cadastrais.',
+                  style: TextStyle(color: AppTheme.grey500))
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -164,8 +164,8 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (dados.empresasVinculadas.isEmpty)
-                const Text('Nenhum cliente vinculado.',
-                    style: TextStyle(color: Colors.grey))
+                Text('Nenhum cliente vinculado.',
+                    style: TextStyle(color: AppTheme.grey500))
               else ...[
                 if (dados.empresasVinculadas.length > 1)
                   DropdownButtonFormField<String>(
@@ -227,8 +227,8 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
           titulo: 'Histórico de consentimento',
           subtitulo: null,
           child: dados.consentimentos.isEmpty
-              ? const Text('Nenhum registro ainda.',
-                  style: TextStyle(color: Colors.grey))
+              ? Text('Nenhum registro ainda.',
+                  style: TextStyle(color: AppTheme.grey500))
               : Column(
                   children: dados.consentimentos
                       .map((c) => Padding(
@@ -242,8 +242,8 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
                                       style: const TextStyle(fontSize: 13)),
                                 ),
                                 Text(_dataHoraFormatada(c.timestamp),
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey)),
+                                    style: TextStyle(
+                                        fontSize: 12, color: AppTheme.grey500)),
                               ],
                             ),
                           ))
@@ -270,7 +270,7 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
             if (subtitulo != null) ...[
               const SizedBox(height: 4),
               Text(subtitulo,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             ],
             const SizedBox(height: 12),
             child,
@@ -289,7 +289,7 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
           SizedBox(
               width: 130,
               child: Text(label,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500))),
           Expanded(
               child: Text((valor == null || valor.isEmpty) ? '—' : valor,
                   style: const TextStyle(fontSize: 13))),
@@ -300,7 +300,7 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
 
   Widget _statusChip(String status) {
     final executado = status == 'executado';
-    final cor = executado ? const Color(0xFF16A34A) : const Color(0xFF64748B);
+    final cor = executado ? const Color(0xFF16A34A) : AppTheme.glassTextoMuted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -314,18 +314,18 @@ class _LgpdScreenState extends ConsumerState<LgpdScreen> {
   Widget _bannerErro(String texto) => Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
+            color: AppTheme.tintErro,
             borderRadius: BorderRadius.circular(8)),
         child: Text(texto,
-            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+            style: TextStyle(color: AppTheme.fgErro, fontSize: 13)),
       );
 
   Widget _bannerSucesso(String texto) => Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
+            color: AppTheme.tintOk,
             borderRadius: BorderRadius.circular(8)),
         child: Text(texto,
-            style: const TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+            style: TextStyle(color: AppTheme.fgOk, fontSize: 13)),
       );
 }

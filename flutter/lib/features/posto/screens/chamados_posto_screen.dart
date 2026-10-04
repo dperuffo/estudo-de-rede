@@ -18,11 +18,11 @@ String _fmtData(String? iso) {
   }
 }
 
-const _corStatus = <String, Color>{
-  'aberto': Color(0xFFB45309),
-  'em_analise': Color(0xFF1D4ED8),
-  'resolvido': Color(0xFF15803D),
-  'fechado': Color(0xFF64748B),
+get _corStatus => <String, Color>{
+  'aberto': AppTheme.fgAviso,
+  'em_analise': AppTheme.fgInfo,
+  'resolvido': AppTheme.fgOk,
+  'fechado': AppTheme.glassTextoMuted,
 };
 
 // Fase FLT-2 — Gestão de Chamados (posto), porta com escopo reduzido (ver
@@ -48,9 +48,9 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Chamados')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/posto/chamados/novo'),
@@ -86,13 +86,13 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                   crossAxisSpacing: 8,
                   childAspectRatio: 2.4,
                   children: [
-                    _indicador('Abertos', abertos, const Color(0xFFB45309)),
+                    _indicador('Abertos', abertos, AppTheme.fgAviso),
                     _indicador(
-                        'Em análise', emAnalise, const Color(0xFF1D4ED8)),
+                        'Em análise', emAnalise, AppTheme.fgInfo),
                     _indicador(
-                        'Resolvidos', resolvidos, const Color(0xFF15803D)),
+                        'Resolvidos', resolvidos, AppTheme.fgOk),
                     _indicador(
-                        'Não vistos', naoVistos, const Color(0xFFB91C1C)),
+                        'Não vistos', naoVistos, AppTheme.fgErro),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -118,7 +118,7 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('Nenhum chamado encontrado.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -139,7 +139,7 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
   Widget _cardChamado(BuildContext context, Ticket c) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: c.naoVisto ? const Color(0xFFFEF2F2) : null,
+      color: c.naoVisto ? AppTheme.tintErro : null,
       child: InkWell(
         onTap: () => context.push('/posto/chamados/${c.id}'),
         child: Padding(
@@ -165,14 +165,14 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                     Text(
                         '${tiposTicket[c.tipo] ?? c.tipo} · ${_fmtData(c.criadoEm)}',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
+                            fontSize: 12, color: AppTheme.grey600)),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (_corStatus[c.status] ?? Colors.grey).withOpacity(0.1),
+                  color: (_corStatus[c.status] ?? AppTheme.grey500).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -201,7 +201,7 @@ class _ChamadosPostoScreenState extends ConsumerState<ChamadosPostoScreen> {
                   style: TextStyle(
                       fontSize: 20, fontWeight: FontWeight.bold, color: cor)),
               Text(label,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
             ],
           ),
         ),

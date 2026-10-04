@@ -70,9 +70,9 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Avaliar Plataforma')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -84,10 +84,10 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
               const Text('Avalie a plataforma',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Sua opinião ajuda a FNI a melhorar a experiência de todos os clientes.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13),
               ),
             ],
           ),
@@ -112,7 +112,7 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
                             n <= _estrelas ? Icons.star : Icons.star_border,
                             color: n <= _estrelas
                                 ? const Color(0xFFFBBF24)
-                                : Colors.grey,
+                                : AppTheme.grey500,
                             size: 30,
                           ),
                         );
@@ -142,11 +142,11 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
+                          color: AppTheme.tintErro,
                           borderRadius: BorderRadius.circular(8)),
                       child: Text(_erro!,
-                          style: const TextStyle(
-                              color: Color(0xFFB91C1C), fontSize: 13)),
+                          style: TextStyle(
+                              color: AppTheme.fgErro, fontSize: 13)),
                     ),
                   ],
                   if (_sucesso) ...[
@@ -154,12 +154,12 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
+                          color: AppTheme.tintOk,
                           borderRadius: BorderRadius.circular(8)),
-                      child: const Text(
+                      child: Text(
                           'Avaliação enviada. Obrigado pelo retorno!',
                           style: TextStyle(
-                              color: Color(0xFF15803D), fontSize: 13)),
+                              color: AppTheme.fgOk, fontSize: 13)),
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -213,19 +213,19 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
                                           size: 16,
                                           color: i < a.estrelas
                                               ? const Color(0xFFFBBF24)
-                                              : Colors.grey,
+                                              : AppTheme.grey500,
                                         ),
                                       ),
                                       const SizedBox(width: 6),
                                       Text(rotuloNota(a.estrelas),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey)),
+                                              color: AppTheme.grey500)),
                                     ],
                                   ),
                                   Text(_dataFormatada(a.criadoEm),
-                                      style: const TextStyle(
-                                          fontSize: 12, color: Colors.grey)),
+                                      style: TextStyle(
+                                          fontSize: 12, color: AppTheme.grey500)),
                                 ],
                               ),
                               if (a.comentario != null &&
@@ -241,18 +241,18 @@ class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF6FF),
+                                    color: AppTheme.tintInfo,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Resposta da equipe FNI',
+                                      Text('Resposta da equipe FNI',
                                           style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1D4ED8))),
+                                              color: AppTheme.fgInfo)),
                                       const SizedBox(height: 4),
                                       Text(a.respostaAdmin!,
                                           style: const TextStyle(fontSize: 13)),

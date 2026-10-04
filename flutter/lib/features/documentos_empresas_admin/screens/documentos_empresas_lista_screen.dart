@@ -9,17 +9,17 @@ import '../../../core/theme/app_theme.dart';
 
 final _dataHora = DateFormat('dd/MM/yyyy HH:mm');
 
-const _corStatus = {
-  'nao_iniciada': Color(0xFF64748B),
-  'pendente': Color(0xFFB45309),
-  'aprovada': Color(0xFF15803D),
+get _corStatus => {
+  'nao_iniciada': AppTheme.glassTextoMuted,
+  'pendente': AppTheme.fgAviso,
+  'aprovada': AppTheme.fgOk,
   'rejeitada': Color(0xFFDC2626),
 };
-const _fundoStatus = {
-  'nao_iniciada': Color(0xFFF1F5F9),
-  'pendente': Color(0xFFFEF3C7),
-  'aprovada': Color(0xFFDCFCE7),
-  'rejeitada': Color(0xFFFEE2E2),
+get _fundoStatus => {
+  'nao_iniciada': AppTheme.superficieAlt,
+  'pendente': AppTheme.tintAviso,
+  'aprovada': AppTheme.tintOk,
+  'rejeitada': AppTheme.tintErro,
 };
 
 // Fase FLT-4 — Aprovação de Documentos (admin): fila por status, porta de
@@ -47,16 +47,16 @@ class _DocumentosEmpresasListaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Aprovação de Documentos')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
@@ -69,7 +69,7 @@ class _DocumentosEmpresasListaScreenState
               SizedBox(height: 8),
               Text(
                   'Esta tela é exclusiva do time interno (perfil administrador).',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
             ],
           ),
         ),
@@ -84,10 +84,10 @@ class _DocumentosEmpresasListaScreenState
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Documentação societária/cadastral enviada por postos e clientes — aprovada, libera criar/aderir '
           'a Redes de Postos ou Grupos Econômicos e aceitar/criar negociações.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         contagemAsync.when(
@@ -117,7 +117,7 @@ class _DocumentosEmpresasListaScreenState
                 child: Center(
                   child: Text(
                     'Nenhuma empresa com documentação "${(statusDocumentacaoLabel[_status] ?? _status).toLowerCase()}".',
-                    style: TextStyle(color: Colors.grey.shade500),
+                    style: TextStyle(color: AppTheme.grey500),
                     textAlign: TextAlign.center,
                   ),
                 ),

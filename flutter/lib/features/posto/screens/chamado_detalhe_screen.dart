@@ -21,11 +21,11 @@ String _fmtData(String? iso) {
   }
 }
 
-const _corStatus = <String, Color>{
-  'aberto': Color(0xFFB45309),
-  'em_analise': Color(0xFF1D4ED8),
-  'resolvido': Color(0xFF15803D),
-  'fechado': Color(0xFF64748B),
+get _corStatus => <String, Color>{
+  'aberto': AppTheme.fgAviso,
+  'em_analise': AppTheme.fgInfo,
+  'resolvido': AppTheme.fgOk,
+  'fechado': AppTheme.glassTextoMuted,
 };
 
 // Fase FLT-2 — detalhe do chamado + thread de mensagens/anexos, porta de
@@ -138,9 +138,9 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Chamado'),
         // Fase Botão-Voltar (04/08/2026) — guard de canPop().
         leading: IconButton(
@@ -167,11 +167,11 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: AppTheme.tintErro,
                       borderRadius: BorderRadius.circular(8)),
                   child: Text(_erro!,
-                      style: const TextStyle(
-                          color: Color(0xFFB91C1C), fontSize: 13)),
+                      style: TextStyle(
+                          color: AppTheme.fgErro, fontSize: 13)),
                 ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,15 +186,15 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
               const SizedBox(height: 4),
               Text(
                   '${tiposTicket[t.tipo] ?? t.tipo} · aberto em ${_fmtData(t.criadoEm)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
                   _badge(statusTicket[t.status] ?? t.status,
-                      _corStatus[t.status] ?? Colors.grey),
+                      _corStatus[t.status] ?? AppTheme.grey500),
                   _badge(prioridadesTicket[t.prioridade] ?? t.prioridade,
-                      Colors.grey.shade700),
+                      AppTheme.grey700),
                 ],
               ),
               const SizedBox(height: 16),
@@ -214,7 +214,7 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                     children: [
                       Text('Descrição',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade500)),
+                              fontSize: 11, color: AppTheme.grey500)),
                       const SizedBox(height: 4),
                       Text(t.descricao, style: const TextStyle(fontSize: 13)),
                     ],
@@ -252,7 +252,7 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
               const SizedBox(height: 8),
               if (d.comentarios.isEmpty)
                 Text('Nenhuma mensagem ainda.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500))
+                    style: TextStyle(fontSize: 13, color: AppTheme.grey500))
               else
                 ...d.comentarios.map((c) {
                   final proprio = c.autorEmail == meuEmail;
@@ -268,7 +268,7 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                       decoration: BoxDecoration(
                         color: proprio
                             ? AppTheme.glassTextoAtivo
-                            : Colors.grey.shade100,
+                            : AppTheme.grey100,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -283,20 +283,20 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
                                   fontWeight: FontWeight.w600,
                                   color: proprio
                                       ? Colors.white70
-                                      : Colors.grey.shade600)),
+                                      : AppTheme.grey600)),
                           const SizedBox(height: 2),
                           Text(c.texto,
                               style: TextStyle(
                                   fontSize: 13,
                                   color:
-                                      proprio ? Colors.white : Colors.black87)),
+                                      proprio ? Colors.white : AppTheme.glassTexto)),
                           const SizedBox(height: 4),
                           Text(_fmtData(c.criadoEm),
                               style: TextStyle(
                                   fontSize: 10,
                                   color: proprio
                                       ? Colors.white60
-                                      : Colors.grey.shade500)),
+                                      : AppTheme.grey500)),
                         ],
                       ),
                     ),
@@ -327,7 +327,7 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
               const SizedBox(height: 8),
               if (d.anexos.isEmpty)
                 Text('Nenhum anexo.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500))
+                    style: TextStyle(fontSize: 13, color: AppTheme.grey500))
               else
                 ...d.anexos.map((a) => Card(
                       margin: const EdgeInsets.only(bottom: 6),

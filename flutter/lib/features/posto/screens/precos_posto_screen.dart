@@ -5,6 +5,7 @@ import '../../../core/services/sessao_provider.dart';
 import '../../replicacao_grupo/widgets/replicar_para_grupo_button.dart';
 import '../providers/negociacoes_provider.dart' show produtosPosto;
 import '../providers/precos_posto_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
 
@@ -101,10 +102,10 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
             const Text('Meus Preços',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Preço por combustível que você fornece — visível aos clientes com quem você negocia. '
               'Deixe em branco o combustível que você não vende.',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(color: AppTheme.grey500, fontSize: 13),
             ),
             if (empresaId != null && precos.isNotEmpty)
               Align(
@@ -122,11 +123,11 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: AppTheme.tintErro,
                     borderRadius: BorderRadius.circular(8)),
                 child: Text(_erro!,
-                    style: const TextStyle(
-                        color: Color(0xFFB91C1C), fontSize: 13)),
+                    style: TextStyle(
+                        color: AppTheme.fgErro, fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
@@ -136,10 +137,10 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
+                    color: AppTheme.tintOk,
                     borderRadius: BorderRadius.circular(8)),
-                child: const Text('Preços salvos.',
-                    style: TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+                child: Text('Preços salvos.',
+                    style: TextStyle(color: AppTheme.fgOk, fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
@@ -160,7 +161,7 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
                   child: Text(
                     'Atualizado em ${_fmtDataHora(auditoria[produto]!.atualizadoEm)}'
                     '${auditoria[produto]!.atualizadoPor != null ? ' por ${auditoria[produto]!.atualizadoPor}' : ''}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                 ),
               const SizedBox(height: 12),

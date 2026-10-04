@@ -199,9 +199,9 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Detalhe do Posto')),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -225,7 +225,7 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                       const SizedBox(height: 4),
                       Text(p.cnpj,
                           style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 13)),
+                              color: AppTheme.grey600, fontSize: 13)),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -371,9 +371,9 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                         error: (e, _) => Text('Erro ao carregar preços: $e'),
                         data: (precos) {
                           if (precos.isEmpty) {
-                            return const Text(
+                            return Text(
                                 'Nenhum preço registrado ainda para este posto.',
-                                style: TextStyle(color: Colors.grey));
+                                style: TextStyle(color: AppTheme.grey500));
                           }
                           return Column(
                             children: precos
@@ -384,9 +384,9 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
                                           style: const TextStyle(fontSize: 13)),
                                       subtitle: Text(
                                           '${_fmtData(preco.dataRef)} · ${preco.fonte ?? "—"}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.grey)),
+                                              color: AppTheme.grey500)),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -430,7 +430,7 @@ class _PostoDetalheScreenState extends ConsumerState<PostoDetalheScreen> {
           SizedBox(
               width: 130,
               child: Text(label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500))),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500))),
           Expanded(child: Text(valor, style: const TextStyle(fontSize: 13))),
         ],
       ),

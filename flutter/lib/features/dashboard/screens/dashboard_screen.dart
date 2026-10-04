@@ -26,7 +26,7 @@ class DashboardScreen extends StatelessWidget {
           // branco sobre navy.
           Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient),
+                BoxDecoration(gradient: AppTheme.glassNavGradient),
             child: Material(
               color: Colors.transparent,
               child: TabBar(

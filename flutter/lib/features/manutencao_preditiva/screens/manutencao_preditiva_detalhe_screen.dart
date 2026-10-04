@@ -204,9 +204,9 @@ class _ManutencaoPreditivaDetalheScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(widget.placa)),
       body: detalheAsync.when(
         data: (v) {
@@ -243,11 +243,11 @@ class _ManutencaoPreditivaDetalheScreenState
                         : [v.marca, v.modelo]
                             .where((s) => s != null && s.isNotEmpty)
                             .join(' '),
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(fontSize: 13, color: AppTheme.grey500),
                   ),
                   Text(
                     '${v.tipoVeiculo != null ? '${v.tipoVeiculo} · ' : ''}${v.idadeAnos > 0 ? '${v.idadeAnos} anos' : ''}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   ),
                 ],
               ),
@@ -273,8 +273,8 @@ class _ManutencaoPreditivaDetalheScreenState
                 Text('${v.scoreGeral}/100',
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.w800)),
-                const Text('score geral',
-                    style: TextStyle(fontSize: 10, color: Colors.grey)),
+                Text('score geral',
+                    style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
               ],
             ),
           ],
@@ -359,9 +359,9 @@ class _ManutencaoPreditivaDetalheScreenState
                     style:
                         TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                     'Registre manutenções realizadas para melhorar a precisão da análise preditiva.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
                 const SizedBox(height: 12),
                 _formRegistrar(v),
               ],
@@ -404,15 +404,15 @@ class _ManutencaoPreditivaDetalheScreenState
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200)),
+          border: Border.all(color: AppTheme.grey200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 10, color: AppTheme.grey500),
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
           Text(valor,
@@ -470,7 +470,7 @@ class _ManutencaoPreditivaDetalheScreenState
                       : '~${_milhar(c.kmNext.round())} km',
                   style: const TextStyle(fontSize: 10)),
               Text(c.fonte == 'real' ? '✅ registro real' : '📐 estimado',
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+                  style: TextStyle(fontSize: 9, color: AppTheme.grey500)),
             ],
           ),
         ],
@@ -488,10 +488,10 @@ class _ManutencaoPreditivaDetalheScreenState
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(_erroForm!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         if (_sucessoForm)
           Container(
@@ -499,7 +499,7 @@ class _ManutencaoPreditivaDetalheScreenState
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
+                color: AppTheme.tintOk,
                 borderRadius: BorderRadius.circular(8)),
             child: const Text('Manutenção registrada com sucesso.',
                 style: TextStyle(color: Color(0xFF047857), fontSize: 12)),
@@ -701,11 +701,11 @@ class _ManutencaoPreditivaDetalheScreenState
 
   Widget _historico(List<RegistroManutencao> registros) {
     if (registros.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
             child: Text('Nenhuma manutenção registrada ainda.',
-                style: TextStyle(color: Colors.grey, fontSize: 12))),
+                style: TextStyle(color: AppTheme.grey500, fontSize: 12))),
       );
     }
     return Column(
@@ -714,7 +714,7 @@ class _ManutencaoPreditivaDetalheScreenState
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppTheme.grey200),
               borderRadius: BorderRadius.circular(8)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,8 +734,8 @@ class _ManutencaoPreditivaDetalheScreenState
                               horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(
                             color: r.tipo == 'Preventiva'
-                                ? const Color(0xFFECFDF5)
-                                : const Color(0xFFFEF2F2),
+                                ? AppTheme.tintOk
+                                : AppTheme.tintErro,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -745,7 +745,7 @@ class _ManutencaoPreditivaDetalheScreenState
                               fontWeight: FontWeight.w700,
                               color: r.tipo == 'Preventiva'
                                   ? const Color(0xFF047857)
-                                  : const Color(0xFFB91C1C),
+                                  : AppTheme.fgErro,
                             ),
                           ),
                         ),
@@ -773,7 +773,7 @@ class _ManutencaoPreditivaDetalheScreenState
               Text(
                 '${r.hodometro != null ? '${_milhar(r.hodometro!.round())} km · ' : ''}${r.oficina ?? '—'}'
                 '${r.diasParado != null && r.diasParado! > 0 ? ' · ${r.diasParado} dia(s) parado' : ''}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               ),
               if (r.itensRealizados.isNotEmpty)
                 Padding(

@@ -147,9 +147,9 @@ class _AbastecimentosPendentesAprovacaoScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Pendentes de aprovação')),
       body: RefreshIndicator(
         onRefresh: () async => _carregar(),
@@ -180,7 +180,7 @@ class _AbastecimentosPendentesAprovacaoScreenState
                 Text(
                   'Lançamentos feitos pelo motorista no aplicativo a partir da foto do cupom fiscal — '
                   'só entram nos indicadores e no financeiro depois de aprovados aqui.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
                 if (pendentes.isEmpty)
@@ -190,7 +190,7 @@ class _AbastecimentosPendentesAprovacaoScreenState
                       child: Center(
                         child: Text(
                           'Nenhum lançamento manual pendente de aprovação no momento.',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: AppTheme.grey600),
                         ),
                       ),
                     ),
@@ -240,7 +240,7 @@ class _AbastecimentosPendentesAprovacaoScreenState
                       const SizedBox(height: 2),
                       Text(_fmtDataHora(p.dataAbastecimento),
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600)),
+                              fontSize: 12, color: AppTheme.grey600)),
                       const SizedBox(height: 6),
                       Text(
                         '${p.combustivel ?? "—"} · ${_numero.format(p.quantidade)} L'
@@ -251,12 +251,12 @@ class _AbastecimentosPendentesAprovacaoScreenState
                           style: const TextStyle(fontWeight: FontWeight.w600)),
                       Text(p.postoNome ?? 'Posto não identificado',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600)),
+                              fontSize: 12, color: AppTheme.grey600)),
                       if (p.hodometro != null)
                         Text(
                             'Hodômetro: ${_numero.format(p.hodometro!.round())} km',
                             style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade500)),
+                                fontSize: 11, color: AppTheme.grey500)),
                     ],
                   ),
                 ),
@@ -279,7 +279,7 @@ class _AbastecimentosPendentesAprovacaoScreenState
                     child: OutlinedButton(
                       onPressed: () => _rejeitar(p),
                       style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red.shade700),
+                          foregroundColor: AppTheme.fgErro),
                       child: const Text('Rejeitar'),
                     ),
                   ),
@@ -303,11 +303,11 @@ class _AbastecimentosPendentesAprovacaoScreenState
         height: 104,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: AppTheme.grey100,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300)),
+            border: Border.all(color: AppTheme.grey300)),
         child: Text('Sem\nfoto',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+            style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
       );
 }

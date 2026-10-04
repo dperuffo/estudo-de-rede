@@ -73,16 +73,16 @@ class _PostosDuplicadosScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Possíveis Duplicados')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
@@ -95,7 +95,7 @@ class _PostosDuplicadosScreenState
               SizedBox(height: 8),
               Text(
                   'Esta tela é exclusiva do time interno (perfil administrador).',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
             ],
           ),
         ),
@@ -111,21 +111,21 @@ class _PostosDuplicadosScreenState
       error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
       data: (lista) {
         if (lista.isEmpty) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.all(24),
             child: Center(
                 child: Text('Nenhum possível duplicado pendente de revisão.',
-                    style: TextStyle(color: Colors.grey))),
+                    style: TextStyle(color: AppTheme.grey500))),
           );
         }
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Postos que se auto-cadastraram em "Meu Posto" com endereço/coordenadas muito próximos de '
               'outro posto já existente, mas com CNPJ diferente. O cadastro já foi salvo normalmente — decida '
               'se é mesmo o mesmo estabelecimento (duplicata) ou dois postos legitimamente vizinhos.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             ...lista.map(_cardDuplicata),
@@ -154,7 +154,7 @@ class _PostosDuplicadosScreenState
                       Text('POSTO RECÉM-CADASTRADO',
                           style: TextStyle(
                               fontSize: 10,
-                              color: Colors.grey.shade500,
+                              color: AppTheme.grey500,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(d.empresaNome ?? '—',
@@ -162,7 +162,7 @@ class _PostosDuplicadosScreenState
                               fontWeight: FontWeight.w700, fontSize: 13)),
                       Text('CNPJ: ${d.cnpjInformado ?? '—'}',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
+                              fontSize: 11, color: AppTheme.grey600)),
                     ],
                   ),
                 ),
@@ -174,7 +174,7 @@ class _PostosDuplicadosScreenState
                       Text('POSSÍVEL DUPLICATA (${d.candidato?.fonte ?? '—'})',
                           style: TextStyle(
                               fontSize: 10,
-                              color: Colors.grey.shade500,
+                              color: AppTheme.grey500,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(d.candidato?.razaoSocial ?? '—',
@@ -184,7 +184,7 @@ class _PostosDuplicadosScreenState
                         'CNPJ: ${d.candidato?.cnpj ?? '—'}'
                         '${d.candidato?.municipio != null ? ' — ${d.candidato!.municipio}/${d.candidato!.uf ?? ''}' : ''}',
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
+                            fontSize: 11, color: AppTheme.grey600),
                       ),
                     ],
                   ),
@@ -195,21 +195,21 @@ class _PostosDuplicadosScreenState
             Text(
               'Distância estimada: ${d.distanciaMetros != null ? '${d.distanciaMetros} m' : '—'} · '
               'Sinalizado em ${d.criadoEm != null ? _dataHora.format(DateTime.parse(d.criadoEm!).toLocal()) : '—'}',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
             ),
             const SizedBox(height: 8),
             if (resolvido == 'descartado')
-              const Text('✓ Descartado — não é duplicata.',
+              Text('✓ Descartado — não é duplicata.',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey))
+                      color: AppTheme.grey500))
             else if (resolvido == 'confirmado_duplicata')
-              const Text('✓ Confirmado como duplicata.',
+              Text('✓ Confirmado como duplicata.',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFB91C1C)))
+                      color: AppTheme.fgErro))
             else ...[
               if (_erros[d.id] != null)
                 Padding(

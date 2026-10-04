@@ -54,7 +54,7 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
                   const SizedBox(height: 4),
                   Text(
                     'Plano selecionado: ${widget.planoLabel} — ${widget.precoLabel} · Versão $versaoTermoAdesao',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   ),
                 ],
               ),
@@ -70,7 +70,7 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
                     return Padding(
                       padding: const EdgeInsets.only(top: 12, bottom: 6),
                       child: Text(p,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                               color: AppTheme.glassTextoAtivo)),
@@ -79,10 +79,10 @@ class _TermoAdesaoDialogState extends State<_TermoAdesaoDialog> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Text(p,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
                             height: 1.4,
-                            color: Color(0xFF334155))),
+                            color: AppTheme.glassTexto)),
                   );
                 }).toList(),
               ),

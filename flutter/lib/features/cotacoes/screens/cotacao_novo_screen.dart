@@ -121,9 +121,9 @@ class _CotacaoNovoScreenState extends ConsumerState<CotacaoNovoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('🧮 Nova cotação')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -133,10 +133,10 @@ class _CotacaoNovoScreenState extends ConsumerState<CotacaoNovoScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
-                  style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                  style: TextStyle(color: AppTheme.fgErro, fontSize: 13)),
             ),
             const SizedBox(height: 12),
           ],
@@ -336,7 +336,7 @@ class _CampoLocalState extends State<_CampoLocal> {
             margin: const EdgeInsets.only(top: 4),
             constraints: const BoxConstraints(maxHeight: 160),
             decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppTheme.grey300),
                 borderRadius: BorderRadius.circular(8)),
             child: ListView(
               shrinkWrap: true,

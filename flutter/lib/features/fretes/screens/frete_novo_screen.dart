@@ -166,9 +166,9 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Publicar frete')),
       body: empresaId == null
           ? const Center(child: Text('Selecione uma empresa primeiro.'))
@@ -262,10 +262,10 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const Text('Endereços completos',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Aparece pro motorista antes de aceitar o frete — quanto mais completo, mais fácil pra ele avaliar '
                   'se topa (inclusive a distância até o ponto de coleta).',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
                 ),
                 const SizedBox(height: 12),
                 _BlocoEnderecoCompleto(titulo: '📍 Coleta', dados: _coleta),
@@ -275,10 +275,10 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const Text('Veículo e carroceria (opcional)',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Se não marcar nada, o frete aparece pra qualquer motorista. Marcando, só quem tem veículo '
                   'compatível vê esse frete na busca dele.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
                 ),
                 const SizedBox(height: 10),
                 ...gruposVeiculoFrete.entries.map(
@@ -288,8 +288,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(e.key,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.black45)),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.glassTextoMuted)),
                         const SizedBox(height: 4),
                         Wrap(
                           spacing: 6,
@@ -314,8 +314,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text('Carroceria',
-                    style: TextStyle(fontSize: 11, color: Colors.black45)),
+                Text('Carroceria',
+                    style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
                 const SizedBox(height: 4),
                 Wrap(
                   spacing: 6,
@@ -367,11 +367,11 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const Text('Adiantamento e combustível',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'O motorista aceita o frete → você paga o % de entrada; o resto fica pra pagar na conclusão. '
                   'A reserva de combustível é opcional — se preencher, o motorista abastece com ela primeiro, antes '
                   'da cota normal do veículo.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -415,10 +415,10 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 const Text('Quem vai dirigir?',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Se você já sabe quem vai fazer o frete, atribua direto — ele só confirma ou recusa, sem negociação. '
                   'Se deixar em aberto, qualquer motorista da rede pode ver e propor um valor.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -451,10 +451,10 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                       error: (e, _) => Text('Erro ao carregar motoristas: $e'),
                       data: (motoristas) {
                         if (motoristas.isEmpty) {
-                          return const Text(
+                          return Text(
                             'Nenhum motorista próprio ou parceiro ativo ainda. Cadastre motoristas ou convide parceiros em Motoristas Parceiros.',
                             style:
-                                TextStyle(fontSize: 12, color: Colors.black54),
+                                TextStyle(fontSize: 12, color: AppTheme.glassTextoMuted),
                           );
                         }
                         return DropdownButtonFormField<String>(
@@ -569,7 +569,7 @@ class _CampoLocalFreteState extends State<_CampoLocalFrete> {
             margin: const EdgeInsets.only(top: 4),
             constraints: const BoxConstraints(maxHeight: 160),
             decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppTheme.grey300),
                 borderRadius: BorderRadius.circular(8)),
             child: ListView(
               shrinkWrap: true,
@@ -597,7 +597,7 @@ class _CampoLocalFreteState extends State<_CampoLocalFrete> {
                 : 'Escolha uma sugestão da busca.',
             style: TextStyle(
                 fontSize: 11,
-                color: widget.valor != null ? Colors.green : Colors.black45),
+                color: widget.valor != null ? Colors.green : AppTheme.glassTextoMuted),
           ),
         ),
       ],
@@ -729,7 +729,7 @@ class _BlocoEnderecoCompletoState extends State<_BlocoEnderecoCompleto> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: AppTheme.grey300),
           borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

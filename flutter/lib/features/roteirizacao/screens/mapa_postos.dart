@@ -6,6 +6,7 @@ import '../providers/roteirizacao_provider.dart';
 import '../services/geo_service.dart' as geo;
 import '../services/pedagio_service.dart' show PracaPedagioNaRota;
 import '../services/roteirizacao_algoritmo.dart' show ParadaSugerida;
+import '../../../core/theme/app_theme.dart';
 
 // Paleta fixa pras bandeiras "demais" (fora Ipiranga/Shell+Raízen/BR+
 // Vibra, que têm cor própria pedida pelo Daniel) — escolhida por hash do
@@ -38,7 +39,7 @@ bool _contemPalavra(String texto, String palavra) =>
 // por bandeira da tela de consulta.
 Color corBandeira(String? bandeira) {
   final norm = normalizarTexto(bandeira);
-  if (norm.isEmpty) return Colors.grey.shade500;
+  if (norm.isEmpty) return AppTheme.grey500;
   if (_contemPalavra(norm, 'IPIRANGA'))
     return const Color(0xFFFBC02D); // amarela
   if (_contemPalavra(norm, 'SHELL') || _contemPalavra(norm, 'RAIZEN'))
@@ -115,7 +116,7 @@ class MapaPostos extends StatelessWidget {
         runSpacing: 6,
         children: lista.map((b) {
           final cor =
-              b == 'Sem bandeira' ? Colors.grey.shade500 : corBandeira(b);
+              b == 'Sem bandeira' ? AppTheme.grey500 : corBandeira(b);
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -126,7 +127,7 @@ class MapaPostos extends StatelessWidget {
                       BoxDecoration(shape: BoxShape.circle, color: cor)),
               const SizedBox(width: 4),
               Text(b,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey700)),
             ],
           );
         }).toList(),
@@ -158,7 +159,7 @@ class MapaPostos extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 4),
       child: Text(
         '${pontosComCoord.length} de ${postos.length} postos com coordenada no mapa',
-        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        style: TextStyle(fontSize: 11, color: AppTheme.grey600),
       ),
     );
 
@@ -169,9 +170,9 @@ class MapaPostos extends StatelessWidget {
           contador,
           SizedBox(
             height: height,
-            child: const Center(
+            child: Center(
               child: Text('Sem coordenadas para exibir no mapa',
-                  style: TextStyle(color: Colors.grey)),
+                  style: TextStyle(color: AppTheme.grey500)),
             ),
           ),
         ],
@@ -224,7 +225,7 @@ class MapaPostos extends StatelessWidget {
                                 .map((p) => ll.LatLng(p.lat, p.lon))
                                 .toList(),
                             strokeWidth: 3,
-                            color: Colors.grey.shade500,
+                            color: AppTheme.grey500,
                             pattern:
                                 StrokePattern.dashed(segments: const [8, 6]),
                           ),
@@ -266,8 +267,8 @@ class MapaPostos extends StatelessWidget {
                             shape: BoxShape.circle,
                             color: corBandeira(p.bandeira),
                             border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black38, blurRadius: 3)
+                            boxShadow: [
+                              BoxShadow(color: AppTheme.glassTextoMuted, blurRadius: 3)
                             ],
                           ),
                           child: ehParada
@@ -312,14 +313,14 @@ class MapaPostos extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text('Rota selecionada',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                          TextStyle(fontSize: 11, color: AppTheme.grey700)),
                 ]),
                 Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 16, height: 2, color: Colors.grey.shade500),
+                  Container(width: 16, height: 2, color: AppTheme.grey500),
                   const SizedBox(width: 4),
                   Text('Alternativa',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                          TextStyle(fontSize: 11, color: AppTheme.grey700)),
                 ]),
               ],
             ),

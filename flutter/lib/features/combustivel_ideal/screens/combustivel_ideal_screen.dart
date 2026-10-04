@@ -27,9 +27,9 @@ class CombustivelIdealScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Combustível Ideal'),
           bottom: const TabBar(
             tabs: [
@@ -89,10 +89,10 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
-              const Text(
+              Text(
                 'Pra cada veículo flex, qual combustível compensa mais agora — comparando o custo por km '
                 'rodado (preço do litro ÷ rendimento real do veículo), não só o preço do litro.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500),
               ),
               const SizedBox(height: 12),
               Row(
@@ -110,7 +110,7 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
               ),
               const SizedBox(height: 12),
               Card(
-                color: const Color(0xFFF8FAFC),
+                color: AppTheme.superficieAlt,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
@@ -118,7 +118,7 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                     'abastecimentos da placa; quando falta histórico de um dos dois combustíveis, o que falta é '
                     'estimado a partir do outro (etanol ≈ 70% do rendimento da gasolina) — veículos nessa '
                     'situação aparecem com "(estimado)".',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey700),
                   ),
                 ),
               ),
@@ -139,11 +139,11 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                 ),
               const SizedBox(height: 12),
               if (itens.isEmpty)
-                const Card(
+                Card(
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: Text('Nenhum veículo flex encontrado.',
-                        style: TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: AppTheme.grey500)),
                   ),
                 )
               else if (itensFiltrados.isEmpty)
@@ -151,7 +151,7 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text('Nenhum veículo encontrado para "$_busca".',
-                        style: const TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: AppTheme.grey500)),
                   ),
                 )
               else
@@ -171,8 +171,8 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 9, color: Colors.grey, letterSpacing: 0.2)),
+                style: TextStyle(
+                    fontSize: 9, color: AppTheme.grey500, letterSpacing: 0.2)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
@@ -217,7 +217,7 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                 ),
                 if (i.uf != null)
                   Text(i.uf!,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ],
             ),
             const SizedBox(height: 8),
@@ -270,8 +270,8 @@ class _AbaFlexState extends ConsumerState<_AbaFlex> {
                 ),
               )
             else
-              const Text('Dados insuficientes para recomendar',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text('Dados insuficientes para recomendar',
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
       ),
@@ -321,12 +321,12 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
-              const Text(
+              Text(
                 'Pra cada veículo/família de diesel, mostra se compensa usar o aditivado ou o comum, comparando '
                 'o custo por km. Diferente do flex, não existe uma razão física universal pra estimar rendimento '
                 'faltante — a recomendação só aparece quando a placa tem histórico dos dois; sem isso, mostramos '
                 'o prêmio de preço do aditivado.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500),
               ),
               const SizedBox(height: 12),
               if (itens.isNotEmpty)
@@ -362,12 +362,12 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
                 ),
               const SizedBox(height: 12),
               if (itens.isEmpty)
-                const Card(
+                Card(
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
                         'Nenhum veículo com histórico de abastecimento a diesel encontrado.',
-                        style: TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: AppTheme.grey500)),
                   ),
                 )
               else if (itensFiltrados.isEmpty)
@@ -375,7 +375,7 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text('Nenhum veículo encontrado para "$_busca".',
-                        style: const TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: AppTheme.grey500)),
                   ),
                 )
               else
@@ -395,8 +395,8 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 9, color: Colors.grey, letterSpacing: 0.2)),
+                style: TextStyle(
+                    fontSize: 9, color: AppTheme.grey500, letterSpacing: 0.2)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
@@ -417,7 +417,7 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
     if (i.recomendacao != null) {
       final cor = i.recomendacao == 'aditivado'
           ? const Color(0xFF0284C7)
-          : Colors.grey.shade700;
+          : AppTheme.grey700;
       rodape = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
@@ -435,11 +435,11 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
       final sinal = i.premioAditivadoPct! > 0 ? '+' : '';
       rodape = Text(
         'Aditivado $sinal${i.premioAditivadoPct}% no preço — sem histórico de rendimento pra comparar',
-        style: const TextStyle(fontSize: 11, color: Colors.grey),
+        style: TextStyle(fontSize: 11, color: AppTheme.grey500),
       );
     } else {
-      rodape = const Text('Dados insuficientes',
-          style: TextStyle(fontSize: 11, color: Colors.grey));
+      rodape = Text('Dados insuficientes',
+          style: TextStyle(fontSize: 11, color: AppTheme.grey500));
     }
 
     return Card(
@@ -459,7 +459,7 @@ class _AbaDieselState extends ConsumerState<_AbaDiesel> {
                 ),
                 if (i.uf != null)
                   Text(i.uf!,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ],
             ),
             const SizedBox(height: 8),

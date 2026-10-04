@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/negociacoes_provider.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/theme/app_theme.dart';
 
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
@@ -91,10 +92,10 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
                 ],
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Propostas de fornecimento de combustível trocadas com seus clientes: vigência, '
                 'volume mínimo e preço por litro.',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13),
               ),
               const SizedBox(height: 16),
               GridView.count(
@@ -132,7 +133,7 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Center(
                       child: Text('Nenhuma negociação encontrada.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   ),
                 )
@@ -170,7 +171,7 @@ class _NegociacoesScreenState extends ConsumerState<NegociacoesScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),

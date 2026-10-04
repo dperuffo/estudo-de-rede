@@ -18,9 +18,9 @@ class AbaTendenciaSazonalidade extends StatefulWidget {
       _AbaTendenciaSazonalidadeState();
 }
 
-const _coresUfTend = [
+get _coresUfTend => [
   Color(0xFF0D47A1),
-  Color(0xFFB71C1C),
+  AppTheme.fgErro,
   Color(0xFF2E7D32),
   Color(0xFFE65100),
   Color(0xFF6A1B9A),
@@ -28,7 +28,7 @@ const _coresUfTend = [
   Color(0xFFF57F17),
   Color(0xFF4E342E)
 ];
-const _coresCombustivelTend = [
+get _coresCombustivelTend => [
   AppTheme.glassTextoAtivo,
   Color(0xFFC62828),
   Color(0xFF2E7D32),
@@ -136,7 +136,7 @@ String _semanaLabel(String semana) {
 }
 
 Color _corCelula(double? v, double min, double max) {
-  if (v == null) return const Color(0xFFF1F5F9);
+  if (v == null) return AppTheme.superficieAlt;
   if (max == min) return const Color(0xFF2E7D32);
   final t = ((v - min) / (max - min)).clamp(0.0, 1.0);
   final stops = <(double, List<int>)>[
@@ -160,7 +160,7 @@ Color _corCelula(double? v, double min, double max) {
       return Color.fromARGB(255, c[0], c[1], c[2]);
     }
   }
-  return const Color(0xFFB71C1C);
+  return AppTheme.fgErro;
 }
 
 class _SerieUf {
@@ -186,12 +186,12 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
   Widget build(BuildContext context) {
     final serie = widget.dados.serieTendencia;
     if (serie.isEmpty) {
-      return const Center(
+      return Center(
           child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
                   'Histórico de preços insuficiente para calcular tendências.',
-                  style: TextStyle(color: Colors.grey))));
+                  style: TextStyle(color: AppTheme.grey500))));
     }
     final combustiveis = widget.dados.historicoDetalhado
         .map((r) => r.combustivel)
@@ -422,8 +422,8 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Text('Combustível: ',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
+            Text('Combustível: ',
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             DropdownButton<String>(
               value: _selecionado,
               isDense: true,
@@ -456,7 +456,7 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           SizedBox(
             height: 300,
@@ -523,7 +523,7 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -531,14 +531,14 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
               defaultColumnWidth: const FixedColumnWidth(38),
               children: [
                 TableRow(children: [
-                  const SizedBox(
+                  SizedBox(
                       width: 40,
                       child: Text('UF',
-                          style: TextStyle(fontSize: 9, color: Colors.grey))),
+                          style: TextStyle(fontSize: 9, color: AppTheme.grey500))),
                   ..._nomesMesAbrev.map((m) => Center(
                       child: Text(m,
-                          style: const TextStyle(
-                              fontSize: 9, color: Colors.grey)))),
+                          style: TextStyle(
+                              fontSize: 9, color: AppTheme.grey500)))),
                 ]),
                 ...heatLinhas.map((l) => TableRow(children: [
                       SizedBox(
@@ -565,11 +565,11 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           if (semanasVol.isEmpty)
-            const Text('Sem dados de volatilidade.',
-                style: TextStyle(color: Colors.grey, fontSize: 12))
+            Text('Sem dados de volatilidade.',
+                style: TextStyle(color: AppTheme.grey500, fontSize: 12))
           else
             SizedBox(
               height: 240,
@@ -647,7 +647,7 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade600)),
+                  color: AppTheme.grey600)),
           const SizedBox(height: 8),
           TabelaSimples(
             colunas: const [

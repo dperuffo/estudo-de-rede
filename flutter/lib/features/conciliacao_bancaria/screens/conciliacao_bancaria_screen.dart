@@ -110,7 +110,7 @@ class _ConciliacaoBancariaScreenState
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               Text(
                   '${_data.format(DateTime.parse(lancamento.data))} · ${_moeda.format(lancamento.valor)}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12)),
               const SizedBox(height: 12),
               if (sugestoes.isEmpty)
                 const Text('Nenhuma sugestão encontrada para este lançamento.')
@@ -177,9 +177,9 @@ class _ConciliacaoBancariaScreenState
   }
 
   Color _corConfianca(String c) => switch (c) {
-        'alta' => const Color(0xFFDCFCE7),
-        'media' => const Color(0xFFFEF3C7),
-        _ => const Color(0xFFF3F4F6),
+        'alta' => AppTheme.tintOk,
+        'media' => AppTheme.tintAviso,
+        _ => AppTheme.superficieAlt,
       };
 
   String _labelConfianca(String c) => switch (c) {
@@ -200,9 +200,9 @@ class _ConciliacaoBancariaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Conciliação Bancária')),
       body: RefreshIndicator(
         onRefresh: () async => _carregar(),
@@ -254,7 +254,7 @@ class _ConciliacaoBancariaScreenState
                   ],
                 ),
                 Text('Aceita arquivos .ofx ou .csv do seu banco.',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                    style: TextStyle(color: AppTheme.grey600, fontSize: 11)),
                 const SizedBox(height: 16),
                 GridView.count(
                   crossAxisCount: Responsive.colunasGrade(context, mobile: 3, desktop: 4),
@@ -309,7 +309,7 @@ class _ConciliacaoBancariaScreenState
                       padding: const EdgeInsets.all(24),
                       child: Center(
                         child: Text('Nenhum lançamento pendente.',
-                            style: TextStyle(color: Colors.grey.shade600)),
+                            style: TextStyle(color: AppTheme.grey600)),
                       ),
                     ),
                   )
@@ -366,15 +366,15 @@ class _ConciliacaoBancariaScreenState
                       style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: l.tipo == 'debito'
-                              ? const Color(0xFFB91C1C)
-                              : const Color(0xFF15803D))),
+                              ? AppTheme.fgErro
+                              : AppTheme.fgOk)),
                 ],
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Text(_data.format(DateTime.parse(l.data)),
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
                   const Spacer(),
                   if (sugestoes.isNotEmpty)
                     Container(
@@ -382,8 +382,8 @@ class _ConciliacaoBancariaScreenState
                           const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                           color: altas > 0
-                              ? const Color(0xFFDCFCE7)
-                              : const Color(0xFFFEF3C7),
+                              ? AppTheme.tintOk
+                              : AppTheme.tintAviso,
                           borderRadius: BorderRadius.circular(12)),
                       child: Text(
                           '${sugestoes.length} sugestão(ões)',
@@ -392,7 +392,7 @@ class _ConciliacaoBancariaScreenState
                   else
                     Text('Sem sugestão',
                         style:
-                            TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                            TextStyle(fontSize: 11, color: AppTheme.grey400)),
                 ],
               ),
             ],
@@ -446,7 +446,7 @@ class _ConciliacaoBancariaScreenState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),

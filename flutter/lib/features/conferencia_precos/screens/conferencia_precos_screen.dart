@@ -109,9 +109,9 @@ class _ConferenciaPrecosScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Conferência de Preços')),
       body: RefreshIndicator(
         onRefresh: () async => _carregar(),
@@ -143,7 +143,7 @@ class _ConferenciaPrecosScreenState
                 Text(
                   'Compare o preço praticado em cada abastecimento com o acordo/negociação vigente com o posto, '
                   'e acompanhe o extrato diário por meio de pagamento.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12),
                 ),
                 if (dados.divergenciasHoje.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -152,16 +152,16 @@ class _ConferenciaPrecosScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      border: Border.all(color: const Color(0xFFFECACA)),
+                      color: AppTheme.tintErro,
+                      border: Border.all(color: AppTheme.tintErro),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '🚨 ${dados.divergenciasHoje.length} abastecimento${dados.divergenciasHoje.length == 1 ? '' : 's'} hoje '
                       'fora do preço acordado com o posto — impacto de ${_moeda.format(dados.valorDivergenciaHoje)} até agora. '
                       'Confira abaixo antes do fechamento do dia.',
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF991B1B)),
+                      style: TextStyle(
+                          fontSize: 12, color: AppTheme.fgErro),
                     ),
                   ),
                 ],
@@ -241,7 +241,7 @@ class _ConferenciaPrecosScreenState
           child: Center(
             child: Text(
                 'Nenhuma divergência de preço encontrada neste período — tudo dentro do acordado.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(color: AppTheme.grey600),
                 textAlign: TextAlign.center),
           ),
         ),
@@ -275,7 +275,7 @@ class _ConferenciaPrecosScreenState
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: cor != null ? Color(cor) : Colors.grey.shade200,
+                      color: cor != null ? Color(cor) : AppTheme.grey200,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(nomeProvedor(d.provedor),
@@ -285,7 +285,7 @@ class _ConferenciaPrecosScreenState
               ),
               const SizedBox(height: 4),
               Text('${d.postoNome} · ${d.placa ?? '—'}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
               const SizedBox(height: 6),
               Text(
                   '${d.combustivel ?? '—'} · ${d.litros != null ? _numero.format(d.litros) : '—'} L'),
@@ -299,7 +299,7 @@ class _ConferenciaPrecosScreenState
                   Text(
                       'Acordado: ${d.precoAcordado != null ? _moeda.format(d.precoAcordado) : '—'}',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                          TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -318,13 +318,13 @@ class _ConferenciaPrecosScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
+                      color: AppTheme.tintAviso,
                       borderRadius: BorderRadius.circular(12)),
-                  child: const Text('Ajuste em andamento',
+                  child: Text('Ajuste em andamento',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF92400E))),
+                          color: AppTheme.fgAviso)),
                 )
               else
                 const Text('Ver e solicitar ajuste →',
@@ -343,7 +343,7 @@ class _ConferenciaPrecosScreenState
           padding: const EdgeInsets.all(24),
           child: Center(
             child: Text('Nenhum abastecimento fornecido neste período.',
-                style: TextStyle(color: Colors.grey.shade600)),
+                style: TextStyle(color: AppTheme.grey600)),
           ),
         ),
       );
@@ -370,7 +370,7 @@ class _ConferenciaPrecosScreenState
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color:
-                            cor != null ? Color(cor) : Colors.grey.shade200,
+                            cor != null ? Color(cor) : AppTheme.grey200,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(nomeProvedor(e.provedor),
@@ -399,7 +399,7 @@ class _ConferenciaPrecosScreenState
 
   Widget _indicador(String label, String valor, {bool destaque = false}) =>
       Card(
-        color: destaque ? const Color(0xFFFEF2F2) : null,
+        color: destaque ? AppTheme.tintErro : null,
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(
@@ -407,7 +407,7 @@ class _ConferenciaPrecosScreenState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
@@ -415,7 +415,7 @@ class _ConferenciaPrecosScreenState
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: destaque ? const Color(0xFFB91C1C) : null),
+                      color: destaque ? AppTheme.fgErro : null),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
             ],

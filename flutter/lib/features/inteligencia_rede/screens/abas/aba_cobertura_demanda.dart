@@ -6,6 +6,7 @@ import '../../providers/inteligencia_rede_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
 import '../../widgets/mapa_circulos.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 6/10 — "🎯 Cobertura × Demanda". Porta CoberturaDemanda.tsx +
 // MapaGapCobertura.tsx — cruza demanda real da frota (abastecimentos) com
@@ -59,12 +60,12 @@ class AbaCoberturaDemanda extends StatelessWidget {
     final demandaTotal = linhas.fold<int>(0, (s, l) => s + l.demanda);
 
     if (demandaTotal == 0) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
             'Ainda não há abastecimentos reais suficientes (via integração PróFrotas) para medir demanda por UF.',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppTheme.grey500),
             textAlign: TextAlign.center,
           ),
         ),
@@ -165,7 +166,7 @@ class AbaCoberturaDemanda extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text('🗺️ Mapa de Gaps — tamanho = demanda, cor = severidade',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
               const SizedBox(height: 6),
               MapaCirculos(
                   pontos: pontosMapa,
@@ -177,7 +178,7 @@ class AbaCoberturaDemanda extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade600)),
+                      color: AppTheme.grey600)),
               const SizedBox(height: 8),
               SizedBox(
                 height: 260,
@@ -229,7 +230,7 @@ class AbaCoberturaDemanda extends StatelessWidget {
               ),
               Text(
                   '🔴 Crítico ≥0,60 · 🟠 Alto ≥0,35 · 🟡 Médio ≥0,15 · 🟢 Baixo <0,15',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
               const SizedBox(height: 16),
               ...insights.map((texto) => BlocoInsight(texto: texto)),
               const SizedBox(height: 8),

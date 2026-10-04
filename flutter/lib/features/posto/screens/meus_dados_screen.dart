@@ -24,20 +24,20 @@ class MeusDadosScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Meus Dados / PIX')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (empresa) {
           if (empresa == null) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Nenhum posto vinculado a este usuário.',
-                    style: TextStyle(color: Colors.grey)),
+                    style: TextStyle(color: AppTheme.grey500)),
               ),
             );
           }
@@ -180,9 +180,9 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Nome/CNPJ/endereço se editam em "Meu Posto". Aqui é só referência.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                 ),
                 const SizedBox(height: 10),
                 _linhaDado('Nome', _texto('nome')),
@@ -202,9 +202,9 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Usada como cedente no boleto/documento de cobrança enviado aos clientes.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -247,9 +247,9 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                     'Captura pra uso futuro — ainda não usado em nenhum boleto.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _bancoCodigo,
@@ -365,7 +365,7 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
           SizedBox(
               width: 80,
               child: Text(label,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500))),
           Expanded(
               child: Text(valor.isEmpty ? '—' : valor,
                   style: const TextStyle(fontSize: 13))),
@@ -377,18 +377,18 @@ class _MeusDadosConteudoState extends ConsumerState<_MeusDadosConteudo> {
   Widget _bannerErro(String texto) => Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
+            color: AppTheme.tintErro,
             borderRadius: BorderRadius.circular(8)),
         child: Text(texto,
-            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+            style: TextStyle(color: AppTheme.fgErro, fontSize: 13)),
       );
 
   Widget _bannerSucesso(String texto) => Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
+            color: AppTheme.tintOk,
             borderRadius: BorderRadius.circular(8)),
         child: Text(texto,
-            style: const TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+            style: TextStyle(color: AppTheme.fgOk, fontSize: 13)),
       );
 }

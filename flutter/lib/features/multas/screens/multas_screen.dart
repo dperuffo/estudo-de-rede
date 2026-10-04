@@ -45,9 +45,9 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Gestão de Multas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/multas/nova'),
@@ -133,12 +133,12 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (filtradas.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(bottom: 24),
                           child: Center(
                               child: Text(
                                   'Nenhuma multa encontrada para esse filtro.',
-                                  style: TextStyle(color: Colors.grey))),
+                                  style: TextStyle(color: AppTheme.grey500))),
                         ),
                     ],
                   ),
@@ -168,10 +168,10 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintErro : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintErro : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,14 +179,14 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
+                    color: destaque ? AppTheme.fgErro : AppTheme.glassTexto),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -207,7 +207,7 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
                         fontWeight: FontWeight.w700, fontSize: 14))),
             if (m.numeroAit != null)
               Text('AIT ${m.numeroAit}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
         subtitle: Padding(
@@ -222,14 +222,14 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
               const SizedBox(height: 2),
               Text(
                 '${m.motoristaNome ?? 'Sem condutor indicado'} · ${_fmtMoeda(m.valorParaExibir)}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color:
-                      statusMultaCorFundo[m.status] ?? const Color(0xFFF1F5F9),
+                      statusMultaCorFundo[m.status] ?? AppTheme.superficieAlt,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -238,7 +238,7 @@ class _MultasScreenState extends ConsumerState<MultasScreen> {
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: statusMultaCorTexto[m.status] ??
-                          Colors.grey.shade700),
+                          AppTheme.grey700),
                 ),
               ),
             ],

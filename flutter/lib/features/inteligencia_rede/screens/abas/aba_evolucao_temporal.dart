@@ -18,7 +18,7 @@ class AbaEvolucaoTemporal extends StatefulWidget {
   State<AbaEvolucaoTemporal> createState() => _AbaEvolucaoTemporalState();
 }
 
-const _coresUf = [
+get _coresUf => [
   Color(0xFF1040A0),
   AppTheme.glassTextoAtivo,
   Color(0xFF1976D2),
@@ -65,11 +65,11 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
   Widget build(BuildContext context) {
     final registros = widget.dados.historicoDetalhado;
     if (registros.isEmpty) {
-      return const Center(
+      return Center(
           child: Padding(
               padding: EdgeInsets.all(24),
               child: Text('Histórico de preços vazio.',
-                  style: TextStyle(color: Colors.grey))));
+                  style: TextStyle(color: AppTheme.grey500))));
     }
     final combustiveis = registros.map((r) => r.combustivel).toSet().toList()
       ..sort();
@@ -98,10 +98,10 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
           ]),
           const SizedBox(height: 16),
           if (filtrado.isEmpty)
-            const Padding(
+            Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text('Nenhum dado para os filtros selecionados.',
-                    style: TextStyle(color: Colors.grey)))
+                    style: TextStyle(color: AppTheme.grey500)))
           else
             Builder(builder: (context) => _conteudo(filtrado)),
         ],
@@ -248,14 +248,14 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade600)),
+                color: AppTheme.grey600)),
         const SizedBox(height: 8),
         if (tendenciaPorUf.isEmpty)
-          const Padding(
+          Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
                   'Dados insuficientes para traçar tendências regionais (mín. 2 períodos por UF).',
-                  style: TextStyle(color: Colors.grey, fontSize: 12)))
+                  style: TextStyle(color: AppTheme.grey500, fontSize: 12)))
         else ...[
           SizedBox(
             height: 300,
@@ -339,7 +339,7 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
           ]),
           if (limitado)
             Text('Mostrando os 10 estados com mais dados no período.',
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
           if (insights != null) ...[
             const SizedBox(height: 10),
             BlocoInsight(
@@ -355,15 +355,15 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade600)),
+                color: AppTheme.grey600)),
         const SizedBox(height: 4),
         Text(
             'Desvio padrão do preço médio ${_semanal ? "semanal" : "mensal"} por estado.',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+            style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
         const SizedBox(height: 8),
         if (porStd.isEmpty)
-          const Text('Dados insuficientes para calcular volatilidade.',
-              style: TextStyle(color: Colors.grey, fontSize: 12))
+          Text('Dados insuficientes para calcular volatilidade.',
+              style: TextStyle(color: AppTheme.grey500, fontSize: 12))
         else ...[
           Text('Desvio padrão por UF',
               style:
@@ -399,22 +399,22 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
                   .toList(),
               eixoX: 'Coeficiente de variação (%)'),
           Text('Verde < 2% · Laranja 2–5% · Vermelho > 5%.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+              style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
         ],
         const SizedBox(height: 20),
         Text('🏆 Ranking de estabilidade por posto',
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade600)),
+                color: AppTheme.grey600)),
         const SizedBox(height: 4),
         Text(
             'Postos com pelo menos 3 registros, ordenados pelo menor coeficiente de variação.',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+            style: TextStyle(fontSize: 10, color: AppTheme.grey400)),
         const SizedBox(height: 8),
         if (ranking.isEmpty)
-          const Text('Nenhum posto com 3 ou mais registros ainda.',
-              style: TextStyle(color: Colors.grey, fontSize: 12))
+          Text('Nenhum posto com 3 ou mais registros ainda.',
+              style: TextStyle(color: AppTheme.grey500, fontSize: 12))
         else ...[
           Text('🥇 Top 10 mais estáveis',
               style:
@@ -452,7 +452,7 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
                                 fontSize: 10, fontWeight: FontWeight.w700)),
                         Text('${p.municipio}/${p.uf}',
                             style: TextStyle(
-                                fontSize: 9, color: Colors.grey.shade600)),
+                                fontSize: 9, color: AppTheme.grey600)),
                         Text('CV ${p.cvPct.toStringAsFixed(2)}%',
                             style: TextStyle(
                                 fontSize: 10,
@@ -460,7 +460,7 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
                                 color: borda)),
                         Text('${formatarMoeda(p.media)} médio',
                             style: TextStyle(
-                                fontSize: 9, color: Colors.grey.shade600)),
+                                fontSize: 9, color: AppTheme.grey600)),
                       ]),
                 );
               },
@@ -527,7 +527,7 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
       ValueChanged<String> onChanged) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Text('$label: ',
-          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
       DropdownButton<String>(
           value: opcoes.contains(valor) ? valor : opcoes.first,
           isDense: true,
@@ -544,7 +544,7 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
       ValueChanged<bool> onChanged) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Text('$label: ',
-          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
       DropdownButton<bool>(
           value: valor,
           isDense: true,

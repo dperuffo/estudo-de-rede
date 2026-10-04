@@ -49,9 +49,9 @@ class TorreDeControleScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Torre de Controle')),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -89,7 +89,7 @@ class TorreDeControleScreen extends ConsumerWidget {
           'Visão única dos fretes em andamento agora, com o último checkpoint registrado pelo motorista e alerta '
           'de prazo. Não é rastreamento por GPS — é baseado nos eventos que o motorista confirma no app.'
           '${posicoes.isEmpty ? ' Se você conectar um sistema de rastreamento (qualquer provedor) em Integrações, um mapa ao vivo aparece aqui também.' : ''}',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         if (posicoes.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -120,15 +120,15 @@ class TorreDeControleScreen extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
                 child: _cardResumo('🚨 Emergência', '$totalPanico',
-                    totalPanico > 0 ? Colors.red.shade700 : null)),
+                    totalPanico > 0 ? AppTheme.fgErro : null)),
           ],
         ),
         const SizedBox(height: 16),
         if (fretes.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Text('Nenhum frete em andamento agora.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...fretes.map((f) => _cardFrete(context, f)),
@@ -140,16 +140,16 @@ class TorreDeControleScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cor?.withValues(alpha: 0.08) ?? Colors.grey.shade100,
+        color: cor?.withValues(alpha: 0.08) ?? AppTheme.grey100,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: cor?.withValues(alpha: 0.3) ?? Colors.grey.shade300),
+            color: cor?.withValues(alpha: 0.3) ?? AppTheme.grey300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(titulo,
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           const SizedBox(height: 2),
           Text(valor,
               style: TextStyle(
@@ -161,18 +161,18 @@ class TorreDeControleScreen extends ConsumerWidget {
 
   Widget _cardFrete(BuildContext context, FreteAndamento f) {
     final corBorda = f.tevePanico
-        ? Colors.red.shade700
+        ? AppTheme.fgErro
         : f.atrasado
             ? Colors.red.shade300
             : f.vencendoEmBreve
                 ? Colors.amber.shade300
-                : Colors.grey.shade300;
+                : AppTheme.grey300;
     final corFundo = f.tevePanico
-        ? Colors.red.shade50
+        ? AppTheme.tintErro
         : f.atrasado
-            ? Colors.red.shade50
+            ? AppTheme.tintErro
             : f.vencendoEmBreve
-                ? Colors.amber.shade50
+                ? AppTheme.tintAviso
                 : null;
 
     return Card(
@@ -203,7 +203,7 @@ class TorreDeControleScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                          color: Colors.red.shade700,
+                          color: AppTheme.fgErro,
                           borderRadius: BorderRadius.circular(12)),
                       child: const Text('🚨 Emergência',
                           style: TextStyle(color: Colors.white, fontSize: 10)),
@@ -211,7 +211,7 @@ class TorreDeControleScreen extends ConsumerWidget {
                 ],
               ),
               Text('${f.origemLabel} → ${f.destinoLabel}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 12,
@@ -233,7 +233,7 @@ class TorreDeControleScreen extends ConsumerWidget {
                         color: f.atrasado
                             ? Colors.red
                             : (f.vencendoEmBreve
-                                ? Colors.amber.shade800
+                                ? AppTheme.fgAviso
                                 : null),
                       ),
                     ),
@@ -241,7 +241,7 @@ class TorreDeControleScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text('Status: ${_labelStatus[f.status] ?? f.status}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
             ],
           ),
         ),

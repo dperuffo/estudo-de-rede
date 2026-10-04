@@ -53,7 +53,7 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
               child: const Text('Cancelar')),
           FilledButton(
               style:
-                  FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                  FilledButton.styleFrom(backgroundColor: AppTheme.fgErro),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Excluir')),
         ],
@@ -85,8 +85,8 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-              title: Text('Excluir', style: TextStyle(color: Colors.red.shade700)),
+              leading: Icon(Icons.delete_outline, color: AppTheme.fgErro),
+              title: Text('Excluir', style: TextStyle(color: AppTheme.fgErro)),
               onTap: () {
                 Navigator.pop(ctx);
                 _excluir(a);
@@ -110,9 +110,9 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Apólices de Seguro')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/apolices-seguro/nova'),
@@ -152,7 +152,7 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
               children: [
                 Text(
                   'Número da apólice, seguradora, vigência, cobertura e franquia, com alerta de vencimento.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
@@ -178,7 +178,7 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
                       child: Center(
                         child: Text(
                             'Nenhuma apólice cadastrada. Toque em "Nova Apólice" para começar.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppTheme.grey600),
                             textAlign: TextAlign.center),
                       ),
                     ),
@@ -197,15 +197,15 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
     final vencida = a.vencida;
     final vencendo = a.vencendoEm30Dias;
     final corStatus = vencida
-        ? const Color(0xFFFEE2E2)
+        ? AppTheme.tintErro
         : vencendo
-            ? const Color(0xFFFEF3C7)
-            : const Color(0xFFDCFCE7);
+            ? AppTheme.tintAviso
+            : AppTheme.tintOk;
     final corStatusTexto = vencida
-        ? const Color(0xFFB91C1C)
+        ? AppTheme.fgErro
         : vencendo
-            ? const Color(0xFF92400E)
-            : const Color(0xFF15803D);
+            ? AppTheme.fgAviso
+            : AppTheme.fgOk;
     final statusLabel = vencida ? 'Vencida' : vencendo ? 'Vencendo' : 'Ativa';
 
     DateTime? tryParse(String iso) => DateTime.tryParse(iso);
@@ -239,15 +239,15 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
                             color: corStatusTexto)),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                  Icon(Icons.more_vert, size: 18, color: AppTheme.grey500),
                 ],
               ),
               const SizedBox(height: 4),
               Text(a.placa == null || a.placa!.isEmpty ? 'Frota toda' : a.placa!,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
               if (a.cobertura != null && a.cobertura!.isNotEmpty)
                 Text(a.cobertura!,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey400)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 12,
@@ -275,9 +275,9 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
           {bool destaque = false, bool alerta = false}) =>
       Card(
         color: alerta
-            ? const Color(0xFFFEE2E2)
+            ? AppTheme.tintErro
             : destaque
-                ? const Color(0xFFFEF3C7)
+                ? AppTheme.tintAviso
                 : null,
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -285,7 +285,7 @@ class _ApolicesSeguroScreenState extends ConsumerState<ApolicesSeguroScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),

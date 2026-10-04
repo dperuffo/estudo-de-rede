@@ -81,9 +81,9 @@ class _JornadaMotoristasScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Jornada dos Motoristas')),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -94,11 +94,11 @@ class _JornadaMotoristasScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Indicadores a partir dos horários de trabalho, pausa e descanso que os próprios motoristas registram '
               'no app — inclui alertas de aderência à Lei do Motorista (13.103/2015): condução contínua acima de '
               '5h30 sem pausa, e descanso entre jornadas abaixo de 11h.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             statusAsync.when(
@@ -181,11 +181,11 @@ class _JornadaMotoristasScreenState
       ..sort((a, b) => a.value.compareTo(b.value));
 
     if (motoristasOrdenados.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
             child: Text('Nenhum motorista com jornada registrada.',
-                style: TextStyle(color: Colors.grey))),
+                style: TextStyle(color: AppTheme.grey500))),
       );
     }
 
@@ -215,20 +215,20 @@ class _JornadaMotoristasScreenState
         ),
         const SizedBox(height: 12),
         if (!selecionadoValido)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
                 child: Text(
                     'Selecione um motorista para ver o registro detalhado.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12))),
+                    style: TextStyle(color: AppTheme.grey500, fontSize: 12))),
           )
         else if (segmentos.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
                 child: Text(
                     'Nenhum registro encontrado para esse motorista no período.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12))),
+                    style: TextStyle(color: AppTheme.grey500, fontSize: 12))),
           )
         else
           ...segmentos.map((r) {
@@ -266,8 +266,8 @@ class _JornadaMotoristasScreenState
   Widget _tituloSecao(String texto) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(texto.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.grey500)),
       );
 
   Widget _secaoAgora(List<StatusAtualMotorista> status) {
@@ -293,7 +293,7 @@ class _JornadaMotoristasScreenState
             _card('Descansando agora', '$descansando', cor: _corDescanso),
             _card('Acima de 5h30 dirigindo', '${excedendo.length}',
                 cor:
-                    excedendo.isNotEmpty ? Colors.red.shade700 : _corDirigindo),
+                    excedendo.isNotEmpty ? AppTheme.fgErro : _corDirigindo),
           ],
         ),
         if (excedendo.isNotEmpty) ...[
@@ -302,13 +302,13 @@ class _JornadaMotoristasScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.red.shade200)),
             child: Text(
               '⚠️ ${excedendo.map((s) => s.nomeCompleto).join(", ")} já ${excedendo.length == 1 ? "está" : "estão"} dirigindo há mais de '
               '5h30 sem pausa.',
-              style: TextStyle(fontSize: 12, color: Colors.red.shade900),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgErro),
             ),
           ),
         ],
@@ -376,18 +376,18 @@ class _JornadaMotoristasScreenState
                 cor: _corDirigindo),
             _card('Pausas realizadas', '$pausas', cor: _corPausa),
             _card('Alertas condução contínua', '$alertasConducao',
-                cor: alertasConducao > 0 ? Colors.red.shade700 : _corDirigindo),
+                cor: alertasConducao > 0 ? AppTheme.fgErro : _corDirigindo),
             _card('Alertas descanso insuficiente', '$alertasDescanso',
-                cor: alertasDescanso > 0 ? Colors.red.shade700 : _corDirigindo),
+                cor: alertasDescanso > 0 ? AppTheme.fgErro : _corDirigindo),
           ],
         ),
         const SizedBox(height: 20),
         if (diasOrdenados.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
                 child: Text('Nenhuma jornada registrada no período.',
-                    style: TextStyle(color: Colors.grey))),
+                    style: TextStyle(color: AppTheme.grey500))),
           )
         else ...[
           Text('Horas por dia', style: Theme.of(context).textTheme.titleMedium),
@@ -409,11 +409,11 @@ class _JornadaMotoristasScreenState
         Text('Por motorista', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (ranking.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
                 child: Text('Nenhum motorista com jornada no período.',
-                    style: TextStyle(color: Colors.grey))),
+                    style: TextStyle(color: AppTheme.grey500))),
           )
         else
           ...ranking.map((e) {
@@ -448,7 +448,7 @@ class _JornadaMotoristasScreenState
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.red.shade800)),
+                                color: AppTheme.fgErro)),
                       )
                     : null,
               ),
@@ -467,7 +467,7 @@ class _JornadaMotoristasScreenState
               height: 10,
               decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
           const SizedBox(width: 4),
-          Text(texto, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(texto, style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         ],
       );
 

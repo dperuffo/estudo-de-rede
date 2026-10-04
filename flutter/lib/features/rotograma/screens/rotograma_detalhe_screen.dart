@@ -45,9 +45,9 @@ class RotogramaDetalheScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Rotograma')),
       body: detalheAsync.when(
         data: (v) {
@@ -135,7 +135,7 @@ class RotogramaDetalheScreen extends ConsumerWidget {
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade500)),
+                          color: AppTheme.grey500)),
                   const SizedBox(height: 6),
                   Text(v.observacoes!, style: const TextStyle(fontSize: 13)),
                 ],
@@ -158,7 +158,7 @@ class RotogramaDetalheScreen extends ConsumerWidget {
                   Text(
                       'Adicione pontos de risco ou parada para ver a linha do tempo.',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                          TextStyle(fontSize: 12, color: AppTheme.grey500))
                 else
                   LinhaDoTempoRotograma(
                       origem: v.origem ?? '',
@@ -183,7 +183,7 @@ class RotogramaDetalheScreen extends ConsumerWidget {
                 if (v.riscos.isEmpty)
                   Text('Nenhum ponto de risco cadastrado.',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                          TextStyle(fontSize: 12, color: AppTheme.grey500))
                 else
                   ...v.riscos.map((r) => _itemRiscoParada(
                         icone: categoriaRiscoIcone(r.categoria),
@@ -210,7 +210,7 @@ class RotogramaDetalheScreen extends ConsumerWidget {
                 if (v.paradas.isEmpty)
                   Text('Nenhuma parada cadastrada.',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                          TextStyle(fontSize: 12, color: AppTheme.grey500))
                 else
                   ...v.paradas.map((p) => _itemRiscoParada(
                         icone: categoriaParadaIcone(p.categoria),
@@ -242,14 +242,14 @@ class RotogramaDetalheScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                                color: const Color(0xFF0F172A),
+                                color: AppTheme.glassTexto,
                                 borderRadius: BorderRadius.circular(8)),
                             child: Column(
                               children: [
                                 Text(c.nome,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 9,
-                                        color: Color(0xFFCBD5E1),
+                                        color: AppTheme.bordaForte,
                                         letterSpacing: 0.5)),
                                 Text(c.numero,
                                     style: const TextStyle(
@@ -273,15 +273,15 @@ class RotogramaDetalheScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200)),
+          border: Border.all(color: AppTheme.grey200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 10, color: AppTheme.grey500),
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
           Text(valor,

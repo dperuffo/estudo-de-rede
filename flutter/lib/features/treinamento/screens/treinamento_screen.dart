@@ -21,9 +21,9 @@ class TreinamentoScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Central de Treinamento')),
       body: async.when(
         data: (licoes) {
@@ -36,7 +36,7 @@ class TreinamentoScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                         'Nenhum conteúdo de treinamento disponível no momento.',
-                        style: TextStyle(color: Colors.grey.shade600)),
+                        style: TextStyle(color: AppTheme.grey600)),
                   ),
                 ),
               ],
@@ -99,9 +99,9 @@ class _LicaoDetalheScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: Text(licao.titulo)),
       body: ListView(
         padding: const EdgeInsets.all(16),

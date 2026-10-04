@@ -73,9 +73,9 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Antifraude')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirFormRegra(),
@@ -121,8 +121,8 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        color: AppTheme.tintAviso,
+        border: Border.all(color: AppTheme.tintAviso),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -130,7 +130,7 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
           Expanded(
             child: Text(
               '$quantidade abastecimento${quantidade > 1 ? 's' : ''} autorizado${quantidade > 1 ? 's' : ''} sem verificação completa — vale revisar.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgAviso),
             ),
           ),
           TextButton(
@@ -158,9 +158,9 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
           children: [
-            const Text(
+            Text(
               'Regras que sistemas externos consultam antes de autorizar um abastecimento.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -189,7 +189,7 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text('Nenhuma regra cadastrada.',
-                      style: TextStyle(color: Colors.grey.shade600)),
+                      style: TextStyle(color: AppTheme.grey600)),
                 ),
               ),
             ...filtrados.map((r) => Card(
@@ -206,12 +206,12 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
                         Text(
                           '${labelEscopoAntifraude[r.escopo] ?? r.escopo}${r.escopoReferencia != null ? ' — ${r.escopoReferencia}' : ''}',
                           style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
+                              TextStyle(fontSize: 12, color: AppTheme.grey500),
                         ),
                         Text(
                           'Vigência: ${r.vigenciaInicio} até ${r.vigenciaFim ?? 'sem prazo'}',
                           style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
+                              TextStyle(fontSize: 12, color: AppTheme.grey500),
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -222,7 +222,7 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
                               decoration: BoxDecoration(
                                 color: (r.ativo
                                         ? const Color(0xFF16A34A)
-                                        : const Color(0xFF64748B))
+                                        : AppTheme.glassTextoMuted)
                                     .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -231,7 +231,7 @@ class _AntifraudeScreenState extends ConsumerState<AntifraudeScreen> {
                                       fontSize: 11,
                                       color: r.ativo
                                           ? const Color(0xFF16A34A)
-                                          : const Color(0xFF64748B),
+                                          : AppTheme.glassTextoMuted,
                                       fontWeight: FontWeight.w600)),
                             ),
                             const Spacer(),

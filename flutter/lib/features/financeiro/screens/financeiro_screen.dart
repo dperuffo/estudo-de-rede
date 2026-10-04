@@ -20,7 +20,7 @@ const _corMeioPagamento = <String, Color>{
   'TicketLog': Color(0xFF0D9488),
   'Veloe': Color(0xFFDB2777),
 };
-const _corMeioPagamentoFallback = Color(0xFF64748B);
+get _corMeioPagamentoFallback => AppTheme.glassTextoMuted;
 String _nomeProvedor(String p) => p == 'profrotas' ? 'PróFrotas' : p;
 
 String _dataBr(String iso) {
@@ -66,9 +66,9 @@ class FinanceiroScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Painel Financeiro')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -87,9 +87,9 @@ class FinanceiroScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        const Text(
+        Text(
             'Custos do mês atual, consolidado por meio de pagamento e cobrança em aberto com os postos.',
-            style: TextStyle(color: Colors.grey, fontSize: 13)),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
         const SizedBox(height: 12),
         GridView.count(
           // Fase Auditoria-UX-Responsividade (08/09/2026) — 6 cartões: 3
@@ -124,8 +124,8 @@ class FinanceiroScreen extends ConsumerWidget {
           const Text('Evolução mensal (6 meses)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
-          const Text('Combustível, manutenção e custos fixos por mês.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Text('Combustível, manutenção e custos fixos por mês.',
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
           const SizedBox(height: 10),
           Card(
             child: Padding(
@@ -139,8 +139,8 @@ class FinanceiroScreen extends ConsumerWidget {
           const Text('Consolidado por meio de pagamento',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 4),
-          const Text('Abastecimentos do mês, por meio de pagamento usado.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Text('Abastecimentos do mês, por meio de pagamento usado.',
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
           const SizedBox(height: 10),
           if (dados.porProvedor.length > 1)
             Card(
@@ -158,8 +158,8 @@ class FinanceiroScreen extends ConsumerWidget {
                             _corMeioPagamentoFallback)
                         .withOpacity(0.15),
                     child: Text(_nomeProvedor(p.provedor).substring(0, 1),
-                        style: const TextStyle(
-                            color: Colors.black87, fontSize: 13)),
+                        style: TextStyle(
+                            color: AppTheme.glassTexto, fontSize: 13)),
                   ),
                   title: Text(_nomeProvedor(p.provedor)),
                   subtitle: Text(
@@ -193,15 +193,15 @@ class FinanceiroScreen extends ConsumerWidget {
         const Text('Cobrança em Aberto',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
-        const Text(
+        Text(
             'Ciclo atual (em andamento) e resumo de faturas com cada posto.',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         const SizedBox(height: 10),
         if (linhas.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhum posto com ciclo ainda.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...linhas.map((l) => _linhaContraparte(context, l, todasFaturas)),
@@ -223,14 +223,14 @@ class FinanceiroScreen extends ConsumerWidget {
         const Text('Últimas faturas',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
-        const Text('Toque numa fatura pra ver o extrato de abastecimentos.',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
+        Text('Toque numa fatura pra ver o extrato de abastecimentos.',
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         const SizedBox(height: 10),
         if (recentes.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Nenhuma fatura ainda.',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppTheme.grey500)),
           )
         else
           ...recentes.map((f) => _linhaFatura(context, f)),
@@ -241,9 +241,9 @@ class FinanceiroScreen extends ConsumerWidget {
   Widget _linhaFatura(BuildContext context, FaturaFinanceiro f) {
     final cor = switch (f.status) {
       'paga' => const Color(0xFF16A34A),
-      'cancelada' => Colors.grey,
-      'fechada' => const Color(0xFF64748B),
-      _ => const Color(0xFF92400E),
+      'cancelada' => AppTheme.grey500,
+      'fechada' => AppTheme.glassTextoMuted,
+      _ => AppTheme.fgAviso,
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -286,7 +286,7 @@ class FinanceiroScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text('Ciclo de ${l.cicloFaturamentoDias} dias',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ),
             const SizedBox(height: 8),
             if (ciclo != null) ...[
@@ -334,8 +334,8 @@ class FinanceiroScreen extends ConsumerWidget {
                 ),
               ),
             ] else
-              const Text('Sem ciclo em andamento',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Sem ciclo em andamento',
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -346,10 +346,10 @@ class FinanceiroScreen extends ConsumerWidget {
                       const Color(0xFFDC2626)),
                 if (l.contagem.fechada > 0)
                   _chipContagem('${l.contagem.fechada} fechada(s)',
-                      const Color(0xFF64748B)),
+                      AppTheme.glassTextoMuted),
                 if (l.contagem.aVencer > 0)
                   _chipContagem('${l.contagem.aVencer} a vencer',
-                      const Color(0xFF64748B)),
+                      AppTheme.glassTextoMuted),
                 if (l.contagem.paga > 0)
                   _chipContagem(
                       '${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
@@ -357,8 +357,8 @@ class FinanceiroScreen extends ConsumerWidget {
                     l.contagem.fechada == 0 &&
                     l.contagem.aVencer == 0 &&
                     l.contagem.paga == 0)
-                  const Text('Nenhuma ainda',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('Nenhuma ainda',
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
               ],
             ),
             if (l.valorEmAberto > 0)
@@ -366,7 +366,7 @@ class FinanceiroScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 4),
                 child: RichText(
                   text: TextSpan(
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: 12, color: AppTheme.glassTexto),
                     children: [
                       const TextSpan(text: 'Em aberto: '),
                       TextSpan(
@@ -407,7 +407,7 @@ class FinanceiroScreen extends ConsumerWidget {
   Widget _graficoEvolucao(List<PontoEvolucaoFinanceira> pontos) {
     const corCombustivel = Color(0xFF2563EB);
     const corManutencao = Color(0xFFEA580C);
-    const corFixos = Color(0xFF64748B);
+    final corFixos = AppTheme.glassTextoMuted;
     final maxVal = pontos
         .map((p) => [p.custoCombustivel, p.custoManutencao, p.custoFixos]
             .reduce((a, b) => a > b ? a : b))
@@ -475,7 +475,7 @@ class FinanceiroScreen extends ConsumerWidget {
               // Achado do Daniel — texto colorido em cima do fundo escuro
               // padrão do tooltip ficava ilegível. Corrigido: fundo escuro
               // explícito + texto branco, cor só na bolinha.
-              getTooltipColor: (_) => const Color(0xFF1E293B),
+              getTooltipColor: (_) => AppTheme.glassTexto,
               getTooltipItem: (group, groupIdx, rod, rodIdx) {
                 const labels = ['Combustível', 'Manutenção', 'Fixos'];
                 final cores = [corCombustivel, corManutencao, corFixos];
@@ -498,7 +498,7 @@ class FinanceiroScreen extends ConsumerWidget {
         )),
       ),
       const SizedBox(height: 8),
-      Wrap(spacing: 12, children: const [
+      Wrap(spacing: 12, children: [
         _Legenda(cor: corCombustivel, rotulo: 'Combustível'),
         _Legenda(cor: corManutencao, rotulo: 'Manutenção'),
         _Legenda(cor: corFixos, rotulo: 'Custos fixos'),
@@ -584,7 +584,7 @@ class FinanceiroScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                style: TextStyle(fontSize: 9, color: AppTheme.grey500)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(

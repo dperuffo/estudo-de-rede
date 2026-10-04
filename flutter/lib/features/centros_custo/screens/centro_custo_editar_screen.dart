@@ -110,9 +110,9 @@ class _CentroCustoEditarScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Editar Centro de Custo')),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -192,10 +192,10 @@ class _CentroCustoEditarScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (alocados.isEmpty)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(vertical: 8),
                             child: Text('Nenhum motorista alocado ainda.',
-                                style: TextStyle(color: Colors.grey)),
+                                style: TextStyle(color: AppTheme.grey500)),
                           )
                         else
                           ...alocados.map((m) => Card(

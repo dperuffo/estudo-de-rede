@@ -54,9 +54,9 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Cliente'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -119,7 +119,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('Nenhum ciclo em andamento agora.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -140,14 +140,14 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w600)),
                                 ),
-                                const Icon(Icons.chevron_right,
-                                    color: Colors.grey, size: 18),
+                                Icon(Icons.chevron_right,
+                                    color: AppTheme.grey500, size: 18),
                               ],
                             ),
                             Text(
                                 'Vencimento previsto: ${_fmtData(d.cicloAtual!.vencimentoPrevisto)}',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey.shade600)),
+                                    fontSize: 12, color: AppTheme.grey600)),
                             const SizedBox(height: 8),
                             Text(
                                 '${_numero.format(d.cicloAtual!.quantidadeAbastecimentos)} abastecimentos · '
@@ -157,8 +157,8 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                               const SizedBox(height: 4),
                               Text(
                                 '${d.cicloAtual!.quantidadePendenteNfe} sem NF-e ainda (${_moeda.format(d.cicloAtual!.valorPendenteNfe)}, fora do acumulado)',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Color(0xFF92400E)),
+                                style: TextStyle(
+                                    fontSize: 12, color: AppTheme.fgAviso),
                               ),
                             ],
                           ],
@@ -176,7 +176,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('Nenhuma fatura ainda.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -191,7 +191,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('Nenhuma negociação com este cliente.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -207,10 +207,10 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
   Widget _linhaFatura(BuildContext context, FaturaDoCliente f) {
     final statusExib = _statusFaturaExibicao(f.status, f.vencimento);
     final cor = switch (statusExib) {
-      'paga' => const Color(0xFF15803D),
-      'vencida' => const Color(0xFFB91C1C),
-      'cancelada' => Colors.grey,
-      _ => const Color(0xFF92400E),
+      'paga' => AppTheme.fgOk,
+      'vencida' => AppTheme.fgErro,
+      'cancelada' => AppTheme.grey500,
+      _ => AppTheme.fgAviso,
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -230,7 +230,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                             fontWeight: FontWeight.w600, fontSize: 13)),
                     Text('Vencimento: ${_fmtData(f.vencimento)}',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
+                            fontSize: 12, color: AppTheme.grey600)),
                   ],
                 ),
               ),
@@ -247,7 +247,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+              Icon(Icons.chevron_right, color: AppTheme.grey500, size: 18),
             ],
           ),
         ),
@@ -274,7 +274,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                         Text(
                             '${_fmtData(n.vigenciaInicio)} — ${_fmtData(n.vigenciaFim)}',
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600)),
+                                fontSize: 12, color: AppTheme.grey600)),
                     ],
                   ),
                 ),
@@ -282,13 +282,13 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: AppTheme.grey100,
                       borderRadius: BorderRadius.circular(12)),
                   child: Text(statusNegociacaoLabel[n.status] ?? n.status,
                       style: const TextStyle(fontSize: 11)),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                Icon(Icons.chevron_right, color: AppTheme.grey500, size: 18),
               ],
             ),
           ),

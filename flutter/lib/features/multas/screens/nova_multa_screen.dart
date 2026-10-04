@@ -146,9 +146,9 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Nova Multa')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -159,11 +159,11 @@ class _NovaMultaScreenState extends ConsumerState<NovaMultaScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppTheme.tintErro,
                   borderRadius: BorderRadius.circular(8)),
               child: Text(_erro!,
                   style:
-                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                      TextStyle(color: AppTheme.fgErro, fontSize: 12)),
             ),
           veiculosAsync.when(
             data: (lista) => DropdownButtonFormField<String>(

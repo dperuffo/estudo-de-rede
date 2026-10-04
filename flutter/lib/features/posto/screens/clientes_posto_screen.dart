@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/clientes_posto_provider.dart';
 import '../providers/negociacoes_provider.dart' show statusNegociacaoLabel;
+import '../../../core/theme/app_theme.dart';
 
 // Fase FLT-2 — "Clientes" da visão Posto: transportadoras que já
 // negociaram com este posto (qualquer status), porta de
@@ -34,9 +35,9 @@ class ClientesPostoScreen extends ConsumerWidget {
             const Text('Clientes',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
                 'Transportadoras que já negociaram com este posto (qualquer status).',
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
             const SizedBox(height: 16),
             if (clientes.isEmpty)
               Card(
@@ -44,7 +45,7 @@ class ClientesPostoScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(24),
                   child: Center(
                     child: Text('Nenhum cliente negociou com este posto ainda.',
-                        style: TextStyle(color: Colors.grey.shade600)),
+                        style: TextStyle(color: AppTheme.grey600)),
                   ),
                 ),
               )
@@ -72,17 +73,17 @@ class ClientesPostoScreen extends ConsumerWidget {
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 15)),
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
+                    Icon(Icons.chevron_right, color: AppTheme.grey500),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(formatarCnpj(c.cnpj),
                     style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        TextStyle(fontSize: 12, color: AppTheme.grey600)),
                 if (c.municipio != null)
                   Text('${c.municipio}/${c.uf ?? ''}',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          TextStyle(fontSize: 12, color: AppTheme.grey600)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -90,7 +91,7 @@ class ClientesPostoScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: AppTheme.grey100,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -103,7 +104,7 @@ class ClientesPostoScreen extends ConsumerWidget {
                     const SizedBox(width: 6),
                     Text('(${c.negociacoesCount})',
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500)),
+                            fontSize: 11, color: AppTheme.grey500)),
                   ],
                 ),
               ],

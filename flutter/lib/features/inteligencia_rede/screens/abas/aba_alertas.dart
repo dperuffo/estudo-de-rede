@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../providers/inteligencia_rede_provider.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../widgets/inteligencia_shared.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // Aba 2/10 — "⚠️ Alertas de Preço". Porta GraficoAlertasPorEstado.tsx +
 // tabelas de resumo por estado e top 20 desvios.
@@ -11,7 +12,7 @@ class AbaAlertas extends StatelessWidget {
   const AbaAlertas({super.key, required this.dados});
 
   static Color _corPorDesvio(double desvio) {
-    if (desvio > 10) return const Color(0xFFB71C1C);
+    if (desvio > 10) return AppTheme.fgErro;
     if (desvio > 7) return const Color(0xFFE53935);
     return const Color(0xFFEF9A9A);
   }
@@ -34,7 +35,7 @@ class AbaAlertas extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Postos GF com preço mais de 5% acima da referência ANP (município → estado → Brasil).',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               ),
               const SizedBox(height: 12),
               GridView.count(
@@ -70,7 +71,7 @@ class AbaAlertas extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade600)),
+                        color: AppTheme.grey600)),
                 const SizedBox(height: 8),
                 BarraHorizontal(
                   dados: d.alertasPorEstado
@@ -87,7 +88,7 @@ class AbaAlertas extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade600)),
+                        color: AppTheme.grey600)),
                 const SizedBox(height: 8),
                 TabelaSimples(
                   colunas: const ['Estado', 'Postos', 'Pior Desvio'],
@@ -100,17 +101,17 @@ class AbaAlertas extends StatelessWidget {
                       .toList(),
                 ),
               ] else
-                const Padding(
+                Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text('Nenhum posto em alerta no momento.',
-                        style: TextStyle(color: Colors.grey))),
+                        style: TextStyle(color: AppTheme.grey500))),
               if (top20.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text('Top 20 Postos com Maior Desvio',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade600)),
+                        color: AppTheme.grey600)),
                 const SizedBox(height: 8),
                 TabelaSimples(
                   colunas: const [

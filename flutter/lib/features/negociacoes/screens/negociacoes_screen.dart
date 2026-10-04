@@ -57,9 +57,9 @@ class _NegociacoesClienteScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Negociação com Postos')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/negociacoes/novo'),
@@ -98,9 +98,9 @@ class _NegociacoesClienteScreenState
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
               children: [
-                const Text(
+                Text(
                   'Vigência, combustível, volume mínimo e preço por litro negociados com os postos parceiros.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: AppTheme.grey500, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
@@ -138,7 +138,7 @@ class _NegociacoesClienteScreenState
                       padding: const EdgeInsets.all(24),
                       child: Center(
                         child: Text('Nenhuma negociação encontrada.',
-                            style: TextStyle(color: Colors.grey.shade600)),
+                            style: TextStyle(color: AppTheme.grey600)),
                       ),
                     ),
                   )
@@ -177,7 +177,7 @@ class _NegociacoesClienteScreenState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),

@@ -156,9 +156,9 @@ class GerarFaturaFreteScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Gerar Fatura de Frete')),
       body: async.when(
         data: (tomadores) {
@@ -172,7 +172,7 @@ class GerarFaturaFreteScreen extends ConsumerWidget {
                     child: Center(
                       child: Text(
                           'Nenhum CT-e autorizado pendente de faturamento no momento.',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: AppTheme.grey600),
                           textAlign: TextAlign.center),
                     ),
                   ),
@@ -185,7 +185,7 @@ class GerarFaturaFreteScreen extends ConsumerWidget {
             children: [
               Text(
                   'CT-es autorizados ainda não incluídos em nenhuma fatura, agrupados por tomador.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                  style: TextStyle(color: AppTheme.grey600, fontSize: 12)),
               const SizedBox(height: 12),
               ...tomadores.map((t) => Card(
                     margin: const EdgeInsets.only(bottom: 8),

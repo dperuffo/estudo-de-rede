@@ -63,16 +63,16 @@ class _ClientesAdminListaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Clientes (todos)')),
       body: !ehAdmin ? _acessoRestrito() : _conteudo(),
     );
   }
 
   Widget _acessoRestrito() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.all(16),
       child: Card(
         child: Padding(
@@ -85,7 +85,7 @@ class _ClientesAdminListaScreenState
               SizedBox(height: 8),
               Text(
                   'Esta tela é exclusiva do time interno (perfil administrador).',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  style: TextStyle(fontSize: 13, color: AppTheme.grey500)),
             ],
           ),
         ),
@@ -100,10 +100,10 @@ class _ClientesAdminListaScreenState
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Visão consolidada de toda a plataforma — todos os clientes de frota, independente da empresa '
           'selecionada no momento.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         kpis.when(
@@ -137,11 +137,11 @@ class _ClientesAdminListaScreenState
         listaAsync.when(
           data: (lista) {
             if (lista.isEmpty) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                     child: Text('Nenhum cliente encontrado.',
-                        style: TextStyle(color: Colors.grey))),
+                        style: TextStyle(color: AppTheme.grey500))),
               );
             }
             return Column(children: lista.map(_cardCliente).toList());
@@ -161,7 +161,7 @@ class _ClientesAdminListaScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 10, color: AppTheme.grey600)),
             const SizedBox(height: 4),
             Text(valor,
                 style:
@@ -174,9 +174,9 @@ class _ClientesAdminListaScreenState
 
   Widget _cardCliente(ClienteCadastro c) {
     final corStatus = switch (c.status) {
-      'ativo' || 'trial' => const Color(0xFF15803D),
-      'suspenso' => const Color(0xFFB45309),
-      _ => const Color(0xFF64748B),
+      'ativo' || 'trial' => AppTheme.fgOk,
+      'suspenso' => AppTheme.fgAviso,
+      _ => AppTheme.glassTextoMuted,
     };
     final alternando = _alternando.contains(c.id);
     return Card(
@@ -198,7 +198,7 @@ class _ClientesAdminListaScreenState
                               fontWeight: FontWeight.w700, fontSize: 13)),
                       Text(_formatarCnpj(c.cnpj),
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
+                              fontSize: 11, color: AppTheme.grey600)),
                     ],
                   ),
                 ),
@@ -230,7 +230,7 @@ class _ClientesAdminListaScreenState
                 style: OutlinedButton.styleFrom(
                   foregroundColor: c.status == 'ativo'
                       ? Colors.red
-                      : const Color(0xFF15803D),
+                      : AppTheme.fgOk,
                 ),
                 child: Text(alternando
                     ? 'Aguarde...'

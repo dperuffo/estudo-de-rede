@@ -36,9 +36,9 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Postos Revendedores')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/postos/buscar'),
@@ -56,8 +56,8 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Nenhum posto na sua rede ainda.',
-                        style: TextStyle(color: Colors.grey)),
+                    Text('Nenhum posto na sua rede ainda.',
+                        style: TextStyle(color: AppTheme.grey500)),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () => context.push('/postos/buscar'),
@@ -126,7 +126,7 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('Nenhum posto encontrado com esse filtro.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -166,7 +166,7 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
           ].where((v) => v.isNotEmpty).join(' · '),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -198,7 +198,7 @@ class _PostosScreenState extends ConsumerState<PostosScreen> {
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
       ),

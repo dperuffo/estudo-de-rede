@@ -15,6 +15,7 @@ import '../../parametros_uso/providers/parametros_uso_provider.dart'
     show parametroPrePedidoProvider;
 import '../providers/planos_viagem_provider.dart';
 import '../services/planos_viagem_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 final _moedaForm = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -399,10 +400,10 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(_erro!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
           const SizedBox(height: 12),
         ],
@@ -411,13 +412,13 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: AppTheme.tintInfo,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(
               'Veículo, combustível${widget.prefill!.pedagios.isNotEmpty ? " e pedágios" : ""} preenchidos a '
               'partir da rota calculada na Roteirização. Revise e ajuste o que precisar antes de salvar.'
               '${_mensagemPrePedido(prePedidoHabilitadoAsync)}',
-              style: const TextStyle(color: Color(0xFF1E40AF), fontSize: 12),
+              style: TextStyle(color: AppTheme.fgInfo, fontSize: 12),
             ),
           ),
           const SizedBox(height: 12),
@@ -603,9 +604,9 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: AppTheme.grey50,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200)),
+              border: Border.all(color: AppTheme.grey200)),
           child: Row(
             children: [
               Expanded(
@@ -616,7 +617,7 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Colors.grey.shade500)),
+                            color: AppTheme.grey500)),
                     const SizedBox(height: 4),
                     Text(
                       _combustivelRealValor != null
@@ -627,8 +628,8 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                       style: TextStyle(
                           fontSize: 12,
                           color: _combustivelRealValor != null
-                              ? Colors.black87
-                              : Colors.grey.shade400),
+                              ? AppTheme.glassTexto
+                              : AppTheme.grey400),
                     ),
                   ],
                 ),
@@ -763,14 +764,14 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         _campoCalculado('Margem estimada (receita − custo estimado)',
             _moedaForm.format(_margemEstimada),
             cor: _margemEstimada >= 0
-                ? const Color(0xFF15803D)
+                ? AppTheme.fgOk
                 : const Color(0xFFDC2626)),
         if (_margemReal != null) ...[
           const SizedBox(height: 8),
           _campoCalculado('Margem real (receita − custo real)',
               _moedaForm.format(_margemReal),
               cor: _margemReal! >= 0
-                  ? const Color(0xFF15803D)
+                  ? AppTheme.fgOk
                   : const Color(0xFFDC2626)),
         ],
         const SizedBox(height: 20),
@@ -836,20 +837,20 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200)),
+          border: Border.all(color: AppTheme.grey200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+              style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
           const SizedBox(height: 2),
           Text(valor,
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: cor ?? Colors.black87)),
+                  color: cor ?? AppTheme.glassTexto)),
         ],
       ),
     );
@@ -875,11 +876,11 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         ),
         const SizedBox(height: 8),
         if (_pedagios.isEmpty)
-          const Text(
+          Text(
               'Nenhuma praça de pedágio adicionada. Toque em "+ Praça" para adicionar.',
               style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey,
+                  color: AppTheme.grey500,
                   fontStyle: FontStyle.italic))
         else
           ..._pedagios.asMap().entries.map((e) => Padding(
@@ -932,7 +933,7 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
                       Container(
                         margin: const EdgeInsets.only(top: 4),
                         decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: AppTheme.grey300),
                             borderRadius: BorderRadius.circular(6)),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

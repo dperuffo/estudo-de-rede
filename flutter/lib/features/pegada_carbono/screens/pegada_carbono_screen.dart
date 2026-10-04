@@ -59,20 +59,20 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Pegada de Carbono')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(pegadaCarbonoProvider(_periodo)),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
-            const Text(
+            Text(
               'Estimativa de CO2 emitido pela frota, calculada a partir dos litros já registrados nos '
               'abastecimentos. Indicador indicativo pra acompanhamento interno/ESG — não substitui um '
               'inventário de emissões certificado.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 12),
             Row(
@@ -132,7 +132,7 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                           '🌳 ${_numero0.format(arvores)} árvores/ano'),
                     const SizedBox(height: 12),
                     Card(
-                      color: const Color(0xFFF8FAFC),
+                      color: AppTheme.superficieAlt,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(
@@ -141,18 +141,18 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                           'kg de CO2 absorvidos por árvore adulta por ano — só pra dar noção de tamanho, não é um '
                           'fator científico exato.',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade700),
+                              fontSize: 11, color: AppTheme.grey700),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     if (itens.isEmpty)
-                      const Card(
+                      Card(
                         child: Padding(
                           padding: EdgeInsets.all(16),
                           child: Text(
                               'Nenhum abastecimento encontrado neste período.',
-                              style: TextStyle(color: Colors.grey)),
+                              style: TextStyle(color: AppTheme.grey500)),
                         ),
                       )
                     else
@@ -164,7 +164,7 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
                           '${semFator.map((i) => _labelCategoria[i.categoria] ?? i.categoria).join(", ")} sem '
                           'fator de emissão cadastrado — não entrou no total.',
                           style:
-                              const TextStyle(fontSize: 11, color: Colors.grey),
+                              TextStyle(fontSize: 11, color: AppTheme.grey500),
                         ),
                       ),
                   ],
@@ -185,8 +185,8 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 10, color: Colors.grey, letterSpacing: 0.3)),
+                style: TextStyle(
+                    fontSize: 10, color: AppTheme.grey500, letterSpacing: 0.3)),
             const SizedBox(height: 4),
             Text(valor,
                 style:
@@ -215,7 +215,7 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
             Expanded(
               flex: 2,
               child: Text('${_numero0.format(i.litrosTotal)} L',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   textAlign: TextAlign.right),
             ),
             Expanded(
@@ -233,7 +233,7 @@ class _PegadaCarbonoScreenState extends ConsumerState<PegadaCarbonoScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 6),
                 child: Text('${pct.toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ),
           ],
         ),

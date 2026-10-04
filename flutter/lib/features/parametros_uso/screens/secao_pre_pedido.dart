@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Pré-Pedido (28/07/2026) — porta de SecaoPrePedido.tsx: diferente dos
 // outros 9 tipos de Parâmetros de Uso (listas de regras), é um único
@@ -68,12 +69,12 @@ class _SecaoPrePedidoState extends ConsumerState<SecaoPrePedido> {
       data: (habilitado) => ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
         children: [
-          const Text(
+          Text(
             'Quando habilitado, presume-se que uma rota inteligente foi traçada e um Plano de Viagem criado a '
             'partir dela. Esse Plano gera um Pré-Pedido — com número sequencial e os pontos de abastecimento '
             'pré-agendados — e o abastecimento passa a ser restringido: só é autorizado em um posto que conste '
             'como parada pré-agendada daquela placa.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
           ),
           const SizedBox(height: 16),
           Card(

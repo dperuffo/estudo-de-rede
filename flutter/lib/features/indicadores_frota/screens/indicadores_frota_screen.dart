@@ -66,9 +66,9 @@ class _IndicadoresFrotaScreenState
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Indicadores da Frota')),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -78,10 +78,10 @@ class _IndicadoresFrotaScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Os principais KPIs de gestão de frota, calculados a partir dos dados já cadastrados. Filtre por '
               'veículo, tipo ou modelo, ou compare a frota inteira na tabela abaixo.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 16),
             Row(
@@ -229,7 +229,7 @@ class _IndicadoresFrotaScreenState
           Text(contexto,
               style: TextStyle(
                   fontSize: 11,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _kpisView(kpis, veiculoSelecionado),
@@ -239,19 +239,19 @@ class _IndicadoresFrotaScreenState
           Text('Erro ao carregar: ${kpisAsync.error}',
               style: const TextStyle(color: Colors.red, fontSize: 12))
         else
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
                 child: Text('Nenhum dado encontrado para esse período.',
-                    style: TextStyle(color: Colors.grey))),
+                    style: TextStyle(color: AppTheme.grey500))),
           ),
         const SizedBox(height: 24),
         Text('Comparação entre veículos',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 4),
-        const Text(
+        Text(
             'Toque numa placa pra ver os indicadores só dela acima, ou num cabeçalho pra ordenar.',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
+            style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
         const SizedBox(height: 8),
         _tabelaComparacao(filtrados),
       ],
@@ -318,13 +318,13 @@ class _IndicadoresFrotaScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: AppTheme.tintAviso,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFDE68A))),
+                border: Border.all(color: AppTheme.tintAviso)),
             child: Text(
               '⚠️ ${_moeda.format(k.manutencaoNaoClassificadaCusto)} em manutenções deste período ainda não foram '
               'classificadas como Preventiva ou Corretiva. Classifique as novas manutenções em Manutenção Preditiva.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+              style: TextStyle(fontSize: 12, color: AppTheme.fgAviso),
             ),
           ),
           const SizedBox(height: 4),
@@ -340,13 +340,13 @@ class _IndicadoresFrotaScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: AppTheme.grey50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200)),
-            child: const Text(
+                border: Border.all(color: AppTheme.grey200)),
+            child: Text(
               'Nenhuma inspeção registrada neste período — a conformidade e o TMRNC aparecem assim que a primeira '
               'inspeção for feita em Checklist de Inspeção.',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
             ),
           ),
         ],
@@ -358,10 +358,10 @@ class _IndicadoresFrotaScreenState
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: destaque ? const Color(0xFFFFFBEB) : Colors.grey.shade50,
+        color: destaque ? AppTheme.tintAviso : AppTheme.grey50,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: destaque ? const Color(0xFFFDE68A) : Colors.grey.shade200),
+            color: destaque ? AppTheme.tintAviso : AppTheme.grey200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +370,7 @@ class _IndicadoresFrotaScreenState
           Text(label,
               style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(
@@ -378,7 +378,7 @@ class _IndicadoresFrotaScreenState
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: destaque ? const Color(0xFF92400E) : Colors.black87),
+                color: destaque ? AppTheme.fgAviso : AppTheme.glassTexto),
           ),
         ],
       ),
@@ -387,11 +387,11 @@ class _IndicadoresFrotaScreenState
 
   Widget _tabelaComparacao(List<VeiculoKpi> veiculos) {
     if (veiculos.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
             child: Text('Nenhum veículo encontrado para esse filtro.',
-                style: TextStyle(color: Colors.grey))),
+                style: TextStyle(color: AppTheme.grey500))),
       );
     }
 

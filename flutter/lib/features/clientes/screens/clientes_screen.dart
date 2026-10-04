@@ -26,9 +26,9 @@ class ClientesScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Clientes')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -44,15 +44,15 @@ class ClientesScreen extends ConsumerWidget {
 
   Widget _buildConteudo(ClienteCadastro c) {
     final corStatus = switch (c.status) {
-      'ativo' || 'trial' => const Color(0xFF15803D),
-      'suspenso' => const Color(0xFFB45309),
-      _ => const Color(0xFF64748B),
+      'ativo' || 'trial' => AppTheme.fgOk,
+      'suspenso' => AppTheme.fgAviso,
+      _ => AppTheme.glassTextoMuted,
     };
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Cadastro da sua empresa na plataforma.',
-            style: TextStyle(color: Colors.grey, fontSize: 13)),
+        Text('Cadastro da sua empresa na plataforma.',
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -101,7 +101,7 @@ class ClientesScreen extends ConsumerWidget {
         const SizedBox(height: 12),
         Text(
           'Pra atualizar telefone/e-mail de contato ou outros dados cadastrais, abra um chamado em Gestão de Chamados.',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey600),
         ),
       ],
     );
@@ -116,7 +116,7 @@ class ClientesScreen extends ConsumerWidget {
           SizedBox(
               width: 150,
               child: Text(label,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500))),
           Expanded(
               child: Text((valor == null || valor.isEmpty) ? '—' : valor,
                   style: const TextStyle(fontSize: 13))),

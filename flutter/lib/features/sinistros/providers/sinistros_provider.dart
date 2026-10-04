@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Indicadores-da-Frota C (30/07/2026) — registro de sinistros/
 // acidentes (cliente), porta de sinistros/page.tsx + nova/page.tsx +
@@ -11,10 +12,10 @@ import '../../../core/services/supabase_service.dart';
 const tiposSinistro = ['Colisão', 'Furto/Roubo', 'Incêndio', 'Avaria', 'Outro'];
 const gravidadesSinistro = ['Leve', 'Moderada', 'Grave'];
 
-const gravidadeSinistroCor = {
-  'Leve': (fundo: Color(0xFFDCFCE7), texto: Color(0xFF166534)),
-  'Moderada': (fundo: Color(0xFFFFFBEB), texto: Color(0xFF92400E)),
-  'Grave': (fundo: Color(0xFFFEE2E2), texto: Color(0xFF991B1B)),
+get gravidadeSinistroCor => {
+  'Leve': (fundo: AppTheme.tintOk, texto: AppTheme.fgOk),
+  'Moderada': (fundo: AppTheme.tintAviso, texto: AppTheme.fgAviso),
+  'Grave': (fundo: AppTheme.tintErro, texto: AppTheme.fgErro),
 };
 
 class Sinistro {

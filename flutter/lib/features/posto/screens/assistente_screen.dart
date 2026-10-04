@@ -105,9 +105,9 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Assistente FNI')),
       body: Column(
         children: [
@@ -137,10 +137,10 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Pergunte sobre abastecimentos, custos, veículos, motoristas, manutenção ou '
             'centros de custo da sua operação. Exemplos:',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -149,7 +149,7 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
             children: _perguntasSugeridas
                 .map((s) => ActionChip(
                       label: Text(s, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: const Color(0xFFF8FAFC),
+                      backgroundColor: AppTheme.superficieAlt,
                       onPressed: () => _enviar(s),
                     ))
                 .toList(),
@@ -163,10 +163,10 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
     final ehUsuario = m.role == 'user';
     final cor = ehUsuario
         ? AppTheme.glassTextoAtivo
-        : (m.erro ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
+        : (m.erro ? AppTheme.tintErro : AppTheme.superficieAlt);
     final corTexto = ehUsuario
         ? Colors.white
-        : (m.erro ? const Color(0xFFB91C1C) : const Color(0xFF1E293B));
+        : (m.erro ? AppTheme.fgErro : AppTheme.glassTexto);
 
     return Align(
       alignment: ehUsuario ? Alignment.centerRight : Alignment.centerLeft,
@@ -223,10 +223,10 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
+            color: AppTheme.superficieAlt,
             borderRadius: BorderRadius.circular(16)),
-        child: const Text('Consultando os dados da sua operação…',
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+        child: Text('Consultando os dados da sua operação…',
+            style: TextStyle(color: AppTheme.glassTextoMuted, fontSize: 13)),
       ),
     );
   }

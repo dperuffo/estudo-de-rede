@@ -114,9 +114,9 @@ class _ClienteCrmDetalheScreenState
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: const Text('Cliente'),
         actions: [
           IconButton(
@@ -150,16 +150,16 @@ class _ClienteCrmDetalheScreenState
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(_erro!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         Text(c.razaoSocial,
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 2),
         Text(_fmtCnpjCpf(c.cnpjCpf),
-            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -191,11 +191,11 @@ class _ClienteCrmDetalheScreenState
                           ],
                         ),
                         if (lista.isEmpty)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 10),
                             child: Text('Nenhuma proposta ainda.',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
+                                    fontSize: 12, color: AppTheme.grey500)),
                           )
                         else ...[
                           const SizedBox(height: 10),
@@ -242,8 +242,8 @@ class _ClienteCrmDetalheScreenState
                 interacoesAsync.when(
                   data: (lista) {
                     if (lista.isEmpty) {
-                      return const Text('Nenhuma interação registrada ainda.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey));
+                      return Text('Nenhuma interação registrada ainda.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.grey500));
                     }
                     return Column(
                         children: lista.map(_linhaInteracao).toList());
@@ -272,14 +272,14 @@ class _ClienteCrmDetalheScreenState
               style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   letterSpacing: 0.4)),
           const SizedBox(height: 2),
           Text(valor,
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: destaque ? const Color(0xFF166534) : Colors.black87)),
+                  color: destaque ? AppTheme.fgOk : AppTheme.glassTexto)),
         ],
       ),
     );
@@ -287,15 +287,15 @@ class _ClienteCrmDetalheScreenState
 
   Widget _linhaCotacao(CotacaoResumo cot) {
     final cor = cot.status == 'convertida'
-        ? const Color(0xFF166534)
+        ? AppTheme.fgOk
         : cot.status == 'descartada'
-            ? Colors.grey.shade600
+            ? AppTheme.grey600
             : Colors.blue.shade700;
     final fundo = cot.status == 'convertida'
-        ? const Color(0xFFDCFCE7)
+        ? AppTheme.tintOk
         : cot.status == 'descartada'
-            ? Colors.grey.shade200
-            : const Color(0xFFDBEAFE);
+            ? AppTheme.grey200
+            : AppTheme.tintInfo;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -309,7 +309,7 @@ class _ClienteCrmDetalheScreenState
                     style: const TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w600)),
                 Text('${_fmtMoeda(cot.valorTotal)} · ${_fmtData(cot.criadoEm)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               ],
             ),
           ),
@@ -331,7 +331,7 @@ class _ClienteCrmDetalheScreenState
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: AppTheme.grey300),
           borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,7 +343,7 @@ class _ClienteCrmDetalheScreenState
                   style: const TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 12)),
               Text(_fmtDataHora(i.criadoEm),
-                  style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
             ],
           ),
           const SizedBox(height: 4),
@@ -359,7 +359,7 @@ class _ClienteCrmDetalheScreenState
                     if (i.proximaAcaoData != null)
                       'Próxima ação: ${_fmtData(i.proximaAcaoData!)}',
                   ].join(' · '),
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 10, color: AppTheme.grey500),
                 ),
               ),
               TextButton(
@@ -441,7 +441,7 @@ class _FormInteracaoState extends State<_FormInteracao> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(_erroLocal!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         DropdownButtonFormField<String>(
           value: _tipo,

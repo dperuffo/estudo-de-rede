@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../providers/fretes_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Fretes-Dados-Completos — pedido do Daniel: "cliente precisa de
 // algumas garantias de que o motorista é idôneo". Consolida sinais que já
@@ -17,10 +18,10 @@ class ChipsReputacaoMotorista extends StatelessWidget {
     Widget chip(String texto, {Color? cor}) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-              color: (cor ?? Colors.grey).withValues(alpha: 0.12),
+              color: (cor ?? AppTheme.grey500).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12)),
           child: Text(texto,
-              style: TextStyle(fontSize: 10.5, color: cor ?? Colors.black54)),
+              style: TextStyle(fontSize: 10.5, color: cor ?? AppTheme.glassTextoMuted)),
         );
 
     return Wrap(

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/utils/responsive.dart';
 import '../services/abastecimentos_posto_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -139,8 +140,8 @@ class _AbastecimentosPostoScreenState
               const Text('Abastecimentos Fornecidos',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              const Text('Combustível que você forneceu aos seus clientes.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+              Text('Combustível que você forneceu aos seus clientes.',
+                  style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
               const SizedBox(height: 16),
               GridView.count(
                 // Fase Auditoria-UX-Responsividade (08/09/2026) — 4 cartões
@@ -266,7 +267,7 @@ class _AbastecimentosPostoScreenState
                     padding: const EdgeInsets.all(24),
                     child: Center(
                       child: Text('Nenhum abastecimento fornecido encontrado.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   ),
                 )
@@ -277,7 +278,7 @@ class _AbastecimentosPostoScreenState
                 Text(
                   'Mostrando os ${dados.registros.length} mais recentes de ${_numero.format(dados.total)}. '
                   'Use os filtros pra refinar — a paginação completa ainda não existe nesta versão do app.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey600),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -326,7 +327,7 @@ class _AbastecimentosPostoScreenState
                   Expanded(
                     child: Text(
                       r.codigoAbastecimento ?? '—',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                     ),
                   ),
                   _badgeProvedor(r.provedor),
@@ -338,7 +339,7 @@ class _AbastecimentosPostoScreenState
               Text(nomeCliente ?? '—', style: const TextStyle(fontSize: 13)),
               Text(
                 '${r.placa ?? '—'} · ${r.motoristaNome ?? '—'}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey600),
               ),
               const SizedBox(height: 6),
               Text(
@@ -347,18 +348,18 @@ class _AbastecimentosPostoScreenState
               if (temNota)
                 _badgeTexto(
                     'Emitida${numeroNf != null ? ' · Nº $numeroNf' : ''}',
-                    const Color(0xFFDCFCE7),
-                    const Color(0xFF15803D))
+                    AppTheme.tintOk,
+                    AppTheme.fgOk)
               else if (motivoPendencia != null) ...[
-                _badgeTexto('Rejeitada', const Color(0xFFFEE2E2),
-                    const Color(0xFFB91C1C)),
+                _badgeTexto('Rejeitada', AppTheme.tintErro,
+                    AppTheme.fgErro),
                 const SizedBox(height: 4),
                 Text(motivoPendencia,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFFB91C1C))),
+                    style: TextStyle(
+                        fontSize: 12, color: AppTheme.fgErro)),
               ] else
-                _badgeTexto('Pendente', const Color(0xFFFEF3C7),
-                    const Color(0xFF92400E)),
+                _badgeTexto('Pendente', AppTheme.tintAviso,
+                    AppTheme.fgAviso),
             ],
           ),
         ),
@@ -371,7 +372,7 @@ class _AbastecimentosPostoScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: cor != null ? Color(cor) : Colors.grey.shade200,
+        color: cor != null ? Color(cor) : AppTheme.grey200,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(nomeProvedor(provedor), style: const TextStyle(fontSize: 11)),
@@ -395,7 +396,7 @@ class _AbastecimentosPostoScreenState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),

@@ -114,9 +114,9 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Detalhe da Multa')),
       body: multaAsync.when(
         data: (m) {
@@ -152,10 +152,10 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: AppTheme.tintErro,
                 borderRadius: BorderRadius.circular(8)),
             child: Text(_erro!,
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(color: AppTheme.fgErro, fontSize: 12)),
           ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,14 +171,14 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                   color:
-                      statusMultaCorFundo[m.status] ?? const Color(0xFFF1F5F9),
+                      statusMultaCorFundo[m.status] ?? AppTheme.superficieAlt,
                   borderRadius: BorderRadius.circular(12)),
               child: Text(statusMultaLabel[m.status] ?? m.status,
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: statusMultaCorTexto[m.status] ??
-                          Colors.grey.shade700)),
+                          AppTheme.grey700)),
             ),
           ],
         ),
@@ -211,8 +211,8 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
                 if (m.anexoPath != null) ...[
                   const SizedBox(height: 8),
                   if (_carregandoAnexo)
-                    const Text('Carregando anexo...',
-                        style: TextStyle(fontSize: 12, color: Colors.grey))
+                    Text('Carregando anexo...',
+                        style: TextStyle(fontSize: 12, color: AppTheme.grey500))
                   else if (_anexoUrl != null)
                     InkWell(
                       onTap: () => showDialog(
@@ -311,8 +311,8 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             'Indicado em ${_fmtData(m.indicadoEm)}${m.indicadoPor != null ? ' por ${m.indicadoPor}' : ''}',
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.grey500),
                           ),
                         ),
                     ],
@@ -351,9 +351,9 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
                 historicoAsync.when(
                   data: (lista) {
                     if (lista.isEmpty) {
-                      return const Text(
+                      return Text(
                           'Nenhuma outra multa registrada para esse veículo.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey));
+                          style: TextStyle(fontSize: 12, color: AppTheme.grey500));
                     }
                     return Column(
                       children: lista
@@ -408,7 +408,7 @@ class _MultaDetalheScreenState extends ConsumerState<MultaDetalheScreen> {
               style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   letterSpacing: 0.4)),
           const SizedBox(height: 2),
           Text(valor, style: const TextStyle(fontSize: 13)),
@@ -448,11 +448,11 @@ class _FormIndicarCondutorState extends State<_FormIndicarCondutor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.sugeridoId != null)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 8),
             child: Text(
               'Sugestão pré-selecionada com base no vínculo Motorista ↔ Veículo ativo na data da infração.',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
             ),
           ),
         DropdownButtonFormField<String>(

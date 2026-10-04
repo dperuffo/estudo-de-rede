@@ -26,9 +26,9 @@ class CentrosCustoScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Centros de Custo')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/centros-custo/novo'),
@@ -40,11 +40,11 @@ class CentrosCustoScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
         data: (centros) {
           if (centros.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Nenhum centro de custo cadastrado ainda.',
-                    style: TextStyle(color: Colors.grey)),
+                    style: TextStyle(color: AppTheme.grey500)),
               ),
             );
           }
@@ -105,12 +105,12 @@ class CentrosCustoScreen extends ConsumerWidget {
               c.responsavel!,
             '${c.veiculosAlocados} veículo(s) alocado(s)',
           ].join(' · '),
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: (c.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B))
+            color: (c.ativo ? const Color(0xFF16A34A) : AppTheme.glassTextoMuted)
                 .withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -119,7 +119,7 @@ class CentrosCustoScreen extends ConsumerWidget {
                   fontSize: 11,
                   color: c.ativo
                       ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                      : AppTheme.glassTextoMuted,
                   fontWeight: FontWeight.w600)),
         ),
       ),
@@ -137,7 +137,7 @@ class CentrosCustoScreen extends ConsumerWidget {
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
       ),

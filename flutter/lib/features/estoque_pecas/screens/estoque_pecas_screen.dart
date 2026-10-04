@@ -39,9 +39,9 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Estoque de Peças')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/estoque-pecas/nova'),
@@ -77,9 +77,9 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
+                        Text(
                           'Catálogo de peças da Manutenção, com saldo e custo médio calculados a partir das entradas e saídas registradas.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -106,11 +106,11 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
                         ),
                         const SizedBox(height: 16),
                         if (filtradas.isEmpty)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(bottom: 24),
                             child: Center(
                                 child: Text('Nenhuma peça cadastrada ainda.',
-                                    style: TextStyle(color: Colors.grey))),
+                                    style: TextStyle(color: AppTheme.grey500))),
                           ),
                       ],
                     ),
@@ -141,10 +141,10 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: destaque ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
+          color: destaque ? AppTheme.tintErro : AppTheme.grey50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: destaque ? const Color(0xFFFECACA) : Colors.grey.shade200),
+              color: destaque ? AppTheme.tintErro : AppTheme.grey200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,14 +152,14 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(valor,
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: destaque ? const Color(0xFFB91C1C) : Colors.black87),
+                    color: destaque ? AppTheme.fgErro : AppTheme.glassTexto),
                 overflow: TextOverflow.ellipsis),
           ],
         ),
@@ -188,7 +188,7 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
             ),
             if (p.codigo != null)
               Text(p.codigo!,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
         ),
         subtitle: Padding(
@@ -201,21 +201,21 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
                 style: TextStyle(
                     fontSize: 12,
                     color: p.abaixoDoMinimo
-                        ? const Color(0xFFB91C1C)
-                        : Colors.black87,
+                        ? AppTheme.fgErro
+                        : AppTheme.glassTexto,
                     fontWeight:
                         p.abaixoDoMinimo ? FontWeight.w700 : FontWeight.normal),
               ),
               const SizedBox(height: 2),
               Text('Custo médio: ${_fmtMoeda(p.custoUnitarioMedio)}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: p.abaixoDoMinimo
-                      ? const Color(0xFFFEE2E2)
-                      : const Color(0xFFDCFCE7),
+                      ? AppTheme.tintErro
+                      : AppTheme.tintOk,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -224,8 +224,8 @@ class _EstoquePecasScreenState extends ConsumerState<EstoquePecasScreen> {
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: p.abaixoDoMinimo
-                          ? const Color(0xFF991B1B)
-                          : const Color(0xFF166534)),
+                          ? AppTheme.fgErro
+                          : AppTheme.fgOk),
                 ),
               ),
             ],

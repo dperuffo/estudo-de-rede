@@ -146,9 +146,9 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Novo Veículo')),
       body: Responsive.formularioCentralizado(
         context,
@@ -163,11 +163,11 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: AppTheme.tintErro,
                     borderRadius: BorderRadius.circular(8)),
                 child: Text(_erro!,
-                    style: const TextStyle(
-                        color: Color(0xFFB91C1C), fontSize: 13)),
+                    style: TextStyle(
+                        color: AppTheme.fgErro, fontSize: 13)),
               ),
               const SizedBox(height: 12),
             ],
@@ -344,12 +344,12 @@ class _VeiculoNovoScreenState extends ConsumerState<VeiculoNovoScreen> {
             const SizedBox(height: 20),
             Text('TCO / Aquisição',
                 style: Theme.of(context).textTheme.titleSmall),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 4, bottom: 8),
               child: Text(
                 'Opcional — usado só pra calcular o TCO (custo total de propriedade, incluindo depreciação) em '
                 'TCO / Custo por Veículo. Sem esses dados o TCO ainda é calculado, mas sem depreciação.',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               ),
             ),
             TextFormField(

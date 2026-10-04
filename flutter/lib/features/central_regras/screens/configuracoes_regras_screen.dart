@@ -25,9 +25,9 @@ class ConfiguracoesRegrasScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Configurar limites')),
       body: overrides.when(
         data: (mapa) => RefreshIndicator(
@@ -155,19 +155,19 @@ class _LinhaRegraState extends ConsumerState<_LinhaRegra> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFDBEAFE),
+                        color: AppTheme.tintInfo,
                         borderRadius: BorderRadius.circular(12)),
-                    child: const Text('Personalizado',
+                    child: Text('Personalizado',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1D4ED8))),
+                            color: AppTheme.fgInfo)),
                   ),
               ],
             ),
             const SizedBox(height: 4),
             Text(widget.definicao.ajuda,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
             const SizedBox(height: 8),
             if (_erro != null) ...[
               Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 12)),

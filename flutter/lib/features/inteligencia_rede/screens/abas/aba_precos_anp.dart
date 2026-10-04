@@ -40,15 +40,15 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                     d.semanaAnpMaisRecente != null
                         ? 'Referência oficial ANP da semana de ${_dataBr(d.semanaAnpMaisRecente!.dataInicial)} a ${_dataBr(d.semanaAnpMaisRecente!.dataFinal)}. Combustíveis sem categoria oficial mapeada usam uma estimativa fixa.'
                         : 'Nenhuma planilha oficial da ANP foi importada ainda — usando estimativa fixa como referência provisória.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 12),
                   if (d.precoPorCombustivel.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                           'Ainda não há preços cadastrados. Importe as planilhas em Postos Revendedores.',
-                          style: TextStyle(color: Colors.grey)),
+                          style: TextStyle(color: AppTheme.grey500)),
                     )
                   else ...[
                     _GraficoCustoAnp(dados: d.precoPorCombustivel),
@@ -92,7 +92,7 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                   const SizedBox(height: 4),
                   Text(
                     'Evolução mensal do preço médio GF. Barras verdes = abaixo do ANP (saving); vermelhas = acima do ANP (custo extra).',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 12),
                   _graficoSavingMensal(d),
@@ -107,8 +107,8 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
 
   Widget _graficoSavingMensal(InteligenciaRedeCompleta d) {
     if (d.evolucaoMensal.isEmpty) {
-      return const Text('Histórico de preços vazio.',
-          style: TextStyle(color: Colors.grey));
+      return Text('Histórico de preços vazio.',
+          style: TextStyle(color: AppTheme.grey500));
     }
     final combustiveis =
         d.evolucaoMensal.map((e) => e.combustivel).toSet().toList()..sort();
@@ -142,8 +142,8 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
       children: [
         Row(
           children: [
-            const Text('Combustível: ',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
+            Text('Combustível: ',
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
             const SizedBox(width: 4),
             DropdownButton<String>(
               value: _combustivelSaving,
@@ -163,8 +163,8 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
         ),
         const SizedBox(height: 12),
         if (serie.isEmpty)
-          const Text('Sem histórico para esse combustível.',
-              style: TextStyle(color: Colors.grey))
+          Text('Sem histórico para esse combustível.',
+              style: TextStyle(color: AppTheme.grey500))
         else ...[
           SizedBox(
             height: 260,
@@ -182,7 +182,7 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                       ? AppTheme.glassTextoAtivo
                       : (e.value.precoMedio < referenciaAtual
                           ? const Color(0xFF2E7D32)
-                          : const Color(0xFFB71C1C));
+                          : AppTheme.fgErro);
                   return BarChartGroupData(x: e.key, barRods: [
                     BarChartRodData(
                         toY: e.value.precoMedio,
@@ -247,11 +247,11 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: AppTheme.grey50,
                   borderRadius: BorderRadius.circular(8)),
               child: RichText(
                 text: TextSpan(
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  style: TextStyle(fontSize: 12, color: AppTheme.glassTexto),
                   children: [
                     const TextSpan(text: 'Saldo acumulado do período: '),
                     TextSpan(
@@ -261,7 +261,7 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
                           fontWeight: FontWeight.w700,
                           color: savingAcumulado > 0
                               ? const Color(0xFF2E7D32)
-                              : const Color(0xFFB71C1C)),
+                              : AppTheme.fgErro),
                     ),
                     TextSpan(
                         text:
@@ -352,12 +352,12 @@ class _GraficoCustoAnp extends StatelessWidget {
                   barra(d.precoMedio, const Color(0xFFE65100)),
                   Text(formatarMoeda(d.precoMedio, casas: 2),
                       style:
-                          TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                          TextStyle(fontSize: 10, color: AppTheme.grey500)),
                   if (d.referencia != null) ...[
                     barra(d.referencia!, AppTheme.glassTextoAtivo),
                     Text(formatarMoeda(d.referencia!, casas: 2),
                         style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade500)),
+                            fontSize: 10, color: AppTheme.grey500)),
                   ],
                 ],
               ),

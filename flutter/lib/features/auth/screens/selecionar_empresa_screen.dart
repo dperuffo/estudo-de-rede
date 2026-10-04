@@ -77,9 +77,9 @@ class _SelecionarEmpresaScreenState
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
             decoration:
-                const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                BoxDecoration(gradient: AppTheme.glassNavGradient)),
         foregroundColor: AppTheme.glassTexto,
-        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        iconTheme: IconThemeData(color: AppTheme.glassIcone),
         title: Text(ehAdmin
             ? 'Selecione o cliente'
             : (ehPosto ? 'Selecione o posto' : 'Selecione a empresa')),
@@ -113,7 +113,7 @@ class _SelecionarEmpresaScreenState
                             'Escolha com qual posto você quer trabalhar agora.'
                         : 'Seu usuário está vinculado a mais de uma empresa (Grupo Econômico). '
                             'Escolha com qual empresa você quer trabalhar agora.',
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13),
               ),
               const SizedBox(height: 12),
               if (ehAdmin && todas.length > 6)
@@ -135,13 +135,13 @@ class _SelecionarEmpresaScreenState
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                       child: Text('Nenhum cliente encontrado.',
-                          style: TextStyle(color: Colors.grey.shade500))),
+                          style: TextStyle(color: AppTheme.grey500))),
                 ),
               ...empresas.map((e) {
                 final atual = e.id == empresaAtualId;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  color: atual ? const Color(0xFFEFF6FF) : null,
+                  color: atual ? AppTheme.tintInfo : null,
                   child: ListTile(
                     title: Text(e.nome,
                         style: TextStyle(
@@ -152,11 +152,11 @@ class _SelecionarEmpresaScreenState
                             ehAdmin
                                 ? 'Cliente atual'
                                 : (ehPosto ? 'Posto atual' : 'Empresa atual'),
-                            style: const TextStyle(color: Color(0xFF1D4ED8)))
+                            style: TextStyle(color: AppTheme.fgInfo))
                         : null,
                     trailing: atual
-                        ? const Icon(Icons.check_circle,
-                            color: Color(0xFF1D4ED8))
+                        ? Icon(Icons.check_circle,
+                            color: AppTheme.fgInfo)
                         : const Icon(Icons.chevron_right),
                     onTap: atual
                         ? null

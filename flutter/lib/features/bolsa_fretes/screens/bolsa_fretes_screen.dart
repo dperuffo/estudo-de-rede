@@ -200,9 +200,9 @@ class BolsaFretesScreen extends ConsumerWidget {
                 },
               ),
             ListTile(
-              leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
+              leading: Icon(Icons.delete_outline, color: AppTheme.fgErro),
               title: Text('Excluir',
-                  style: TextStyle(color: Colors.red.shade700)),
+                  style: TextStyle(color: AppTheme.fgErro)),
               onTap: () async {
                 Navigator.pop(ctx);
                 final confirmado = await showDialog<bool>(
@@ -217,7 +217,7 @@ class BolsaFretesScreen extends ConsumerWidget {
                           child: const Text('Voltar')),
                       FilledButton(
                           style: FilledButton.styleFrom(
-                              backgroundColor: Colors.red.shade700),
+                              backgroundColor: AppTheme.fgErro),
                           onPressed: () => Navigator.pop(dctx, true),
                           child: const Text('Excluir')),
                     ],
@@ -263,9 +263,9 @@ class BolsaFretesScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Bolsa de Fretes do Grupo')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirFormNova(context, ref),
@@ -297,7 +297,7 @@ class BolsaFretesScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                           'Nenhuma capacidade ociosa declarada ainda.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   );
                 }
@@ -332,7 +332,7 @@ class BolsaFretesScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                           'Nenhum frete disponível nas outras empresas do grupo agora, ou esta empresa não pertence a um Grupo Econômico.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   );
                 }
@@ -357,14 +357,14 @@ class BolsaFretesScreen extends ConsumerWidget {
   Widget _cardCapacidade(
       BuildContext context, WidgetRef ref, CapacidadeOciosa c) {
     final corStatus = switch (c.status) {
-      'cancelada' => const Color(0xFFF3F4F6),
-      'utilizada' => const Color(0xFFFEF3C7),
-      _ => const Color(0xFFDCFCE7),
+      'cancelada' => AppTheme.superficieAlt,
+      'utilizada' => AppTheme.tintAviso,
+      _ => AppTheme.tintOk,
     };
     final corStatusTexto = switch (c.status) {
-      'cancelada' => Colors.grey.shade600,
-      'utilizada' => const Color(0xFF92400E),
-      _ => const Color(0xFF15803D),
+      'cancelada' => AppTheme.grey600,
+      'utilizada' => AppTheme.fgAviso,
+      _ => AppTheme.fgOk,
     };
     final statusLabel = switch (c.status) {
       'cancelada' => 'Cancelada',
@@ -402,7 +402,7 @@ class BolsaFretesScreen extends ConsumerWidget {
                             color: corStatusTexto)),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                  Icon(Icons.more_vert, size: 18, color: AppTheme.grey500),
                 ],
               ),
               const SizedBox(height: 6),
@@ -432,7 +432,7 @@ class BolsaFretesScreen extends ConsumerWidget {
   Widget _cardFrete(FreteDoGrupo f, bool compativel) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: compativel ? const Color(0xFFEFF6FF) : null,
+      color: compativel ? AppTheme.tintInfo : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -451,13 +451,13 @@ class BolsaFretesScreen extends ConsumerWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFDBEAFE),
+                        color: AppTheme.tintInfo,
                         borderRadius: BorderRadius.circular(12)),
-                    child: const Text('Compatível',
+                    child: Text('Compatível',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1D4ED8))),
+                            color: AppTheme.fgInfo)),
                   ),
               ],
             ),

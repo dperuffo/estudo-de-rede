@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs Rodopar/Datapar)
 // — Estoque de Peças na Manutenção (cliente), porta de estoque-pecas/page.tsx
@@ -12,13 +13,13 @@ import '../../../core/services/supabase_service.dart';
 
 const tipoMovimentoLabel = {'entrada': 'Entrada', 'saida': 'Saída'};
 
-const tipoMovimentoCorFundo = {
-  'entrada': Color(0xFFDCFCE7),
-  'saida': Color(0xFFFEE2E2)
+get tipoMovimentoCorFundo => {
+  'entrada': AppTheme.tintOk,
+  'saida': AppTheme.tintErro
 };
-const tipoMovimentoCorTexto = {
-  'entrada': Color(0xFF166534),
-  'saida': Color(0xFF991B1B)
+get tipoMovimentoCorTexto => {
+  'entrada': AppTheme.fgOk,
+  'saida': AppTheme.fgErro
 };
 
 class PecaEstoque {

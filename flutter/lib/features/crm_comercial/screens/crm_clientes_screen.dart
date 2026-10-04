@@ -45,9 +45,9 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('CRM Comercial')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/crm-comercial/novo'),
@@ -70,9 +70,9 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Text(
+                Text(
                   'Clientes-tomadores cadastrados. Propostas (Cotações) e histórico de relacionamento ficam no detalhe de cada cliente.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -88,11 +88,11 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (filtrados.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(
                         child: Text('Nenhum cliente cadastrado ainda.',
-                            style: TextStyle(color: Colors.grey))),
+                            style: TextStyle(color: AppTheme.grey500))),
                   )
                 else
                   ...filtrados.map(_card),
@@ -116,7 +116,7 @@ class _CrmClientesScreenState extends ConsumerState<CrmClientesScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(_fmtCnpjCpf(c.cnpjCpf),
-              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500)),
         ),
         trailing: const Icon(Icons.chevron_right),
       ),

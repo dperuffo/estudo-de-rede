@@ -18,9 +18,9 @@ class GrupoEconomicoScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Grupo Econômico')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -32,7 +32,7 @@ class GrupoEconomicoScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   'Sua empresa não faz parte de nenhum grupo econômico.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: AppTheme.grey600),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -48,8 +48,8 @@ class GrupoEconomicoScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Agrupamento de empresas do mesmo grupo econômico.',
-            style: TextStyle(color: Colors.grey, fontSize: 13)),
+        Text('Agrupamento de empresas do mesmo grupo econômico.',
+            style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -69,7 +69,7 @@ class GrupoEconomicoScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (g.ativo ? const Color(0xFF15803D) : Colors.grey)
+                        color: (g.ativo ? AppTheme.fgOk : AppTheme.grey500)
                             .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -77,8 +77,8 @@ class GrupoEconomicoScreen extends ConsumerWidget {
                           style: TextStyle(
                               fontSize: 11,
                               color: g.ativo
-                                  ? const Color(0xFF15803D)
-                                  : Colors.grey.shade700,
+                                  ? AppTheme.fgOk
+                                  : AppTheme.grey700,
                               fontWeight: FontWeight.w600)),
                     ),
                   ],
@@ -87,7 +87,7 @@ class GrupoEconomicoScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text('CNPJ matriz: ${g.cnpjMatriz}',
                       style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                          TextStyle(fontSize: 13, color: AppTheme.grey700)),
                 ],
               ],
             ),
@@ -102,7 +102,7 @@ class GrupoEconomicoScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text('Nenhuma empresa vinculada.',
-                  style: TextStyle(color: Colors.grey.shade600)),
+                  style: TextStyle(color: AppTheme.grey600)),
             ),
           )
         else
@@ -118,7 +118,7 @@ class GrupoEconomicoScreen extends ConsumerWidget {
         const SizedBox(height: 12),
         Text(
           'Pra vincular ou remover empresas do grupo, fale com a equipe FNI (Gestão de Chamados).',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey600),
         ),
       ],
     );

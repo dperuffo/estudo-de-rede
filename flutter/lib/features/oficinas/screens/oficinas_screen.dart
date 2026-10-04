@@ -167,9 +167,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
             const Text('Registrar retorno da oficina',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
                 'Cotação recebida por telefone/e-mail — documente aqui pra decidir depois.',
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
             const SizedBox(height: 12),
             TextField(
               controller: valorCtrl,
@@ -247,11 +247,11 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Rede de Oficinas'),
-          bottom: const TabBar(
+          bottom: TabBar(
             labelColor: AppTheme.glassTextoAtivo,
             unselectedLabelColor: AppTheme.glassTextoMuted,
             indicatorColor: AppTheme.glassTextoAtivo,
@@ -315,12 +315,12 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (filtradas.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Center(
                           child: Text(
                               'Nenhuma oficina encontrada para esse filtro.',
-                              style: TextStyle(color: Colors.grey))),
+                              style: TextStyle(color: AppTheme.grey500))),
                     )
                   else
                     Column(children: filtradas.map(_cardOficina).toList()),
@@ -337,7 +337,7 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   border:
-                      const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                      Border(top: BorderSide(color: AppTheme.bordaSuave)),
                 ),
                 child: SafeArea(
                   top: false,
@@ -402,7 +402,7 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                         o.municipio,
                         o.uf
                       ].where((s) => s != null && s.isNotEmpty).join(' / ')}${o.avaliacaoMedia != null ? ' · ⭐ ${o.avaliacaoMedia!.toStringAsFixed(1)}' : ''}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                     ),
                     if (o.especialidades.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -425,8 +425,8 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text('${o.telefone ?? ''} ${o.email ?? ''}',
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey)),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.grey500)),
                       ),
                   ],
                 ),
@@ -445,9 +445,9 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
     return pedidosAsync.when(
       data: (lista) {
         if (lista.isEmpty) {
-          return const Center(
+          return Center(
               child: Text('Nenhuma solicitação de orçamento ainda.',
-                  style: TextStyle(color: Colors.grey)));
+                  style: TextStyle(color: AppTheme.grey500)));
         }
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -485,8 +485,8 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: p.status == 'decidido'
-                        ? const Color(0xFFDCFCE7)
-                        : const Color(0xFFFEF3C7),
+                        ? AppTheme.tintOk
+                        : AppTheme.tintAviso,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -497,8 +497,8 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: p.status == 'decidido'
-                            ? const Color(0xFF166534)
-                            : const Color(0xFF92400E)),
+                            ? AppTheme.fgOk
+                            : AppTheme.fgAviso),
                   ),
                 ),
               ],
@@ -506,7 +506,7 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
             const SizedBox(height: 2),
             Text(
                 '${p.propostas.length} oficina${p.propostas.length > 1 ? 's' : ''} cotada${p.propostas.length > 1 ? 's' : ''}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
             const SizedBox(height: 8),
             ...p.propostas.map(_cardProposta),
           ],
@@ -520,7 +520,7 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: AppTheme.bordaSuave),
           borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,14 +537,14 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                     color: statusOrcamentoCorFundo[s.status] ??
-                        const Color(0xFFF1F5F9),
+                        AppTheme.superficieAlt,
                     borderRadius: BorderRadius.circular(12)),
                 child: Text(statusOrcamentoLabel[s.status] ?? s.status,
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: statusOrcamentoCorTexto[s.status] ??
-                            Colors.grey.shade700)),
+                            AppTheme.grey700)),
               ),
             ],
           ),
@@ -558,7 +558,7 @@ class _OficinasScreenState extends ConsumerState<OficinasScreen> {
           if (s.observacoesOficina != null) ...[
             const SizedBox(height: 4),
             Text(s.observacoesOficina!,
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
           ],
           if (s.status == 'solicitado') ...[
             const SizedBox(height: 8),

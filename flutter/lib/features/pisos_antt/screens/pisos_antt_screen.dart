@@ -23,9 +23,9 @@ class PisosAnttScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Piso Mínimo ANTT')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -41,7 +41,7 @@ class PisosAnttScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text('Nenhum piso ANTT cadastrado ainda.',
-              style: TextStyle(color: Colors.grey.shade600)),
+              style: TextStyle(color: AppTheme.grey600)),
         ),
       );
     }
@@ -54,11 +54,11 @@ class PisosAnttScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
       children: [
-        const Text(
+        Text(
           'Res. ANTT 5.867/2020 — piso = distância (km) × coeficiente de deslocamento + coeficiente de '
           'carga/descarga, por tipo de carga e nº de eixos. É o valor mínimo legal usado pra alertar quando '
           'uma cotação simulada fica abaixo do piso.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 12),
         for (final entrada in porTipo.entries)
@@ -101,7 +101,7 @@ class PisosAnttScreen extends ConsumerWidget {
                                 .format(DateTime.parse(p.vigenciaInicio))
                             : p.vigenciaInicio,
                         style: TextStyle(
-                            fontSize: 11.5, color: Colors.grey.shade600),
+                            fontSize: 11.5, color: AppTheme.grey600),
                       ),
                     ],
                   ),

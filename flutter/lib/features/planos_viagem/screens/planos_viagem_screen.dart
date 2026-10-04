@@ -40,9 +40,9 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Planos de Viagem')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/planos-viagem/novo'),
@@ -64,9 +64,9 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Orçamento estimado de custos e receita por viagem e veículo.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 16),
         _kpis(kpis),
@@ -111,7 +111,7 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
                 child: Text('Nenhum plano de viagem encontrado.',
-                    style: TextStyle(color: Colors.grey.shade500))),
+                    style: TextStyle(color: AppTheme.grey500))),
           )
         else
           ...lista.map(_cardPlano),
@@ -121,7 +121,7 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade500,
+                  color: AppTheme.grey500,
                   letterSpacing: 0.5)),
           const SizedBox(height: 10),
           ...porVeiculo.map(_cardVeiculo),
@@ -166,24 +166,24 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
   Widget _indicador(String label, String valor,
       {_CorDestaque destaque = _CorDestaque.neutro}) {
     final cor = switch (destaque) {
-      _CorDestaque.positivo => const Color(0xFF15803D),
+      _CorDestaque.positivo => AppTheme.fgOk,
       _CorDestaque.negativo => const Color(0xFFDC2626),
-      _CorDestaque.neutro => Colors.black87,
+      _CorDestaque.neutro => AppTheme.glassTexto,
     };
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: AppTheme.grey50,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200)),
+            border: Border.all(color: AppTheme.grey200)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade500,
+                    color: AppTheme.grey500,
                     fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
@@ -221,17 +221,17 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: AppTheme.tintAviso,
                         borderRadius: BorderRadius.circular(10)),
                     child: Text(statusPlanoViagemLabel[p.status] ?? p.status,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF92400E),
+                            color: AppTheme.fgAviso,
                             fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(width: 8),
                   Text('${_moeda.format(p.custoTotalEstimado)} est.',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
                   const Spacer(),
                   Text(
                     'Margem: ${_moeda.format(margem)}',
@@ -239,7 +239,7 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: margem >= 0
-                            ? const Color(0xFF15803D)
+                            ? AppTheme.fgOk
                             : const Color(0xFFDC2626)),
                   ),
                 ],
@@ -284,7 +284,7 @@ class _PlanosViagemScreenState extends ConsumerState<PlanosViagemScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey600)),
           Text(valor,
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),

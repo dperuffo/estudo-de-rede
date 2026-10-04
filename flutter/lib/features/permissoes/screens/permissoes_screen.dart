@@ -57,9 +57,9 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Permissões por Perfil')),
       body: matrizAsync.when(
         data: (matriz) => _conteudo(matriz, sessao.valueOrNull),
@@ -73,10 +73,10 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Controla o que cada perfil de usuário pode ver e fazer no sistema. Toque no interruptor '
           'para permitir ou negar o acesso de um perfil a uma funcionalidade.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppTheme.grey500),
         ),
         const SizedBox(height: 8),
         Text(
@@ -94,7 +94,7 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
                 child: Text('Nenhuma permissão cadastrada ainda.',
-                    style: TextStyle(color: Colors.grey.shade500))),
+                    style: TextStyle(color: AppTheme.grey500))),
           )
         else
           ...matriz.funcionalidades.map((f) => _cardFuncionalidade(f, matriz)),
@@ -156,7 +156,7 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
             alignment: Alignment.bottomCenter,
             child: Text(
               perfilLabel[perfil] ?? perfil,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: AppTheme.grey500),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

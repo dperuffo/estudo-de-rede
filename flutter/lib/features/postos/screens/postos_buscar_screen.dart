@@ -65,9 +65,9 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Explorar universo ANP')),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -102,11 +102,11 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: _busca.trim().length < 3
-                  ? const Center(
+                  ? Center(
                       child: Padding(
                         padding: EdgeInsets.all(24),
                         child: Text('Digite ao menos 3 letras para buscar.',
-                            style: TextStyle(color: Colors.grey)),
+                            style: TextStyle(color: AppTheme.grey500)),
                       ),
                     )
                   : async.when(
@@ -116,9 +116,9 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
                           Center(child: Text('Erro ao buscar: $e')),
                       data: (resultados) {
                         if (resultados.isEmpty) {
-                          return const Center(
+                          return Center(
                             child: Text('Nenhum posto encontrado.',
-                                style: TextStyle(color: Colors.grey)),
+                                style: TextStyle(color: AppTheme.grey500)),
                           );
                         }
                         return ListView.builder(
@@ -143,8 +143,8 @@ class _PostosBuscarScreenState extends ConsumerState<PostosBuscarScreen> {
                                         p.bandeira!.isNotEmpty)
                                       p.bandeira!,
                                   ].where((v) => v.isNotEmpty).join(' · '),
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey),
+                                  style: TextStyle(
+                                      fontSize: 12, color: AppTheme.grey500),
                                 ),
                                 trailing: ativando
                                     ? const SizedBox(

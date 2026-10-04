@@ -37,12 +37,12 @@ const _statusLabel = <String, String>{
   'cancelada': 'Cancelada',
 };
 
-const _statusCor = <String, Color>{
-  'aberto': Color(0xFF1D4ED8),
-  'fechada': Color(0xFF64748B),
-  'a_vencer': Color(0xFFB45309),
-  'vencida': Color(0xFFB91C1C),
-  'paga': Color(0xFF15803D),
+get _statusCor => <String, Color>{
+  'aberto': AppTheme.fgInfo,
+  'fechada': AppTheme.glassTextoMuted,
+  'a_vencer': AppTheme.fgAviso,
+  'vencida': AppTheme.fgErro,
+  'paga': AppTheme.fgOk,
   'cancelada': Color(0xFF94A3B8),
 };
 
@@ -76,9 +76,9 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Notas Fiscais')),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -117,7 +117,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                           'Nenhum ciclo de faturamento encontrado ainda.',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                          style: TextStyle(color: AppTheme.grey600)),
                     ),
                   )
                 else
@@ -201,7 +201,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                               child: Text(
                                   'Nenhum abastecimento encontrado neste ciclo.',
                                   style:
-                                      TextStyle(color: Colors.grey.shade600)),
+                                      TextStyle(color: AppTheme.grey600)),
                             ),
                           );
                         }
@@ -221,7 +221,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
   Widget _cardCiclo(CicloNfe c, {required bool selecionado}) {
     final percentual = c.percentual ?? 0;
     final cor = _corDoPercentual(percentual);
-    final statusCor = _statusCor[c.status] ?? Colors.grey;
+    final statusCor = _statusCor[c.status] ?? AppTheme.grey500;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: selecionado
@@ -266,12 +266,12 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
               const SizedBox(height: 4),
               Text(
                 '${_fmtData(c.periodoInicio)} – ${_fmtData(c.periodoFim)} · vencimento ${_fmtData(c.vencimento)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.grey500),
               ),
               const SizedBox(height: 10),
               if (c.total == 0)
                 Text('Sem abastecimentos neste ciclo ainda.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey500))
               else ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -281,7 +281,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                         '${c.comNota} de ${c.total} com NF-e'
                         '${c.rejeitadas > 0 ? ' · ${c.rejeitadas} rejeitada${c.rejeitadas == 1 ? '' : 's'}' : ''}',
                         style:
-                            const TextStyle(fontSize: 12, color: Colors.grey),
+                            TextStyle(fontSize: 12, color: AppTheme.grey500),
                       ),
                     ),
                     Text('${percentual.toStringAsFixed(1)}%',
@@ -297,7 +297,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                   child: LinearProgressIndicator(
                     value: (percentual.clamp(0, 100)) / 100,
                     minHeight: 8,
-                    backgroundColor: Colors.grey.shade200,
+                    backgroundColor: AppTheme.grey200,
                     valueColor: AlwaysStoppedAnimation(cor),
                   ),
                 ),
@@ -333,7 +333,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
                 if (l.itemNome != null) l.itemNome!,
                 if (l.itemValorTotal != null) _moeda.format(l.itemValorTotal),
               ].join(' · '),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 4),
             _badgeStatus(l),
@@ -373,7 +373,7 @@ class _NotasFiscaisScreenState extends ConsumerState<NotasFiscaisScreen> {
               style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
           if (extra.isNotEmpty)
             Text(extra,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 11, color: AppTheme.grey600)),
         ],
       );
     }

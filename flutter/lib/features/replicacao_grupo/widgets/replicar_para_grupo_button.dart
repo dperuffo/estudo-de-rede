@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/replicacao_grupo_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 // Fase Replicação-Grupo — botão genérico e reutilizável (mesma ideia do
 // ReplicarParaGrupoButton.tsx na web): qualquer tela que edite algo ligado a
@@ -99,11 +100,11 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
   Color _corStatus(String status) {
     switch (status) {
       case 'sucesso':
-        return Colors.green.shade700;
+        return AppTheme.fgOk;
       case 'erro':
-        return Colors.red.shade700;
+        return AppTheme.fgErro;
       default:
-        return Colors.black45;
+        return AppTheme.glassTextoMuted;
     }
   }
 
@@ -160,13 +161,13 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
         ),
         const SizedBox(height: 12),
         if (_carregandoAlvos)
-          const Text('Buscando empresas do grupo…',
-              style: TextStyle(color: Colors.black45)),
+          Text('Buscando empresas do grupo…',
+              style: TextStyle(color: AppTheme.glassTextoMuted)),
         if (!_carregandoAlvos && _alvos.isEmpty)
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: Colors.amber.shade50,
+                color: AppTheme.tintAviso,
                 borderRadius: BorderRadius.circular(8)),
             child: const Text(
               'Não encontramos outras empresas no seu grupo — nada para replicar.',
@@ -175,7 +176,7 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
           ),
         if (!_carregandoAlvos && _alvos.isNotEmpty) ...[
           Text('Empresas que vão receber a cópia (${_alvos.length}):',
-              style: const TextStyle(fontSize: 11, color: Colors.black54)),
+              style: TextStyle(fontSize: 11, color: AppTheme.glassTextoMuted)),
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 160),
@@ -199,9 +200,9 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
       return Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+            color: AppTheme.tintErro, borderRadius: BorderRadius.circular(8)),
         child: Text(resultado.erro!,
-            style: TextStyle(fontSize: 13, color: Colors.red.shade800)),
+            style: TextStyle(fontSize: 13, color: AppTheme.fgErro)),
       );
     }
 
@@ -219,7 +220,7 @@ class _DialogReplicarParaGrupoState extends State<_DialogReplicarParaGrupo> {
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: AppTheme.grey100,
                   borderRadius: BorderRadius.circular(8)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -83,9 +83,9 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
           backgroundColor: Colors.transparent,
           flexibleSpace: Container(
               decoration:
-                  const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+                  BoxDecoration(gradient: AppTheme.glassNavGradient)),
           foregroundColor: AppTheme.glassTexto,
-          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+          iconTheme: IconThemeData(color: AppTheme.glassIcone),
           title: const Text('Minha Assinatura')),
       body: assinaturaAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -120,8 +120,8 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text('Plano atual, uso e histórico de cobrança.',
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
+            Text('Plano atual, uso e histórico de cobrança.',
+                style: TextStyle(color: AppTheme.grey500, fontSize: 13)),
             const SizedBox(height: 16),
             GridView.count(
               crossAxisCount: Responsive.colunasGrade(context, mobile: 2, desktop: 4),
@@ -150,8 +150,8 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: diasRestantesTrial <= 3
-                      ? const Color(0xFFFEF2F2)
-                      : const Color(0xFFEFF6FF),
+                      ? AppTheme.tintErro
+                      : AppTheme.tintInfo,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -161,8 +161,8 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     color: diasRestantesTrial <= 3
-                        ? const Color(0xFFB91C1C)
-                        : const Color(0xFF1D4ED8),
+                        ? AppTheme.fgErro
+                        : AppTheme.fgInfo,
                   ),
                 ),
               ),
@@ -174,7 +174,7 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
             Text(
               'Sua rede tem ${dados.qtdPostosNaRede} posto${dados.qtdPostosNaRede == 1 ? '' : 's'} — recomendamos '
               'o plano ${_planoLabel[planoRecomendado]} (destacado abaixo).',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppTheme.grey500),
             ),
             const SizedBox(height: 12),
             ...['basico', 'profissional', 'enterprise'].map((plano) {
@@ -185,14 +185,14 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
               return Card(
                 margin: const EdgeInsets.only(bottom: 10),
                 color: ehAtual
-                    ? const Color(0xFFEFF6FF)
-                    : (ehRecomendado ? const Color(0xFFF8FAFC) : null),
+                    ? AppTheme.tintInfo
+                    : (ehRecomendado ? AppTheme.superficieAlt : null),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: BorderSide(
                       color: ehAtual
-                          ? const Color(0xFF1D4ED8)
-                          : Colors.grey.shade300),
+                          ? AppTheme.fgInfo
+                          : AppTheme.grey300),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -205,7 +205,7 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1D4ED8),
+                            color: AppTheme.fgInfo,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text('Recomendado',
@@ -219,7 +219,7 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                               fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 4),
                       Text(precoLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                               color: AppTheme.glassTextoAtivo)),
@@ -229,12 +229,12 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: AppTheme.tintOk,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text('Plano atual',
+                          child: Text('Plano atual',
                               style: TextStyle(
-                                  color: Color(0xFF15803D),
+                                  color: AppTheme.fgOk,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
                         )
@@ -266,9 +266,9 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                               style: TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 14)),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Gerencie forma de pagamento, baixe recibos ou cancele a assinatura direto pelo portal do Stripe.',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                           ),
                         ],
                       ),
@@ -280,9 +280,9 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                         child: const Text('Gerenciar'),
                       )
                     else
-                      const Text('Assine um plano pago\npara gerenciar',
+                      Text('Assine um plano pago\npara gerenciar',
                           textAlign: TextAlign.right,
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          style: TextStyle(fontSize: 11, color: AppTheme.grey500)),
                   ],
                 ),
               ),
@@ -292,10 +292,10 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
             if (dados.invoices.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Text('Nenhuma fatura registrada ainda.',
-                    style: TextStyle(color: Colors.grey)),
+                    style: TextStyle(color: AppTheme.grey500)),
               )
             else
               ...dados.invoices.map((inv) => Card(
@@ -315,8 +315,8 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 color: inv.status == 'pago'
-                                    ? const Color(0xFF15803D)
-                                    : Colors.grey,
+                                    ? AppTheme.fgOk
+                                    : AppTheme.grey500,
                               )),
                         ],
                       ),
@@ -325,14 +325,14 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
             const SizedBox(height: 16),
             GestureDetector(
               onTap: () => context.push('/posto/chamados/novo'),
-              child: const Text.rich(
+              child: Text.rich(
                 TextSpan(
                   text: 'Dúvidas sobre cobrança? ',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey500),
                   children: [
                     TextSpan(
                         text: 'Abra um chamado.',
-                        style: TextStyle(color: Color(0xFF1D4ED8))),
+                        style: TextStyle(color: AppTheme.fgInfo)),
                   ],
                 ),
               ),
@@ -352,7 +352,7 @@ class _AssinaturaScreenState extends ConsumerState<AssinaturaScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(label.toUpperCase(),
-                style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                style: TextStyle(fontSize: 10, color: AppTheme.grey500)),
             const SizedBox(height: 4),
             Text(valor,
                 style:
