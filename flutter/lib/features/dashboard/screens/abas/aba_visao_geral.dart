@@ -193,7 +193,7 @@ class AbaVisaoGeral extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(8)),
+            color: AppTheme.superficie, borderRadius: BorderRadius.circular(8)),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

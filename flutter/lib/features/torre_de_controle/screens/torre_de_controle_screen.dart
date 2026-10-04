@@ -203,7 +203,7 @@ class TorreDeControleScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                          color: AppTheme.fgErro,
+                          color: const Color(0xFFDC2626), // vermelho fixo: texto branco
                           borderRadius: BorderRadius.circular(12)),
                       child: const Text('🚨 Emergência',
                           style: TextStyle(color: Colors.white, fontSize: 10)),
