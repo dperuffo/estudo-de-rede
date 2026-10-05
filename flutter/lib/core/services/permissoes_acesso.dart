@@ -163,13 +163,52 @@ final permissoesMapaProvider =
   if (perfil == null) return mapa;
   const empresaIdGlobal = '00000000-0000-0000-0000-000000000000';
   try {
+    // RLS devolve o padrão global + as linhas das empresas do usuário.
     final linhas = await SupabaseService.client
         .from('permissoes_perfil')
-        .select('funcionalidade, permitido')
-        .eq('empresa_id', empresaIdGlobal)
+        .select('funcionalidade, permitido, empresa_id')
         .eq('perfil', perfil);
+    final global = <String, bool>{};
     for (final m in linhas) {
-      mapa[m['funcionalidade'] as String] = m['permitido'] as bool? ?? false;
+      if (m['empresa_id'] == empresaIdGlobal) {
+        global[m['funcionalidade'] as String] = m['permitido'] as bool? ?? false;
+      }
+    }
+    mapa.addAll(global);
+
+    // 05/10/2026 (pedido do Daniel): o gestor decide, por empresa, o que os níveis
+    // abaixo dele podem usar — e isso BLOQUEIA de verdade. Gestor de frota, posto e
+    // admin sempre usam só o padrão global (acesso total à sua visão).
+    const perfisGestao = {'admin', 'gestor_frota', 'posto'};
+    if (!perfisGestao.contains(perfil)) {
+      final email = SupabaseService.client.auth.currentUser?.email ?? '';
+      final vinculos = await SupabaseService.client
+          .from('usuarios_empresas')
+          .select('empresa_id')
+          .eq('user_email', email)
+          .eq('ativo', true);
+      final empresas = <String>{
+        for (final v in vinculos) v['empresa_id'] as String,
+      };
+      if (empresas.isNotEmpty) {
+        final funcionalidades = <String>{
+          for (final m in linhas) m['funcionalidade'] as String,
+        };
+        for (final f in funcionalidades) {
+          // valor efetivo por empresa = linha da empresa ?? padrão global; libera se
+          // QUALQUER empresa liberar (quem trabalha em várias não fica travado).
+          var liberado = false;
+          for (final e in empresas) {
+            final propria = linhas.where(
+                (m) => m['empresa_id'] == e && m['funcionalidade'] == f);
+            final efetivo = propria.isNotEmpty
+                ? (propria.first['permitido'] as bool? ?? false)
+                : (global[f] ?? true);
+            if (efetivo) liberado = true;
+          }
+          mapa[f] = liberado;
+        }
+      }
     }
   } catch (e) {
     // Fail-open — mesmo espírito de carregarMapaPermissoes na web: uma
