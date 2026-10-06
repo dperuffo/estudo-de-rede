@@ -1,5 +1,6 @@
 import '../../abastecimentos_negados/providers/negados_pdv_provider.dart';
 import '../../abastecimentos_negados/screens/banner_negados_pdv.dart';
+import '../../ajustes_pdv/banner_ajustes_pdv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -321,6 +322,7 @@ class HomeScreen extends ConsumerWidget {
       body: Column(
         children: [
           const BannerNegadosPdv(),
+          const BannerAjustesPdv(),
           BarraAtalhosFavoritos(mapaItens: mapaItensFavoritos),
           Expanded(
             child: Responsive.conteudoCentralizado(context, child),
