@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/assistente_service.dart';
+import '../../assistente/widgets_bloco_visual.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -12,11 +13,13 @@ class _MensagemExibida {
   final String role;
   final String content;
   final List<ConsultaExecutada>? consultas;
+  final List<BlocoVisual> blocos;
   final bool erro;
   const _MensagemExibida(
       {required this.role,
       required this.content,
       this.consultas,
+      this.blocos = const [],
       this.erro = false});
 }
 
@@ -92,6 +95,7 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
           content: resultado.resposta ??
               'Não consegui gerar uma resposta para essa pergunta.',
           consultas: resultado.consultas,
+          blocos: resultado.blocos,
         ));
       }
     });
@@ -180,7 +184,9 @@ class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(m.content, style: TextStyle(color: corTexto, fontSize: 14)),
+            if (m.content.isNotEmpty)
+              Text(m.content, style: TextStyle(color: corTexto, fontSize: 14)),
+            for (final b in m.blocos) BlocoVisualWidget(bloco: b),
             if (m.consultas != null && m.consultas!.isNotEmpty)
               Theme(
                 data: Theme.of(context)

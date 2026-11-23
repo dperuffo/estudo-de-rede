@@ -1,6 +1,7 @@
 import '../../abastecimentos_negados/providers/negados_pdv_provider.dart';
 import '../../abastecimentos_negados/screens/banner_negados_pdv.dart';
 import '../../ajustes_pdv/banner_ajustes_pdv.dart';
+import '../../ajustes_pdv/ajustes_pdv_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -165,6 +166,11 @@ const List<({String href, String label, IconData icon})> _itensMenuCliente = [
     href: '/abastecimentos-negados',
     label: 'Abastecimentos Negados (PDV)',
     icon: Icons.gpp_maybe_outlined
+  ),
+  (
+    href: '/ajustes-pdv',
+    label: 'Pedidos de Ajuste (PDV)',
+    icon: Icons.edit_note
   ),
   (
     href: '/oficinas',
@@ -531,7 +537,7 @@ class _HomeDrawer extends ConsumerWidget {
         decoration: BoxDecoration(gradient: AppTheme.glassNavGradient),
         child: ListView(
           padding: EdgeInsets.zero,
-          children: [
+          children: _HomeDrawer._agruparRetrateis([
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -704,6 +710,12 @@ class _HomeDrawer extends ConsumerWidget {
               _item(context, Icons.gpp_maybe_outlined,
                   'Abastecimentos Negados (PDV)', '/abastecimentos-negados',
                   badge: ref.watch(negadosPdvPendentesProvider).valueOrNull ?? 0),
+            // 06/10/2026 — pedidos de ajuste de abastecimento PDV aguardando a
+            // decisão do usuário (aprovar/recusar direto no app).
+            if (pode('/ajustes-pdv'))
+              _item(context, Icons.edit_note, 'Pedidos de Ajuste (PDV)',
+                  '/ajustes-pdv',
+                  badge: ref.watch(ajustesPdvPendentesProvider).valueOrNull ?? 0),
             // Fase FLT-Aprovação-Manual (02/09/2026) — lançamentos manuais
             // do PWA Motorista (foto do cupom + OCR) esperando aprovação.
             if (pode('/abastecimentos/aprovacao'))
@@ -990,18 +1002,100 @@ class _HomeDrawer extends ConsumerWidget {
                 if (context.mounted) context.go('/login');
               },
             ),
-          ],
+          ]),
         ),
       ),
     );
   }
 
-  Widget _grp(String label) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.glassTextoMuted)),
-      );
+  // Marcador de grupo: `_agruparRetrateis` troca cada marcador + os itens
+  // seguintes (até o próximo Divider/marcador) por um grupo retrátil —
+  // mesma regra do menu da web: grupos começam recolhidos.
+  Widget _grp(String label) => _MarcadorGrupo(label);
+
+  static List<Widget> _agruparRetrateis(List<Widget> filhos) {
+    final saida = <Widget>[];
+    String? rotulo;
+    var itens = <Widget>[];
+    void fechar() {
+      if (rotulo != null) {
+        if (itens.isNotEmpty) {
+          saida.add(_GrupoRetratilMenu(rotulo: rotulo!, itens: itens));
+        }
+        rotulo = null;
+        itens = <Widget>[];
+      }
+    }
+
+    for (final w in filhos) {
+      if (w is _MarcadorGrupo) {
+        fechar();
+        rotulo = w.rotulo;
+      } else if (w is Divider) {
+        fechar();
+        saida.add(w);
+      } else if (rotulo != null) {
+        itens.add(w);
+      } else {
+        saida.add(w);
+      }
+    }
+    fechar();
+    return saida;
+  }
+}
+
+class _MarcadorGrupo extends StatelessWidget {
+  final String rotulo;
+  const _MarcadorGrupo(this.rotulo);
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+// Grupo do menu que abre/fecha ao tocar no título. O estado fica numa Set
+// estática pra continuar aberto quando o Drawer é reaberto.
+class _GrupoRetratilMenu extends StatefulWidget {
+  final String rotulo;
+  final List<Widget> itens;
+  const _GrupoRetratilMenu({required this.rotulo, required this.itens});
+  static final Set<String> _abertos = <String>{};
+  @override
+  State<_GrupoRetratilMenu> createState() => _GrupoRetratilMenuState();
+}
+
+class _GrupoRetratilMenuState extends State<_GrupoRetratilMenu> {
+  bool get _aberto => _GrupoRetratilMenu._abertos.contains(widget.rotulo);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => setState(() {
+            _aberto
+                ? _GrupoRetratilMenu._abertos.remove(widget.rotulo)
+                : _GrupoRetratilMenu._abertos.add(widget.rotulo);
+          }),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(widget.rotulo,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.glassTextoMuted)),
+                ),
+                Icon(_aberto ? Icons.expand_less : Icons.expand_more,
+                    size: 18, color: AppTheme.glassTextoMuted),
+              ],
+            ),
+          ),
+        ),
+        if (_aberto) ...widget.itens,
+      ],
+    );
+  }
 }

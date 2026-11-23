@@ -35,14 +35,59 @@ class ConsultaExecutada {
       );
 }
 
+// Bloco visual (gráfico/tabela) que o assistente pede pra desenhar — mesmo
+// formato de BlocoVisual em src/lib/assistenteIA.ts (web). Números vêm de
+// consultas SQL; o app só desenha.
+class SerieBloco {
+  final String nome;
+  final List<double> valores;
+  const SerieBloco(this.nome, this.valores);
+}
+
+class BlocoVisual {
+  final String tipo; // barras | linhas | pizza | tabela
+  final String titulo;
+  final String formato; // numero | moeda | litros | km | percentual
+  final List<String> categorias;
+  final List<SerieBloco> series;
+  const BlocoVisual({
+    required this.tipo,
+    required this.titulo,
+    required this.formato,
+    required this.categorias,
+    required this.series,
+  });
+  factory BlocoVisual.fromMap(Map<String, dynamic> m) => BlocoVisual(
+        tipo: m['tipo'] as String? ?? 'tabela',
+        titulo: m['titulo'] as String? ?? '',
+        formato: m['formato'] as String? ?? 'numero',
+        categorias: ((m['categorias'] as List?) ?? const [])
+            .map((e) => '$e')
+            .toList(),
+        series: ((m['series'] as List?) ?? const []).map((x) {
+          final mm = x as Map<String, dynamic>;
+          return SerieBloco(
+            mm['nome'] as String? ?? '',
+            ((mm['valores'] as List?) ?? const [])
+                .map((v) => (v as num?)?.toDouble() ?? 0.0)
+                .toList(),
+          );
+        }).toList(),
+      );
+}
+
 class RespostaAssistente {
   final String? resposta;
   final List<ConsultaExecutada> consultas;
+  final List<BlocoVisual> blocos;
   final String? erro;
-  const RespostaAssistente.ok(this.resposta, this.consultas) : erro = null;
+  const RespostaAssistente.ok(this.resposta, this.consultas,
+      [this.blocos = const []])
+      : erro = null;
   const RespostaAssistente.erro(this.erro)
       : resposta = null,
-        consultas = const [];
+        consultas = const [],
+        blocos = const [];
 }
 
 class AssistenteService {
@@ -87,7 +132,11 @@ class AssistenteService {
       final consultas = consultasRaw
           .map((c) => ConsultaExecutada.fromMap(c as Map<String, dynamic>))
           .toList();
-      return RespostaAssistente.ok(corpo['resposta'] as String?, consultas);
+      final blocos = ((corpo['blocos'] as List?) ?? const [])
+          .map((b) => BlocoVisual.fromMap(b as Map<String, dynamic>))
+          .toList();
+      return RespostaAssistente.ok(
+          corpo['resposta'] as String?, consultas, blocos);
     } on DioException catch (e) {
       final corpo = e.response?.data;
       if (corpo is Map && corpo['erro'] != null)
